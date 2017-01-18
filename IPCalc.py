@@ -49,11 +49,15 @@ def DotDecGen (iDecValue):
 	# end if
 
 	# Convert decimal to hex
-	HexMask = hex(iDecValue)
+	HexValue = hex(iDecValue)
 
+	#Ensure the results is 8 hex digits long.
+	#IP's lower than 16.0.0.0 have trailing 0's that get trimmed off by hex function
+	HexValue = "0"*8+HexValue[2:]
+	HexValue = "0x"+HexValue[-8:]
 	# Convert Hex to dot dec
-	strTemp = str(int(HexMask[2:4],16)) + "." + str(int(HexMask[4:6],16)) + "."
-	strTemp = strTemp + str(int(HexMask[6:8],16)) + "." + str(int(HexMask[8:10],16))
+	strTemp = str(int(HexValue[2:4],16)) + "." + str(int(HexValue[4:6],16)) + "."
+	strTemp = strTemp + str(int(HexValue[6:8],16)) + "." + str(int(HexValue[8:10],16))
 	return strTemp
 # End Function
 
@@ -210,7 +214,7 @@ if iSysArgLen > 2:
 	strMask = SysArgs[2]
 # End If
 
-print ("You provdide IP address of " + strIPAddress + " " + strMask)
+print ("You provided IP address of " + strIPAddress + " " + strMask)
 
 if strMask != "":
 	strType = MaskType(strMask)
@@ -257,7 +261,7 @@ elif strMask != "Invalid":
 # end if
 
 if ValidateIP(strIPAddress):
-	print ("IPAddr: " + strIPAddress )
+	print ("IP Addr: " + strIPAddress )
 	print ("Bit Mask: " + str(iBitMask))
 	iHostcount = 2**(32 - iBitMask)
 	if iHostcount == 1:
@@ -266,6 +270,7 @@ if ValidateIP(strIPAddress):
 		print ("only subnet and broadcast")
 	if iHostcount > 2:
 		print ("Host count: " + str(iHostcount-2))
+	# End If iHoustcount
 	iDecIPAddr = DotDec2Int(strIPAddress)
 	iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
 	iDecBroad = iDecSubID + iHostcount - 1
