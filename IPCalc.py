@@ -17,6 +17,9 @@ The script will output
 - Subnet IP
 - broadcast IP
 
+Following packages need to be installed as administrator
+pip install requests
+pip install jason
 
 '''
 
