@@ -22,7 +22,8 @@ The script will output
 
 # Import libraries
 import sys
-
+import requests
+import json
 # End imports
 
 # Function section
@@ -278,6 +279,33 @@ if ValidateIP(strIPAddress):
 	strBroad = DotDecGen(iDecBroad)
 	print ("Subnet IP: " + strSubID)
 	print ("Broadcast IP: " + strBroad)
+	strURL="http://whois.arin.net/rest/ip/"+strIPAddress
+	strHeader={'Accept': 'application/json'}
+	WebRequest = requests.get(strURL, headers=strHeader)
+	# print (WebRequest.text)
+	jsonWebResult = json.loads(WebRequest.text)
+	strOrg = jsonWebResult['net']['orgRef']['@name']
+	strHandle = jsonWebResult['net']['orgRef']['@handle']
+	strStart = jsonWebResult['net']['netBlocks']['netBlock']['startAddress']['$']
+	strEnd = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
+	strCIDR = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
+	strType = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
+	strRef = jsonWebResult['net']['ref']['$']
+	strName = jsonWebResult['net']['name']['$']
+	if strType=="RV" or strType=="AP" or strType=="AF":
+		print ("Assigned by " + strOrg)
+	else:
+		strOrgURL = "  https://whois.arin.net/rest/org/"+strHandle
+		if strType == "IU":
+			strOrg = strName
+			strOrgURL = ""
+		#end if
+		print ("Information from ARIN")
+		print ("Org: "+strOrg+strOrgURL  )
+		print ("Netblock: " + strStart +"/"+strCIDR+"("+strStart+"-"+strEnd+")")
+		print (strRef)
+		print ("Type:" + strType)
+	# end if
 else:
 	print (strIPAddress + " is not a valid IP!")
 # End if
