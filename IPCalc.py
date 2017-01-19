@@ -202,35 +202,37 @@ def ConvertMask (strToCheck):
 def IPCalc (strIPAddress):
 	strIPAddress=strIPAddress.strip()
 	dictIPInfo={}
+	strMask=""
+	iBitMask=0
 	if " " in strIPAddress:
 		IPAddrParts = strIPAddress.split(" ")
+		strIPAddress=IPAddrParts[0]
 		strMask = IPAddrParts[1]
-	# end if
-
 	if "/" in strIPAddress:
 		IPAddrParts = strIPAddress.split("/")
+		strIPAddress=IPAddrParts[0]
 		try:
 			iBitMask=int(IPAddrParts[1])
 		except ValueError:
 			iBitMask=0
-	# end if
-
-	# end try
-	strIPAddress=IPAddrParts[0]
-
-	strMask = DotDecGen(BitMask2Dec(iBitMask))
-	if strMask != "Invalid":
-		dictIPInfo['Maskmsg'] = "You provided the mask as a bit mask"
-	else:
-		dictIPInfo['MaskErr'] = str(iBitMask) + " is an invalid bit mask, changing to /32"
-		iBitMask=32
+		# end try
 		strMask = DotDecGen(BitMask2Dec(iBitMask))
+		if strMask != "Invalid":
+			dictIPInfo['Maskmsg'] = "You provided the mask as a bit mask"
+		else:
+			dictIPInfo['MaskErr'] = str(iBitMask) + " is an invalid bit mask, changing to /32"
+			iBitMask=32
+			strMask = DotDecGen(BitMask2Dec(iBitMask))
+		# end if
 	# end if
 
 
 	iBitMask = ValidMask(strMask)
 	if iBitMask==0:
-		dictIPInfo['MaskErr'] = strMask + " is an invalid mask, changing to host only"
+		if strMask=="":
+			dictIPInfo['MaskErr'] = "You didn't provide a mask, assuming host only"
+		else:
+			dictIPInfo['MaskErr'] = strMask + " is an invalid mask, changing to host only"
 		iBitMask=32
 		strMask = DotDecGen(BitMask2Dec(iBitMask))
 	# end if
