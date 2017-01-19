@@ -172,7 +172,7 @@ def MaskType (strToCheck):
 # End Function
 
 # Function SubnetCompare
-# Takes in three integers, two are int represenation of IP addresses, one if int of a mask
+# Takes in three integers, two are int represenation of IP addresses, one is int of a mask
 def SubnetCompare (iIP1,iIP2,iMask):
 	iSubnet1 = iIP1 | iMask
 	iSubnet2 = iIP2 | iMask
@@ -226,9 +226,6 @@ if strMask != "":
 		print ("The mask provided is a normal dotted decimal mask")
 	elif strType == "inv":
 		print ("You provided an inverse mask")
-	# else:
-	# 	print (strMask + " is an invalid mask")
-	# end if
 # end if
 
 
@@ -245,12 +242,19 @@ if "/" in strIPAddress:
 	if strMask != "Invalid":
 		print ("You provided the mask as a bit mask")
 	else:
-		print (str(iBitMask) + " is an invalid bit mask")
+		print (str(iBitMask) + " is an invalid bit mask, changing to /32")
+		iBitMask=32
+		strMask = DotDecGen(BitMask2Dec(iBitMask))
 	# end if
 # end if
 
 
 iBitMask = ValidMask(strMask)
+if iBitMask==0:
+	print (strMask + " is an invalid mask, changing to host only")
+	iBitMask=32
+	strMask = DotDecGen(BitMask2Dec(iBitMask))
+# end if
 strMask2 = ConvertMask(strMask)
 strType = MaskType(strMask)
 if strType =="dotDec":
@@ -259,7 +263,6 @@ if strType =="dotDec":
 elif strType == "inv":
 	print ("Mask: " + strMask2)
 	print ("Inverse Mask: " + strMask)
-	# iBitMask = 32- iBitMask
 elif strMask != "Invalid":
 	print (strMask + " is an invalid mask")
 # end if
@@ -282,17 +285,29 @@ if ValidateIP(strIPAddress):
 	strBroad = DotDecGen(iDecBroad)
 	print ("Subnet IP: " + strSubID)
 	print ("Broadcast IP: " + strBroad)
+
+	#execute Whois Query against ARIN.
 	strURL="http://whois.arin.net/rest/ip/"+strIPAddress
 	strHeader={'Accept': 'application/json'}
-	WebRequest = requests.get(strURL, headers=strHeader)
-	# print (WebRequest.text)
+	try:
+		WebRequest = requests.get(strURL, headers=strHeader)
+	except:
+		pass
+	# end try
 	jsonWebResult = json.loads(WebRequest.text)
 	strOrg = jsonWebResult['net']['orgRef']['@name']
 	strHandle = jsonWebResult['net']['orgRef']['@handle']
-	strStart = jsonWebResult['net']['netBlocks']['netBlock']['startAddress']['$']
-	strEnd = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
-	strCIDR = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
-	strType = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
+	if isinstance(jsonWebResult['net']['netBlocks']['netBlock'],dict):
+		strStart = jsonWebResult['net']['netBlocks']['netBlock']['startAddress']['$']
+		strEnd = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
+		strCIDR = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
+		strType = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
+	else:
+		strStart = jsonWebResult['net']['netBlocks']['netBlock'][0]['startAddress']['$']
+		strEnd = jsonWebResult['net']['netBlocks']['netBlock'][0]['endAddress']['$']
+		strCIDR = jsonWebResult['net']['netBlocks']['netBlock'][0]['cidrLength']['$']
+		strType = jsonWebResult['net']['netBlocks']['netBlock'][0]['type']['$']
+	# End if
 	strRef = jsonWebResult['net']['ref']['$']
 	strName = jsonWebResult['net']['name']['$']
 	if strType=="RV" or strType=="AP" or strType=="AF":
