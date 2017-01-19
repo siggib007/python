@@ -197,6 +197,100 @@ def ConvertMask (strToCheck):
 	return strTemp
 # End function
 
+# Function IPCalc
+# This function takes in a string of IP address and does the actual final colculation
+def IPCalc (strIPAddress):
+	strIPAddress=strIPAddress.strip()
+	dictIPInfo={}
+	if " " in strIPAddress:
+		IPAddrParts = strIPAddress.split(" ")
+		strMask = IPAddrParts[1]
+	# end if
+
+	if "/" in strIPAddress:
+		IPAddrParts = strIPAddress.split("/")
+		try:
+			iBitMask=int(IPAddrParts[1])
+		except ValueError:
+			iBitMask=0
+	# end if
+
+	# end try
+	strIPAddress=IPAddrParts[0]
+
+	strMask = DotDecGen(BitMask2Dec(iBitMask))
+	if strMask != "Invalid":
+		dictIPInfo['Maskmsg'] = "You provided the mask as a bit mask"
+	else:
+		dictIPInfo['MaskErr'] = str(iBitMask) + " is an invalid bit mask, changing to /32"
+		iBitMask=32
+		strMask = DotDecGen(BitMask2Dec(iBitMask))
+	# end if
+
+
+	iBitMask = ValidMask(strMask)
+	if iBitMask==0:
+		dictIPInfo['MaskErr'] = strMask + " is an invalid mask, changing to host only"
+		iBitMask=32
+		strMask = DotDecGen(BitMask2Dec(iBitMask))
+	# end if
+
+	strMask2 = ConvertMask(strMask)
+	strType = MaskType(strMask)
+	if strType =="dotDec":
+		dictIPInfo['Mask'] = strMask
+		dictIPInfo['InvMask'] = strMask2
+	elif strType == "inv":
+		dictIPInfo['Mask'] = strMask2
+		dictIPInfo['InvMask'] = strMask
+	# end if
+
+	if ValidateIP(strIPAddress):
+		dictIPInfo['IPAddr'] = strIPAddress
+		dictIPInfo['BitMask'] = str(iBitMask)
+		iHostcount = 2**(32 - iBitMask)
+		dictIPInfo['Hostcount'] = iHostcount
+
+		# End If iHoustcount
+		iDecIPAddr = DotDec2Int(strIPAddress)
+		iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
+		iDecBroad = iDecSubID + iHostcount - 1
+		dictIPInfo['Subnet'] = DotDecGen(iDecSubID)
+		dictIPInfo['Broadcast'] = DotDecGen(iDecBroad)
+
+		#execute Whois Query against ARIN.
+		strURL="http://whois.arin.net/rest/ip/"+strIPAddress
+		strHeader={'Accept': 'application/json'}
+		try:
+			WebRequest = requests.get(strURL, headers=strHeader)
+		except:
+			pass
+		# end try
+		if isinstance(WebRequest,requests.models.Response)==False:
+			return dictIPInfo
+		# end if
+
+		jsonWebResult = json.loads(WebRequest.text)
+		dictIPInfo['Org'] = jsonWebResult['net']['orgRef']['@name']
+		dictIPInfo['Handle'] = jsonWebResult['net']['orgRef']['@handle']
+		if isinstance(jsonWebResult['net']['netBlocks']['netBlock'],dict):
+			dictIPInfo['StartIP'] = jsonWebResult['net']['netBlocks']['netBlock']['startAddress']['$']
+			dictIPInfo['EndIP']   = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
+			dictIPInfo['CIDR']    = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
+			dictIPInfo['Type']    = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
+		else:
+			dictIPInfo['StartIP'] = jsonWebResult['net']['netBlocks']['netBlock'][0]['startAddress']['$']
+			dictIPInfo['EndIP']   = jsonWebResult['net']['netBlocks']['netBlock'][0]['endAddress']['$']
+			dictIPInfo['CIDR']    = jsonWebResult['net']['netBlocks']['netBlock'][0]['cidrLength']['$']
+			dictIPInfo['Type']    = jsonWebResult['net']['netBlocks']['netBlock'][0]['type']['$']
+		# End if
+		dictIPInfo['Ref'] = jsonWebResult['net']['ref']['$']
+		dictIPInfo['Name'] = jsonWebResult['net']['name']['$']
+	else:
+		dictIPInfo['IPError'] = strIPAddress + " is not a valid IP!"
+	# End if
+	return dictIPInfo
+# end function
 # End function section
 
 # Main section of the script
@@ -226,104 +320,53 @@ if strMask != "":
 		print ("The mask provided is a normal dotted decimal mask")
 	elif strType == "inv":
 		print ("You provided an inverse mask")
+	# else:
+	# 	print(strMask + " is not a valid mask")
 # end if
 
-
-if "/" in strIPAddress:
-	IPAddrParts = strIPAddress.split("/")
-	strIPAddress=IPAddrParts[0]
-	try:
-		iBitMask=int(IPAddrParts[1])
-	except ValueError:
-		iBitMask=0
-	# end try
-
-	strMask = DotDecGen(BitMask2Dec(iBitMask))
-	if strMask != "Invalid":
-		print ("You provided the mask as a bit mask")
-	else:
-		print (str(iBitMask) + " is an invalid bit mask, changing to /32")
-		iBitMask=32
-		strMask = DotDecGen(BitMask2Dec(iBitMask))
+IP_Result = IPCalc (strIPAddress + " " + strMask)
+if "IPError" in IP_Result:
+	print(IP_Result['IPError'])
+else:
+	if "MaskErr" in IP_Result:
+		print (IP_Result['MaskErr'])
 	# end if
-# end if
-
-
-iBitMask = ValidMask(strMask)
-if iBitMask==0:
-	print (strMask + " is an invalid mask, changing to host only")
-	iBitMask=32
-	strMask = DotDecGen(BitMask2Dec(iBitMask))
-# end if
-strMask2 = ConvertMask(strMask)
-strType = MaskType(strMask)
-if strType =="dotDec":
-	print ("Mask: " + strMask)
-	print ("Inverse Mask: " + strMask2)
-elif strType == "inv":
-	print ("Mask: " + strMask2)
-	print ("Inverse Mask: " + strMask)
-elif strMask != "Invalid":
-	print (strMask + " is an invalid mask")
-# end if
-
-if ValidateIP(strIPAddress):
-	print ("IP Addr: " + strIPAddress )
-	print ("Bit Mask: " + str(iBitMask))
-	iHostcount = 2**(32 - iBitMask)
+	if "Maskmsg" in IP_Result:
+		print (IP_Result['Maskmsg'])
+	# end if
+	print ("IP Addr: " + strIPAddress)
+	print ("Bit Mask: " + IP_Result['BitMask'])
+	print ("Mask: " + IP_Result['Mask'])
+	print ("Inverse Mask: " + IP_Result['InvMask'])
+	iHostcount = IP_Result['Hostcount']
 	if iHostcount == 1:
 		print ("Host only")
 	if iHostcount == 2:
 		print ("only subnet and broadcast")
 	if iHostcount > 2:
 		print ("Host count: " + str(iHostcount-2))
-	# End If iHoustcount
-	iDecIPAddr = DotDec2Int(strIPAddress)
-	iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
-	iDecBroad = iDecSubID + iHostcount - 1
-	strSubID = DotDecGen(iDecSubID)
-	strBroad = DotDecGen(iDecBroad)
-	print ("Subnet IP: " + strSubID)
-	print ("Broadcast IP: " + strBroad)
 
-	#execute Whois Query against ARIN.
-	strURL="http://whois.arin.net/rest/ip/"+strIPAddress
-	strHeader={'Accept': 'application/json'}
-	try:
-		WebRequest = requests.get(strURL, headers=strHeader)
-	except:
-		pass
-	# end try
-	jsonWebResult = json.loads(WebRequest.text)
-	strOrg = jsonWebResult['net']['orgRef']['@name']
-	strHandle = jsonWebResult['net']['orgRef']['@handle']
-	if isinstance(jsonWebResult['net']['netBlocks']['netBlock'],dict):
-		strStart = jsonWebResult['net']['netBlocks']['netBlock']['startAddress']['$']
-		strEnd = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
-		strCIDR = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
-		strType = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
-	else:
-		strStart = jsonWebResult['net']['netBlocks']['netBlock'][0]['startAddress']['$']
-		strEnd = jsonWebResult['net']['netBlocks']['netBlock'][0]['endAddress']['$']
-		strCIDR = jsonWebResult['net']['netBlocks']['netBlock'][0]['cidrLength']['$']
-		strType = jsonWebResult['net']['netBlocks']['netBlock'][0]['type']['$']
-	# End if
-	strRef = jsonWebResult['net']['ref']['$']
-	strName = jsonWebResult['net']['name']['$']
+	print ("Subnet IP: " + IP_Result['Subnet'])
+	print ("Broadcast IP: " + IP_Result['Broadcast'])
+
+	strType = IP_Result['Type']
 	if strType=="RV" or strType=="AP" or strType=="AF":
 		print ("Assigned by " + strOrg)
 	else:
-		strOrgURL = "  https://whois.arin.net/rest/org/"+strHandle
+		strOrgURL = "  https://whois.arin.net/rest/org/"+IP_Result['Handle']
+		strOrg = IP_Result['Org']
 		if strType == "IU":
-			strOrg = strName
+			strOrg = IP_Result['Name']
 			strOrgURL = ""
 		#end if
+		strStart = IP_Result['StartIP']
+		strEnd = IP_Result['EndIP']
+		strCIDR = IP_Result['CIDR']
+		strRef = IP_Result['Ref']
 		print ("Information from ARIN")
 		print ("Org: "+strOrg+strOrgURL  )
 		print ("Netblock: " + strStart +"/"+strCIDR+"("+strStart+"-"+strEnd+")")
 		print (strRef)
 		print ("Type:" + strType)
 	# end if
-else:
-	print (strIPAddress + " is not a valid IP!")
-# End if
+#end if
