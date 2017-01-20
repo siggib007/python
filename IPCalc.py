@@ -259,39 +259,56 @@ def IPCalc (strIPAddress):
 		iDecBroad = iDecSubID + iHostcount - 1
 		dictIPInfo['Subnet'] = DotDecGen(iDecSubID)
 		dictIPInfo['Broadcast'] = DotDecGen(iDecBroad)
-
-		#execute Whois Query against ARIN.
-		strURL="http://whois.arin.net/rest/ip/"+strIPAddress
-		strHeader={'Accept': 'application/json'}
-		try:
-			WebRequest = requests.get(strURL, headers=strHeader)
-		except:
-			pass
-		# end try
-		if isinstance(WebRequest,requests.models.Response)==False:
-			return dictIPInfo
-		# end if
-
-		jsonWebResult = json.loads(WebRequest.text)
-		dictIPInfo['Org'] = jsonWebResult['net']['orgRef']['@name']
-		dictIPInfo['Handle'] = jsonWebResult['net']['orgRef']['@handle']
-		if isinstance(jsonWebResult['net']['netBlocks']['netBlock'],dict):
-			dictIPInfo['StartIP'] = jsonWebResult['net']['netBlocks']['netBlock']['startAddress']['$']
-			dictIPInfo['EndIP']   = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
-			dictIPInfo['CIDR']    = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
-			dictIPInfo['Type']    = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
-		else:
-			dictIPInfo['StartIP'] = jsonWebResult['net']['netBlocks']['netBlock'][0]['startAddress']['$']
-			dictIPInfo['EndIP']   = jsonWebResult['net']['netBlocks']['netBlock'][0]['endAddress']['$']
-			dictIPInfo['CIDR']    = jsonWebResult['net']['netBlocks']['netBlock'][0]['cidrLength']['$']
-			dictIPInfo['Type']    = jsonWebResult['net']['netBlocks']['netBlock'][0]['type']['$']
-		# End if
-		dictIPInfo['Ref'] = jsonWebResult['net']['ref']['$']
-		dictIPInfo['Name'] = jsonWebResult['net']['name']['$']
 	else:
 		dictIPInfo['IPError'] = strIPAddress + " is not a valid IP!"
 	# End if
 	return dictIPInfo
+# end function
+
+# function QueryArin
+# This function takes in an IP Address in a string and executes a Whois Query against ARIN
+def QueryARIN (strIPAddress):
+	#execute Whois Query against ARIN.
+	dictARINResp={}
+	strURL="http://whois.arin.net/rest/ip/"+strIPAddress
+	strHeader={'Accept': 'application/json'}
+	try:
+		WebRequest = requests.get(strURL, headers=strHeader)
+	except:
+		return "Failed to connect to ARIN"
+	# end try
+	if WebRequest.status_code !=200:
+		return "Request returned error code " + str(WebRequest.status_code)
+	if isinstance(WebRequest,requests.models.Response)==False:
+		return "response is unknown type"
+	# end if
+
+	# print (WebRequest.text)
+	try:
+		jsonWebResult = json.loads(WebRequest.text)
+	except:
+		return "Failed to decode the response"
+	# end try
+
+	if "net" not in jsonWebResult:
+		return "Response not a Net Object"
+	#end if
+	dictARINResp['Org'] = jsonWebResult['net']['orgRef']['@name']
+	dictARINResp['Handle'] = jsonWebResult['net']['orgRef']['@handle']
+	if isinstance(jsonWebResult['net']['netBlocks']['netBlock'],dict):
+		dictARINResp['StartIP'] = jsonWebResult['net']['netBlocks']['netBlock']['startAddress']['$']
+		dictARINResp['EndIP']   = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
+		dictARINResp['CIDR']    = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
+		dictARINResp['Type']    = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
+	else:
+		dictARINResp['StartIP'] = jsonWebResult['net']['netBlocks']['netBlock'][0]['startAddress']['$']
+		dictARINResp['EndIP']   = jsonWebResult['net']['netBlocks']['netBlock'][0]['endAddress']['$']
+		dictARINResp['CIDR']    = jsonWebResult['net']['netBlocks']['netBlock'][0]['cidrLength']['$']
+		dictARINResp['Type']    = jsonWebResult['net']['netBlocks']['netBlock'][0]['type']['$']
+	# End if
+	dictARINResp['Ref'] = jsonWebResult['net']['ref']['$']
+	dictARINResp['Name'] = jsonWebResult['net']['name']['$']
+	return dictARINResp
 # end function
 # End function section
 
@@ -336,6 +353,7 @@ else:
 	if "Maskmsg" in IP_Result:
 		print (IP_Result['Maskmsg'])
 	# end if
+	strIPAddress = IP_Result['IPAddr']
 	print ("IP Addr: " + strIPAddress)
 	print ("Bit Mask: " + IP_Result['BitMask'])
 	print ("Mask: " + IP_Result['Mask'])
@@ -351,24 +369,31 @@ else:
 	print ("Subnet IP: " + IP_Result['Subnet'])
 	print ("Broadcast IP: " + IP_Result['Broadcast'])
 
-	strType = IP_Result['Type']
-	if strType=="RV" or strType=="AP" or strType=="AF":
-		print ("Assigned by " + strOrg)
-	else:
-		strOrgURL = "  https://whois.arin.net/rest/org/"+IP_Result['Handle']
-		strOrg = IP_Result['Org']
-		if strType == "IU":
-			strOrg = IP_Result['Name']
-			strOrgURL = ""
-		#end if
-		strStart = IP_Result['StartIP']
-		strEnd = IP_Result['EndIP']
-		strCIDR = IP_Result['CIDR']
-		strRef = IP_Result['Ref']
-		print ("Information from ARIN")
-		print ("Org: "+strOrg+strOrgURL  )
-		print ("Netblock: " + strStart +"/"+strCIDR+"("+strStart+"-"+strEnd+")")
-		print (strRef)
-		print ("Type:" + strType)
+	print ("Please stand by while I query ARIN for more details...")
+	QueryResult = QueryARIN(strIPAddress)
+	if isinstance(QueryResult,dict):
+		strType = QueryResult['Type']
+		if strType=="RV" or strType=="AP" or strType=="AF":
+			print ("Assigned by " + strOrg)
+		else:
+			strOrgURL = "  https://whois.arin.net/rest/org/"+QueryResult['Handle']
+			strOrg = QueryResult['Org']
+			if strType == "IU":
+				strOrg = QueryResult['Name']
+				strOrgURL = ""
+			#end if
+			strStart = QueryResult['StartIP']
+			strEnd = QueryResult['EndIP']
+			strCIDR = QueryResult['CIDR']
+			strRef = QueryResult['Ref']
+			print ("Information from ARIN")
+			print ("Org: "+strOrg+strOrgURL  )
+			print ("Netblock: " + strStart +"/"+strCIDR+"("+strStart+"-"+strEnd+")")
+			print (strRef)
+			print ("Type:" + strType)
+		# end if
+	# End If
+	if isinstance(QueryResult,str):
+		print (QueryResult)
 	# end if
 #end if
