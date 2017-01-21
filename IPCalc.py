@@ -310,6 +310,7 @@ def IPv6Calc (IPAddress):
 		iDecBroad = iDecSubID + iHostcount - 1
 		IPAddress['Subnet'] = FormatIPv6(hex(iDecSubID))
 		IPAddress['Broadcast'] = FormatIPv6(hex(iDecBroad))
+		IPAddress['IPAddr'] = FormatIPv6(IPAddress['IPAddr'])
 		return IPAddress
 	else:
 		return "Invalid IP: " + IPAddress['IPAddr']
@@ -447,15 +448,14 @@ if iSysArgLen > 2:
 	strMask = SysArgs[2]
 # End If
 
-if ":" in strIPAddress or len(strIPAddress)==32 :
+if (":" in strIPAddress and ":\\" not in strIPAddress) or len(strIPAddress)==32 :
 	IPv6Info = CheckIPv6(strIPAddress)
 	IP_Result = IPv6Calc(IPv6Info)
 
 	if "Msg" in IP_Result:
 		print (IP_Result['Msg'])
 	# end if
-	strIPAddress = IP_Result['IPAddr']
-	print ("IP Addr: " + strIPAddress)
+	print ("IP Addr: " + IP_Result['IPAddr'])
 	print ("Bit Mask: " + str(IP_Result['BitMask']))
 	iHostcount = IP_Result['Hostcount']
 	if iHostcount == 1:
@@ -467,7 +467,35 @@ if ":" in strIPAddress or len(strIPAddress)==32 :
 
 	print ("Subnet IP: " + IP_Result['Subnet'])
 	print ("Broadcast IP: " + IP_Result['Broadcast'])
-
+	if bWhoisQuery:
+		print ("Please stand by while I query ARIN for more details...")
+		QueryResult = QueryARIN(IP_Result['IPAddr'])
+		if isinstance(QueryResult,dict):
+			strType = QueryResult['Type']
+			if strType=="RV" or strType=="AP" or strType=="AF":
+				print ("Assigned by " + strOrg)
+			else:
+				strOrgURL = "  https://whois.arin.net/rest/org/"+QueryResult['Handle']
+				strOrg = QueryResult['Org']
+				if strType == "IU":
+					strOrg = QueryResult['Name']
+					strOrgURL = ""
+				#end if
+				strStart = QueryResult['StartIP']
+				strEnd = QueryResult['EndIP']
+				strCIDR = QueryResult['CIDR']
+				strRef = QueryResult['Ref']
+				print ("Information from ARIN")
+				print ("Org: "+strOrg+strOrgURL  )
+				print ("Netblock: " + strStart +"/"+strCIDR+"("+strStart+"-"+strEnd+")")
+				print (strRef)
+				print ("Type:" + strType)
+			# end if
+		# End If
+		if isinstance(QueryResult,str):
+			print (QueryResult)
+		# end if
+	#end if
 	sys.exit(0)
 # end if
 
@@ -487,20 +515,32 @@ if "\\" in strIPAddress or ".txt" in strIPAddress or ".csv" in strIPAddress :
 			print("Failed to create {0}. Error {1} : {2}".format(strMask,e.errno,e.strerror))
 			sys.exit(3)
 		# end try
-		fhOutput.write ("IP Address,Bit Mask,Mask,Inverse Mask,Subnet IP,Broadcast IP,Host count,\
-						Net Block Start,Net Block End, CIDR,Org,Org Reference,Messages\n")
+		strOut = ("IP Address,Bit Mask,Mask,Inverse Mask,Subnet IP,Broadcast IP,Host count,"
+					"Net Block Start,Net Block End,CIDR,Org,Org Reference,Messages\n")
+		fhOutput.write (strOut)
 		for strLine in fhInput:
-			print("Processing "+strLine.strip())
-			IP_Result = IPCalc(strLine.strip())
-			if "IPError" in IP_Result:
-				strOut = IP_Result['IPError']
+			strIPAddress = strLine.strip()
+			print("Processing "+strIPAddress)
+			if ":" in strIPAddress or len(strIPAddress)==32 :
+				IPv6Info = CheckIPv6(strIPAddress)
+				IP_Result = IPv6Calc(IPv6Info)
+				if "IPError" in IP_Result:
+					strOut = IP_Result['IPError']
+				else:
+					strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+",,,"
+							+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
+							+str(IP_Result['Hostcount']))
 			else:
-				strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+","
-						+str(IP_Result['Mask'])+","+str(IP_Result['InvMask'])+","
-						+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
-						+str(IP_Result['Hostcount']))
+				IP_Result = IPCalc(strIPAddress)
+				if "IPError" in IP_Result:
+					strOut = IP_Result['IPError']
+				else:
+					strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+","
+							+str(IP_Result['Mask'])+","+str(IP_Result['InvMask'])+","
+							+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
+							+str(IP_Result['Hostcount']))
+				# end if
 			# end if
-
 			if bWhoisQuery and "IPAddr" in IP_Result:
 				print ("Please stand by while I query ARIN for more details...")
 				QueryResult = QueryARIN(IP_Result['IPAddr'])
