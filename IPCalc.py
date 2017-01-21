@@ -276,18 +276,30 @@ def IPCalc (strIPAddress):
 	return dictIPInfo
 # end function
 
+# function FormatIPv6
+# This function takes in a string and inserts : after every 4 characters, upto 32 char
 def FormatIPv6(strAddr):
 	strTemp=""
-	for x in range (0,32,4):
-		strTemp = strTemp + strAddr[x:x+4].lstrip("0")+":"
+	if strAddr[0:2]=="0x":
+		iStart = 2
+	else:
+		iStart = 0
+	# end if
+	for x in range (iStart,32,4):
+		Q = strAddr[x:x+4].lstrip("0")
+		if Q == "":
+			Q = "0"
+		# end if
+		strTemp = strTemp + Q +":"
 	# next
 	strTemp = strTemp.strip(":")
 	if strTemp.count(":")<7:
 		strTemp = strTemp + "::"
+	# end if
 	return strTemp
 #end function
 
-#function IPv6Calc
+# function IPv6Calc
 # This function takes in a string of IPv6 address and does the actual final colculation
 def IPv6Calc (IPAddress):
 	if all(c in Hex_set for c in IPAddress['IPAddr']):
@@ -296,8 +308,8 @@ def IPv6Calc (IPAddress):
 		iDecIPAddr = int(IPAddress['IPAddr'],16)
 		iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
 		iDecBroad = iDecSubID + iHostcount - 1
-		IPAddress['Subnet'] = FormatIPv6(hex(iDecSubID)[2:])
-		IPAddress['Broadcast'] = FormatIPv6(hex(iDecBroad)[2:])
+		IPAddress['Subnet'] = FormatIPv6(hex(iDecSubID))
+		IPAddress['Broadcast'] = FormatIPv6(hex(iDecBroad))
 		return IPAddress
 	else:
 		return "Invalid IP: " + IPAddress['IPAddr']
@@ -361,6 +373,7 @@ def PrintUsage():
 # end function
 
 # function CheckIPv6
+# This function validates that a given strip is a valid IPv6 and mask
 def CheckIPv6(strToCheck):
 	dictIPv6Check={}
 	strIPAddress=strToCheck
