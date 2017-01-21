@@ -30,6 +30,7 @@ import sys
 import requests
 import json
 import os
+import string
 # End imports
 
 #Global Variables/Constants
@@ -37,6 +38,8 @@ bWhoisQuery=True
 iLoc =sys.argv[0].rfind('\\')
 strScriptName = sys.argv[0][iLoc+1:]
 strScriptPath = sys.argv[0][:iLoc]
+Hex_Digits = string.hexdigits
+Hex_set = set(Hex_Digits)
 
 # Function section
 
@@ -237,7 +240,6 @@ def IPCalc (strIPAddress):
 		# end if
 	# end if
 
-
 	iBitMask = ValidMask(strMask)
 	if iBitMask==0:
 		if strMask=="":
@@ -263,8 +265,6 @@ def IPCalc (strIPAddress):
 		dictIPInfo['BitMask'] = str(iBitMask)
 		iHostcount = 2**(32 - iBitMask)
 		dictIPInfo['Hostcount'] = iHostcount
-
-		# End If iHoustcount
 		iDecIPAddr = DotDec2Int(strIPAddress)
 		iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
 		iDecBroad = iDecSubID + iHostcount - 1
@@ -274,6 +274,34 @@ def IPCalc (strIPAddress):
 		dictIPInfo['IPError'] = strIPAddress + " is not a valid IP!"
 	# End if
 	return dictIPInfo
+# end function
+
+def FormatIPv6(strAddr):
+	strTemp=""
+	for x in range (0,32,4):
+		strTemp = strTemp + strAddr[x:x+4].lstrip("0")+":"
+	# next
+	strTemp = strTemp.strip(":")
+	if strTemp.count(":")<7:
+		strTemp = strTemp + "::"
+	return strTemp
+#end function
+
+#function IPv6Calc
+# This function takes in a string of IPv6 address and does the actual final colculation
+def IPv6Calc (IPAddress):
+	if all(c in Hex_set for c in IPAddress['IPAddr']):
+		iHostcount = 2**(128 - IPAddress['BitMask'])
+		IPAddress['Hostcount'] = iHostcount
+		iDecIPAddr = int(IPAddress['IPAddr'],16)
+		iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
+		iDecBroad = iDecSubID + iHostcount - 1
+		IPAddress['Subnet'] = FormatIPv6(hex(iDecSubID)[2:])
+		IPAddress['Broadcast'] = FormatIPv6(hex(iDecBroad)[2:])
+		return IPAddress
+	else:
+		return "Invalid IP: " + IPAddress['IPAddr']
+	#end if
 # end function
 
 # function QueryArin
@@ -332,6 +360,58 @@ def PrintUsage():
     print(r"python {} c:\temp\iplist.txt c:\temp\ipcalcresult.csv".format(strScriptName))
 # end function
 
+# function CheckIPv6
+def CheckIPv6(strToCheck):
+	dictIPv6Check={}
+	strIPAddress=strToCheck
+
+	if "/" in strIPAddress:
+		strIPparts = strIPAddress.split("/")
+		dictIPv6Check['IPAddr'] = strIPparts[0]
+		try:
+			dictIPv6Check['BitMask'] = int(strIPparts[1])
+		except ValueError:
+			dictIPv6Check['BitMask'] = 128
+			dictIPv6Check['Msg'] = "Invalid mask provided, changed to 128"
+		# end try
+	else:
+		dictIPv6Check['IPAddr'] = strIPAddress
+		dictIPv6Check['BitMask'] = 128
+		dictIPv6Check['Msg'] = "No mask provided. Assume 128"
+	# end if
+	if dictIPv6Check['BitMask'] > 128 or dictIPv6Check['BitMask'] < 1:
+		dictIPv6Check['Msg'] = "Invalid mask provided, changed to 128"
+		dictIPv6Check['BitMask'] = 128
+	# end if
+	if dictIPv6Check['IPAddr'][-2:] == "::":
+		dictIPv6Check['IPAddr'] = dictIPv6Check['IPAddr'] + "0"*4
+	# end if
+	strIPparts = dictIPv6Check['IPAddr'].split(":")
+	if len(strIPparts) > 8:
+		return strToCheck + " to many parts to be a valid IPv6 address!"
+	# end if
+	iMissing = 9 - len(strIPparts)
+	strAdd = ("0000:" * iMissing).strip(":")
+	strIPAddress = ""
+	for q in strIPparts:
+		if q == "":
+			strIPAddress = strIPAddress + strAdd + ":"
+		else:
+			strIPAddress = strIPAddress + ("0" * 4 + q)[-4:] + ":"
+		#end if
+	#next
+	strIPAddress = strIPAddress.strip(":")
+	strIPAddress = strIPAddress.replace(":","")
+	if len(strIPAddress) != 32:
+		return strToCheck + " is not a valid IPv6 address!"
+	#end if
+	dictIPv6Check['IPAddr'] = strIPAddress
+	if all(c in Hex_set for c in strIPAddress):
+		return dictIPv6Check
+	else:
+		return strToCheck + " is not hex"
+# End Function
+
 # End function section
 
 # Main section of the script
@@ -353,6 +433,30 @@ if strIPAddress=="-?" or strIPAddress=="?" or "-h" in strIPAddress:
 if iSysArgLen > 2:
 	strMask = SysArgs[2]
 # End If
+
+if ":" in strIPAddress or len(strIPAddress)==32 :
+	IPv6Info = CheckIPv6(strIPAddress)
+	IP_Result = IPv6Calc(IPv6Info)
+
+	if "Msg" in IP_Result:
+		print (IP_Result['Msg'])
+	# end if
+	strIPAddress = IP_Result['IPAddr']
+	print ("IP Addr: " + strIPAddress)
+	print ("Bit Mask: " + str(IP_Result['BitMask']))
+	iHostcount = IP_Result['Hostcount']
+	if iHostcount == 1:
+		print ("Host only")
+	if iHostcount == 2:
+		print ("only subnet and broadcast")
+	if iHostcount > 2:
+		print ("Host count: " + str(iHostcount-2))
+
+	print ("Subnet IP: " + IP_Result['Subnet'])
+	print ("Broadcast IP: " + IP_Result['Broadcast'])
+
+	sys.exit(0)
+# end if
 
 if "\\" in strIPAddress or ".txt" in strIPAddress or ".csv" in strIPAddress :
 	print ("File processing Mode: Infile="+strIPAddress+" Outfile="+strMask)
