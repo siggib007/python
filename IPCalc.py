@@ -279,7 +279,9 @@ def IPCalc (strIPAddress):
 # function FormatIPv6
 # This function takes in a string and inserts : after every 4 characters, upto 32 char
 def FormatIPv6(strAddr):
-	strTemp=""
+	strTemp = ""
+	iCount = 0
+	bCol = False
 	if strAddr[0:2]=="0x":
 		iStart = 2
 	else:
@@ -288,12 +290,26 @@ def FormatIPv6(strAddr):
 	for x in range (iStart,32,4):
 		Q = strAddr[x:x+4].lstrip("0")
 		if Q == "":
-			Q = "0"
+			if bCol:
+				Q = "0:"
+			else:
+				iCount = iCount + 1
+			# end if
+		else:
+			if iCount == 1:
+				Q = "0:" + Q + ":"
+			elif iCount > 1:
+				Q = ":" + Q
+				bCol = True
+			else:
+				Q = Q + ":"
+			# end if
+			iCount = 0
 		# end if
-		strTemp = strTemp + Q +":"
+		strTemp = strTemp + Q
 	# next
 	strTemp = strTemp.strip(":")
-	if strTemp.count(":")<7:
+	if strTemp.count(":") < 7 and "::" not in strTemp:
 		strTemp = strTemp + "::"
 	# end if
 	return strTemp
