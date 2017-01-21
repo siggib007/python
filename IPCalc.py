@@ -308,14 +308,14 @@ def QueryARIN (strIPAddress):
 	dictARINResp['Handle'] = jsonWebResult['net']['orgRef']['@handle']
 	if isinstance(jsonWebResult['net']['netBlocks']['netBlock'],dict):
 		dictARINResp['StartIP'] = jsonWebResult['net']['netBlocks']['netBlock']['startAddress']['$']
-		dictARINResp['EndIP']   = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
-		dictARINResp['CIDR']    = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
-		dictARINResp['Type']    = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
+		dictARINResp['EndIP'] = jsonWebResult['net']['netBlocks']['netBlock']['endAddress']['$']
+		dictARINResp['CIDR'] = jsonWebResult['net']['netBlocks']['netBlock']['cidrLength']['$']
+		dictARINResp['Type'] = jsonWebResult['net']['netBlocks']['netBlock']['type']['$']
 	else:
 		dictARINResp['StartIP'] = jsonWebResult['net']['netBlocks']['netBlock'][0]['startAddress']['$']
-		dictARINResp['EndIP']   = jsonWebResult['net']['netBlocks']['netBlock'][0]['endAddress']['$']
-		dictARINResp['CIDR']    = jsonWebResult['net']['netBlocks']['netBlock'][0]['cidrLength']['$']
-		dictARINResp['Type']    = jsonWebResult['net']['netBlocks']['netBlock'][0]['type']['$']
+		dictARINResp['EndIP'] = jsonWebResult['net']['netBlocks']['netBlock'][0]['endAddress']['$']
+		dictARINResp['CIDR'] = jsonWebResult['net']['netBlocks']['netBlock'][0]['cidrLength']['$']
+		dictARINResp['Type'] = jsonWebResult['net']['netBlocks']['netBlock'][0]['type']['$']
 	# End if
 	dictARINResp['Ref'] = jsonWebResult['net']['ref']['$']
 	dictARINResp['Name'] = jsonWebResult['net']['name']['$']
@@ -354,7 +354,7 @@ if iSysArgLen > 2:
 	strMask = SysArgs[2]
 # End If
 
-if "\\" in strIPAddress:
+if "\\" in strIPAddress or ".txt" in strIPAddress or ".csv" in strIPAddress :
 	print ("File processing Mode: Infile="+strIPAddress+" Outfile="+strMask)
 	if os.path.isfile(strIPAddress):
 		if strMask=="":
@@ -370,16 +370,17 @@ if "\\" in strIPAddress:
 			print("Failed to create {0}. Error {1} : {2}".format(strMask,e.errno,e.strerror))
 			sys.exit(3)
 		# end try
-		fhOutput.write ("IP Address,Bit Mask,Mask,Inverse Mask,Subnet IP,Broadcast IP,Host count,Net Block Start,Net Block End,\
-						CIDR,Org,Org Reference,Messages\n")
+		fhOutput.write ("IP Address,Bit Mask,Mask,Inverse Mask,Subnet IP,Broadcast IP,Host count,\
+						Net Block Start,Net Block End, CIDR,Org,Org Reference,Messages\n")
 		for strLine in fhInput:
 			print("Processing "+strLine.strip())
 			IP_Result = IPCalc(strLine.strip())
 			if "IPError" in IP_Result:
 				strOut = IP_Result['IPError']
 			else:
-				strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+","+str(IP_Result['Mask'])+","
-						+str(IP_Result['InvMask'])+","+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
+				strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+","
+						+str(IP_Result['Mask'])+","+str(IP_Result['InvMask'])+","
+						+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
 						+str(IP_Result['Hostcount']))
 			# end if
 
