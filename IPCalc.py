@@ -384,8 +384,11 @@ def QueryARIN (strIPAddress):
 def PrintUsage():
     print("Usage: python {} IPAddress mask".format(strScriptName))
     print("       python {} inputFile ResultFile".format(strScriptName))
-    print("Examples:\npython {} 218.55.213.55/27".format(strScriptName))
+    print("Examples:")
+    print("python {} 218.55.213.55/27".format(strScriptName))
     print("python {} 218.55.213.55 255.255.255.224".format(strScriptName))
+    print("python {} 218.55.213.55 0.0.0.31".format(strScriptName))
+    print("python {} 2607:fb90:7c90::/44 ".format(strScriptName))
     print(r"python {} c:\temp\iplist.txt c:\temp\ipcalcresult.csv".format(strScriptName))
 # end function
 
@@ -638,11 +641,11 @@ else:
 			QueryResult = QueryARIN(strIPAddress)
 			if isinstance(QueryResult,dict):
 				strType = QueryResult['Type']
+				strOrg = QueryResult['Org']
 				if strType=="RV" or strType=="AP" or strType=="AF":
 					print ("Assigned by " + strOrg)
 				else:
 					strOrgURL = "  https://whois.arin.net/rest/org/"+QueryResult['Handle']
-					strOrg = QueryResult['Org']
 					if strType == "IU":
 						strOrg = QueryResult['Name']
 						strOrgURL = ""
