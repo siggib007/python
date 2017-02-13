@@ -215,6 +215,7 @@ def IPCalc (strIPAddress):
 	strIPAddress=strIPAddress.strip()
 	strIPAddress=strIPAddress.replace("\t"," ")
 	strIPAddress=strIPAddress.replace("  "," ")
+	strIPAddress=strIPAddress.replace(" /","/")
 	dictIPInfo={}
 	strMask=""
 	iBitMask=0
