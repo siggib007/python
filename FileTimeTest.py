@@ -2,7 +2,6 @@ import sys
 import os
 import getpass
 import time
-#import magic
 import tkinter as tk
 from tkinter import filedialog
 
@@ -30,10 +29,17 @@ print ("Stat Info: {}".format(statinfo))
 print ("Last Accessed: {}".format(time.asctime(time.localtime(statinfo.st_atime))))
 print ("Last Modified: {}".format(time.asctime(time.localtime(statinfo.st_mtime))))
 print ("Created: {}".format(time.asctime(time.localtime(statinfo.st_ctime))))
-#print ("File details: {}".format(magic.form_file(strFilein)))
-#sys.exit(0)
+print ("Name {0} and ext {1}".format(strFilein[:iLoc],strFilein[iLoc:]))
+x = 0
+strOutFile = "{0}-TS{1}{2}".format(strFilein[:iLoc],x,strFilein[iLoc:])
+while os.path.isfile(strOutFile):
+	x += 1
+	strOutFile = "{0}-TS{1}{2}".format(strFilein[:iLoc],x,strFilein[iLoc:])
+#end while file exists
+print ("Out file:"+strOutFile)
+
 objFileIn  = open(strFilein,"r")
-objFileOut = open(strFilein[:iLoc]+"-TS"+strFilein[iLoc:],"w")
+objFileOut = open(strOutFile,"w")
 strLine = objFileIn.readline()
 objFileOut.write (ISO + strLine)
 while strLine:
@@ -46,3 +52,4 @@ objFileIn.close()
 objFileOut.close()
 now = time.asctime()
 print ("Done at {} !!!".format(now))
+#sys.exit(0)
