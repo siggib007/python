@@ -12,7 +12,7 @@ TextEditor = "subl" #sublime
 print ("Using the file open dialog please find the file to use")
 strWBin = filedialog.askopenfilename(title = "Select spreadsheet",filetypes = (("Excel files","*.xlsx"),("Text Files","*.txt"),("All Files","*.*")))
 print ("You selected: " + strWBin)
-print ("File extention is:{}*".format(strWBin[-3:]))
+print ("File extention is:{}".format(strWBin[-4:]))
 if strWBin[-4:] != "xlsx" :
 	strCmdLine = "{0} \"{1}\"".format(TextEditor,strWBin)
 	print ("Command line is:" + strCmdLine)
@@ -22,7 +22,7 @@ if strWBin[-4:] != "xlsx" :
 else:
 	app = win32.gencache.EnsureDispatch('Excel.Application')
 	app.Visible = True
-	wbin = app.Workbooks.Open (strWBin,0)
+	wbin = app.Workbooks.Open (strWBin,0,True)
 	wsNames = wbin.Worksheets("ACL Names")
 	wsVars = wbin.Worksheets("OMW-Vars")
 	wsACL = wbin.Worksheets("ACL Lines")
