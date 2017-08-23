@@ -7,6 +7,7 @@ import subprocess as proc
 
 root = tk.Tk()
 root.withdraw()
+dictSheets={}
 TextEditor = "subl" #sublime
 #TextEditor = "notepad"
 print ("Using the file open dialog please find the file to use")
@@ -23,9 +24,22 @@ else:
 	app = win32.gencache.EnsureDispatch('Excel.Application')
 	app.Visible = True
 	wbin = app.Workbooks.Open (strWBin,0,True)
-	wsNames = wbin.Worksheets("ACL Names")
-	wsVars = wbin.Worksheets("OMW-Vars")
-	wsACL = wbin.Worksheets("ACL Lines")
-	print ("Column header for column B is {}.".format(wsVars.Cells(1,2).Value))
-	print ("Putting some BS into cell D15 of ACL Name Tab")
-	wsNames.Cells(15,4).Value = "Some BS"
+	iSheetCount = wbin.Worksheets.Count
+	print ("That workbook has {0} sheets".format(iSheetCount))
+	for i in range(1,iSheetCount+1):
+		strTemp = wbin.Worksheets(i).Name
+		print ("Sheet #{0} is called {1}".format(i,strTemp))
+		dictSheets[strTemp]=i
+	# end for loop
+	if "ACL Names" in dictSheets:
+		print ("ACL Names is good!")
+		wsNames = wbin.Worksheets("ACL Names")
+	if "OMW-Vars" in dictSheets:
+		print ("OMW-Vars is good!")
+		wsVars = wbin.Worksheets("OMW-Vars")
+		print ("Column header for column B in sheet OMW-Vars is {}.".format(wsVars.Cells(1,2).Value))
+	if "ACL Names" in dictSheets:
+		print ("ACL Lines is good!")
+		wsACL = wbin.Worksheets("ACL Lines")
+#	print ("Putting some BS into cell D15 of ACL Name Tab")
+#	wsNames.Cells(15,4).Value = "Some BS"
