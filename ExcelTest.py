@@ -31,8 +31,8 @@ else:
 	wbin = app.Workbooks.Open (strWBin,0,True)
 	iSheetCount = wbin.Worksheets.Count
 	wbin.Sheets.Add()
-	wbin.Worksheets(1).Name = "Testing"
-	wsTest = wbin.Worksheets("Testing")
+	wsTest = wbin.ActiveSheet
+	wsTest.Name = "Testing"
 	print ("Putting some BS into cell D15 of new testing sheet")
 	wsTest.Cells(15,4).Value = "Some BS"
 	print ("That workbook has {0} sheets".format(iSheetCount))
