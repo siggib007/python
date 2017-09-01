@@ -10,6 +10,11 @@ That ouput will also be passed to function AnalyzeResults for parsing. The parse
 The name of the sheet with the results is defined by variable strResultSheetName, the header row for that sheet gets created by function ResultHeaders.
 No changes or custimization should be needed past the function AnalyzeResults.
 
+If you need to feed a variable into the command, put {0} for the first variable {1} for the second, etc.
+For example:
+strCommand = "show run {0} access-list {1}"
+where {0} represent the IP version (ipv4/ipv6) and {1} reprsents the ACL name that will be fed in through the Excel file.
+
 Following packages need to be installed as administrator
 pip install pypiwin32
 pip install paramiko
@@ -17,7 +22,7 @@ pip install paramiko
 '''
 
 strResultSheetName = "MyResults"
-strCommand = "show run ipv6 access-list"
+strCommand = "show run {0} access-list {1}"
 strOutFolderName = "CmdOut"
 
 def ResultHeaders():
@@ -114,8 +119,8 @@ print ("The time now is {}".format(now))
 print ("This script will read a source excel sheet and log into each router listed in the identified column,\n"
 		"starting with row 2, execute defined command and write results on tab called '{}' which gets created if it does not exists.".format(strResultSheetName))
 
-# print ("Using the file open dialog please open the source excel file")
 getInput ("Press enter to bring up a file open dialog so you may choose the source Excel file")
+
 strWBin = filedialog.askopenfilename(title = "Select spreadsheet",filetypes = (("Excel files","*.xlsx"),("Text Files","*.txt"),("All Files","*.*")))
 if strWBin =="":
 	print ("You cancelled so I'm exiting")
@@ -186,6 +191,39 @@ if iInputColumn < 1 or iInputColumn > iCol :
 if iInputColumn == iCol :
 	sys.exit(1)
 
+iCmdVars = 0
+strTemp = "{" + str(iCmdVars) + "}"
+while strTemp in strCommand:
+	iCmdVars += 1
+	strTemp = "{" + str(iCmdVars) + "}"
+
+iCmdCol = []
+if iCmdVars < iCol-1:
+	for x in range(iCmdVars):
+		iCol = 1
+		while wsInput.Cells(1,iCol).Value != "" and wsInput.Cells(1,iCol).Value != None :
+			print ("{0}) {1}".format(iCol,wsInput.Cells(1,iCol).Value))
+			print ("     {0}".format(wsInput.Cells(2,iCol).Value))
+			print ("     {0}".format(wsInput.Cells(3,iCol).Value))
+			iCol += 1
+		print ("{}) So sorry, wrong file, please exist".format(iCol))
+		strSelect = getInput("Please select the column with the content of variable {}: ".format(x))
+		try:
+		    iCmdCol.append (int(strSelect))
+		except ValueError:
+		    print("Invalid choice: '{}'".format(strSelect))
+		    iCmdCol.append (iCol)
+		if iCmdCol[x] < 1 or iCmdCol[x] > iCol :
+			print("Invalid choice: {}".format(iCmdCol[x]))
+			iCmdCol[x] = iCol
+		if iCmdCol[x] == iCol :
+			sys.exit(1)
+else:
+	print ("Input sheet '{0}' only has {1} columns, you have {2} variables in your command and thus need {3} columns.".format(
+			wsInput.Name,iCol-1,iCmdVars,iCmdVars+1))
+	sys.exit(1)
+
+
 if strResultSheetName in dictSheets:
 	strSelect = getInput("Results sheet exists and will be overwritten, OK (y/n): ")
 	strSelect = strSelect.lower()
@@ -211,7 +249,13 @@ ResultHeaders()
 
 iLineNum = 2
 strHostname = wsInput.Cells(iLineNum,iInputColumn).Value
+strCmdVars = []
+for x in range(iCmdVars):
+	strCmdVars.append(wsInput.Cells(iLineNum,iCmdCol[x]).Value)
+
 while strHostname != "" and strHostname != None :
+	if iCmdVars > 0:
+		strCommand = strCommand.format(*strCmdVars)
 	print ("Processing {} ...".format(strHostname))
 	try:
 		SSH = paramiko.SSHClient()
