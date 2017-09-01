@@ -21,10 +21,10 @@ pip install paramiko
 
 '''
 
-strResultSheetName = "Output"
-strCommand = "show run {0} access-list {1}"
-strOutFolderName = "Output"
-iMaxError = 3
+strResultSheetName = "MyOutput"
+strCommand = "show run ipv6 access-list"
+strOutFolderName = "MyOutput"
+iMaxError = 4
 
 def ResultHeaders():
 	wsResult.Cells(1,1).Value  = "primaryIPAddress"
@@ -44,7 +44,15 @@ def AnalyzeResults(strOutputList):
 	global iOutLineNum
 	bFoundABFACL = False
 	bInACL = False
-	wsResult.Cells(iOutLineNum,1).Value = socket.gethostbyname(strHostname)
+	try:
+		wsResult.Cells(iOutLineNum,1).Value = socket.gethostbyname(strHostname)
+	except OSError as err:
+		print ("Socket Exception: {0}".format(err))
+		wsResult.Cells(iOutLineNum,1).Value  = "Socket Exception: {0}".format(err)
+	except Exception as err:
+		print ("Generic Exception: {0}".format(err))
+		wsResult.Cells(iOutLineNum,1).Value  = "Generic Exception: {0}".format(err)
+
 	wsResult.Cells(iOutLineNum,2).Value = strHostname
 	print ("There are {} number of lines in the output".format(len(strOutputList)))
 	for strLine in strOutputList:
@@ -68,7 +76,6 @@ def AnalyzeResults(strOutputList):
 			elif strLineTokens[1] == "access-list":
 				bInACL = False
 			if bInACL:
-				# print ("in acl: {}".format(bInACL))
 				if len(strLineTokens) > 5:
 					if strLineTokens[1] == "70":
 						wsResult.Cells(iOutLineNum,4).Value = strLineTokens[6]
@@ -97,6 +104,7 @@ def AnalyzeResults(strOutputList):
 
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import messagebox
 import win32com.client as win32 #pip install pypiwin32
 import getpass
 import time
@@ -309,7 +317,6 @@ while strHostname != "" and strHostname != None :
 	dictDevices[strHostname] = strCmd
 	strOut = GetResults(strHostname,strCmd)
 	if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
-		FailedDevs.append(iInputLineNum)
 		while iErrCount < iMaxError:
 			print ("Trying again in 5 sec")
 			time.sleep(5)
@@ -318,6 +325,8 @@ while strHostname != "" and strHostname != None :
 				iErrCount += 1
 			else:
 				break
+		if iErrCount == iMaxError:
+			FailedDevs.append(iInputLineNum)
 	AnalyzeResults(strOut.splitlines())
 	time.sleep(1)
 	iInputLineNum += 1
@@ -336,3 +345,5 @@ iHours, iMin = divmod(iMin, 60)
 print ("Completed at {}".format(now))
 print ("Failed to complete lines {} due to errors.".format(FailedDevs))
 print ("Took {0} to complete, which is {1} hours, {2} minutes and {3} seconds.".format(iElapseSec,iHours,iMin,iSec))
+
+# messagebox.showinfo("All Done","Processing has completed, return to the command window for details")
