@@ -21,9 +21,9 @@ pip install paramiko
 
 '''
 
-strResultSheetName = "MyResults"
+strResultSheetName = "testResults"
 strCommand = "show run {0} access-list {1}"
-strOutFolderName = "CmdOut"
+strOutFolderName = "testResults"
 
 def ResultHeaders():
 	wsResult.Cells(1,1).Value  = "primaryIPAddress"
@@ -41,12 +41,18 @@ def ResultHeaders():
 
 def AnalyzeResults(strOutputList):
 	global iLineNum
-	wsResult.Cells(iLineNum,1).Value = socket.gethostbyname(strHostname)
-	wsResult.Cells(iLineNum,2).Value = strHostname
 	bFoundABFACL = False
 	bInACL = False
+	wsResult.Cells(iLineNum,1).Value = socket.gethostbyname(strHostname)
+	wsResult.Cells(iLineNum,2).Value = strHostname
 	print ("There are {} number of lines in the output".format(len(strOutputList)))
 	for strLine in strOutputList:
+		if "Exception:" in strLine:
+			wsResult.Cells(iLineNum,3).Value = strLine
+			bFoundABFACL = True
+			print ("Found an exception message, aborting analysis")
+			break
+
 		strLineTokens = strLine.split(" ")
 		if len(strLineTokens) > 1:
 			# print ("line {}".format(strLineTokens[1]))
@@ -101,6 +107,7 @@ import os
 root = tk.Tk()
 root.withdraw()
 dictSheets={}
+dictDevices={}
 iResultNum = 0
 tStart=time.time()
 iInputColumn = 1
@@ -113,7 +120,7 @@ def getInput(strPrompt):
 # end getInput
 
 DefUserName = getpass.getuser()
-print ("This is a Cisco ASR9K Audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
+print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
 now = time.asctime()
 print ("The time now is {}".format(now))
 print ("This script will read a source excel sheet and log into each router listed in the identified column,\n"
@@ -140,6 +147,8 @@ if not os.path.exists (strOutPath) :
 	os.makedirs(strOutPath)
 	print ("\nPath '{0}' didn't exists, so I create it!\n".format(strOutPath))
 
+print ("I will be executing the following command on a list of routers from one of the sheets in this spreadsheet:\n{}".format(strCommand))
+print ("Here is a list of sheets in this spreadsheet:")
 app = win32.gencache.EnsureDispatch('Excel.Application')
 app.Visible = True
 wbin = app.Workbooks.Open (strWBin,0,False)
@@ -250,40 +259,54 @@ ResultHeaders()
 iLineNum = 2
 strHostname = wsInput.Cells(iLineNum,iInputColumn).Value
 strCmdVars = []
+
 for x in range(iCmdVars):
 	strCmdVars.append(wsInput.Cells(iLineNum,iCmdCol[x]).Value)
 
 while strHostname != "" and strHostname != None :
 	if iCmdVars > 0:
-		strCommand = strCommand.format(*strCmdVars)
+		strCmd = strCommand.format(*strCmdVars)
+	else:
+		strCmd = strCommand
 	print ("Processing {} ...".format(strHostname))
+	if not strHostname in dictDevices:
+		dictDevices[strHostname] = strCmd
 	try:
 		SSH = paramiko.SSHClient()
 		SSH.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 		SSH.connect(strHostname, username=strUserName, password=strPWD, look_for_keys=False, allow_agent=False)
-		stdin, stdout, stderr = SSH.exec_command(strCommand)
-		print ("show command sent")
+		stdin, stdout, stderr = SSH.exec_command(strCmd)
+		print ("sent {0} to {1}".format(strCmd,strHostname))
 		strOut = stdout.read()
+		SSH.close()
 		strOut = strOut.decode("utf-8")
 		strOutFile = strOutPath + strHostname + ".txt"
-		objFileOut = open(strOutFile,"w")
+		if strHostname in dictDevices:
+			objFileOut = open(strOutFile,"a")
+		else:
+			objFileOut = open(strOutFile,"w")
 		objFileOut.write (strOut)
 		objFileOut.close()
-		print ("Show command output written to file "+strOutFile)
-		SSH.close()
+		print ("output written to "+strOutFile)
 	except paramiko.ssh_exception.AuthenticationException as err:
 		print ("Auth Exception: {0}".format(err))
 		sys.exit(1)
 	except paramiko.SSHException as err:
 		print ("SSH Exception: {0}".format(err))
+		strOut = "SSH Exception: {0}".format(err)
 	except OSError as err:
-		print ("socket Exception: {0}".format(err))
+		print ("Socket Exception: {0}".format(err))
+		strOut = "Socket Exception: {0}".format(err)
 	except Exception as err:
-		print ("{0}".format(err))
+		print ("Generic Exception: {0}".format(err))
+		strOut = "Generic Exception: {0}".format(err)
 
 	AnalyzeResults(strOut.splitlines())
+	time.sleep(2)
 	iLineNum += 1
 	strHostname = wsInput.Cells(iLineNum,iInputColumn).Value
+	for x in range(iCmdVars):
+		strCmdVars[x] = (wsInput.Cells(iLineNum,iCmdCol[x]).Value)
 # End while hostname
 wsResult.Range(wsResult.Cells(1, 1),wsResult.Cells(iLineNum,12)).EntireColumn.AutoFit()
 wbin.Save()
