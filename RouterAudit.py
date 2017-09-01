@@ -21,9 +21,10 @@ pip install paramiko
 
 '''
 
-strResultSheetName = "testResults"
+strResultSheetName = "Output"
 strCommand = "show run {0} access-list {1}"
-strOutFolderName = "testResults"
+strOutFolderName = "Output"
+iMaxError = 3
 
 def ResultHeaders():
 	wsResult.Cells(1,1).Value  = "primaryIPAddress"
@@ -40,56 +41,56 @@ def ResultHeaders():
 	wsResult.Cells(1,12).Value = "NextHopIP2"
 
 def AnalyzeResults(strOutputList):
-	global iLineNum
+	global iOutLineNum
 	bFoundABFACL = False
 	bInACL = False
-	wsResult.Cells(iLineNum,1).Value = socket.gethostbyname(strHostname)
-	wsResult.Cells(iLineNum,2).Value = strHostname
+	wsResult.Cells(iOutLineNum,1).Value = socket.gethostbyname(strHostname)
+	wsResult.Cells(iOutLineNum,2).Value = strHostname
 	print ("There are {} number of lines in the output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			wsResult.Cells(iLineNum,3).Value = strLine
+			wsResult.Cells(iOutLineNum,3).Value = strLine
 			bFoundABFACL = True
 			print ("Found an exception message, aborting analysis")
 			break
 
 		strLineTokens = strLine.split(" ")
 		if len(strLineTokens) > 1:
-			# print ("line {}".format(strLineTokens[1]))
 			if strLineTokens[2][:11]== "ABF-NAT-PAT":
 				if bFoundABFACL:
-					iLineNum += 1
-					wsResult.Cells(iLineNum,1).Value = socket.gethostbyname(strHostname)
-					wsResult.Cells(iLineNum,2).Value = strHostname
+					iOutLineNum += 1
+					wsResult.Cells(iOutLineNum,1).Value = socket.gethostbyname(strHostname)
+					wsResult.Cells(iOutLineNum,2).Value = strHostname
 				#end if bFoundABFACL
 				bFoundABFACL = True
 				bInACL = True
-				wsResult.Cells(iLineNum,3).Value = strLineTokens[2]
+				wsResult.Cells(iOutLineNum,3).Value = strLineTokens[2]
 			elif strLineTokens[1] == "access-list":
 				bInACL = False
 			if bInACL:
 				# print ("in acl: {}".format(bInACL))
 				if len(strLineTokens) > 5:
 					if strLineTokens[1] == "70":
-						wsResult.Cells(iLineNum,4).Value = strLineTokens[6]
+						wsResult.Cells(iOutLineNum,4).Value = strLineTokens[6]
 					if strLineTokens[1] == "80":
-						wsResult.Cells(iLineNum,5).Value = strLineTokens[6]
+						wsResult.Cells(iOutLineNum,5).Value = strLineTokens[6]
 					if strLineTokens[1] == "90":
-						wsResult.Cells(iLineNum,6).Value = strLineTokens[6]
+						wsResult.Cells(iOutLineNum,6).Value = strLineTokens[6]
 					if strLineTokens[1] == "100":
-						wsResult.Cells(iLineNum,7).Value = strLineTokens[6]
+						wsResult.Cells(iOutLineNum,7).Value = strLineTokens[6]
 					if strLineTokens[1] == "110":
-						wsResult.Cells(iLineNum,8).Value = strLineTokens[6]
+						wsResult.Cells(iOutLineNum,8).Value = strLineTokens[6]
 				if len(strLineTokens) > 8:
 					if strLineTokens[1] == "140":
-						wsResult.Cells(iLineNum,9).Value = strLineTokens[5]
-						wsResult.Cells(iLineNum,12).Value = strLineTokens[10]
+						wsResult.Cells(iOutLineNum,9).Value = strLineTokens[5]
+						wsResult.Cells(iOutLineNum,12).Value = strLineTokens[10]
 					if strLineTokens[1] == "130":
 						# print (strLine)
-						wsResult.Cells(iLineNum,10).Value = strLineTokens[5]
-						wsResult.Cells(iLineNum,11).Value = strLineTokens[10]
+						wsResult.Cells(iOutLineNum,10).Value = strLineTokens[5]
+						wsResult.Cells(iOutLineNum,11).Value = strLineTokens[10]
 	if bFoundABFACL == False:
-		wsResult.Cells(iLineNum,3).Value = "Not found"
+		wsResult.Cells(iOutLineNum,3).Value = "Not found"
+	iOutLineNum += 1
 # end function AnalyzeResults
 
 #No customization should be nessisary past this point.
@@ -118,6 +119,39 @@ def getInput(strPrompt):
     else:
         return raw_input(strPrompt)
 # end getInput
+
+def GetResults(strHostname,strCmd):
+	try:
+		SSH = paramiko.SSHClient()
+		SSH.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+		SSH.connect(strHostname, username=strUserName, password=strPWD, look_for_keys=False, allow_agent=False)
+		stdin, stdout, stderr = SSH.exec_command(strCmd)
+		print ("sent {0} to {1}".format(strCmd,strHostname))
+		strOut = stdout.read()
+		SSH.close()
+		strOut = strOut.decode("utf-8")
+		strOutFile = strOutPath + strHostname + ".txt"
+		if strHostname in dictDevices:
+			objFileOut = open(strOutFile,"a")
+		else:
+			objFileOut = open(strOutFile,"w")
+		objFileOut.write (strOut)
+		objFileOut.close()
+		print ("output written to "+strOutFile)
+	except paramiko.ssh_exception.AuthenticationException as err:
+		print ("Auth Exception: {0}".format(err))
+		sys.exit(1)
+	except paramiko.SSHException as err:
+		print ("SSH Exception: {0}".format(err))
+		strOut = "SSH Exception: {0}".format(err)
+	except OSError as err:
+		print ("Socket Exception: {0}".format(err))
+		strOut = "Socket Exception: {0}".format(err)
+	except Exception as err:
+		print ("Generic Exception: {0}".format(err))
+		strOut = "Generic Exception: {0}".format(err)
+	return strOut
+
 
 DefUserName = getpass.getuser()
 print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
@@ -234,7 +268,7 @@ else:
 
 
 if strResultSheetName in dictSheets:
-	strSelect = getInput("Results sheet exists and will be overwritten, OK (y/n): ")
+	strSelect = getInput("Results sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strResultSheetName))
 	strSelect = strSelect.lower()
 	if strSelect[0] == "y":
 		wsResult = wbin.Worksheets(strResultSheetName)
@@ -256,12 +290,15 @@ strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserN
 
 ResultHeaders()
 
-iLineNum = 2
-strHostname = wsInput.Cells(iLineNum,iInputColumn).Value
+iInputLineNum = 2
+iOutLineNum = 2
+iErrCount = 0
+strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 strCmdVars = []
+FailedDevs = []
 
 for x in range(iCmdVars):
-	strCmdVars.append(wsInput.Cells(iLineNum,iCmdCol[x]).Value)
+	strCmdVars.append(wsInput.Cells(iInputLineNum,iCmdCol[x]).Value)
 
 while strHostname != "" and strHostname != None :
 	if iCmdVars > 0:
@@ -269,46 +306,26 @@ while strHostname != "" and strHostname != None :
 	else:
 		strCmd = strCommand
 	print ("Processing {} ...".format(strHostname))
-	if not strHostname in dictDevices:
-		dictDevices[strHostname] = strCmd
-	try:
-		SSH = paramiko.SSHClient()
-		SSH.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-		SSH.connect(strHostname, username=strUserName, password=strPWD, look_for_keys=False, allow_agent=False)
-		stdin, stdout, stderr = SSH.exec_command(strCmd)
-		print ("sent {0} to {1}".format(strCmd,strHostname))
-		strOut = stdout.read()
-		SSH.close()
-		strOut = strOut.decode("utf-8")
-		strOutFile = strOutPath + strHostname + ".txt"
-		if strHostname in dictDevices:
-			objFileOut = open(strOutFile,"a")
-		else:
-			objFileOut = open(strOutFile,"w")
-		objFileOut.write (strOut)
-		objFileOut.close()
-		print ("output written to "+strOutFile)
-	except paramiko.ssh_exception.AuthenticationException as err:
-		print ("Auth Exception: {0}".format(err))
-		sys.exit(1)
-	except paramiko.SSHException as err:
-		print ("SSH Exception: {0}".format(err))
-		strOut = "SSH Exception: {0}".format(err)
-	except OSError as err:
-		print ("Socket Exception: {0}".format(err))
-		strOut = "Socket Exception: {0}".format(err)
-	except Exception as err:
-		print ("Generic Exception: {0}".format(err))
-		strOut = "Generic Exception: {0}".format(err)
-
+	dictDevices[strHostname] = strCmd
+	strOut = GetResults(strHostname,strCmd)
+	if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
+		FailedDevs.append(iInputLineNum)
+		while iErrCount < iMaxError:
+			print ("Trying again in 5 sec")
+			time.sleep(5)
+			strOut = GetResults(strHostname,strCmd)
+			if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
+				iErrCount += 1
+			else:
+				break
 	AnalyzeResults(strOut.splitlines())
-	time.sleep(2)
-	iLineNum += 1
-	strHostname = wsInput.Cells(iLineNum,iInputColumn).Value
+	time.sleep(1)
+	iInputLineNum += 1
+	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 	for x in range(iCmdVars):
-		strCmdVars[x] = (wsInput.Cells(iLineNum,iCmdCol[x]).Value)
+		strCmdVars[x] = (wsInput.Cells(iInputLineNum,iCmdCol[x]).Value)
 # End while hostname
-wsResult.Range(wsResult.Cells(1, 1),wsResult.Cells(iLineNum,12)).EntireColumn.AutoFit()
+wsResult.Range(wsResult.Cells(1, 1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
 wbin.Save()
 now = time.asctime()
 tStop = time.time()
@@ -317,4 +334,5 @@ iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
 
 print ("Completed at {}".format(now))
+print ("Failed to complete lines {} due to errors.".format(FailedDevs))
 print ("Took {0} to complete, which is {1} hours, {2} minutes and {3} seconds.".format(iElapseSec,iHours,iMin,iSec))
