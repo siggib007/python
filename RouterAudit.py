@@ -21,9 +21,9 @@ pip install paramiko
 
 '''
 
-strResultSheetName = "MyOutput"
+strResultSheetName = "MyOutput2"
 strCommand = "show run ipv6 access-list"
-strOutFolderName = "MyOutput"
+strOutFolderName = "MyOutput2"
 iMaxError = 4
 
 def ResultHeaders():
@@ -113,8 +113,6 @@ import paramiko #pip install paramiko
 import socket
 import os
 
-root = tk.Tk()
-root.withdraw()
 dictSheets={}
 dictDevices={}
 iResultNum = 0
@@ -170,6 +168,8 @@ print ("This script will read a source excel sheet and log into each router list
 
 getInput ("Press enter to bring up a file open dialog so you may choose the source Excel file")
 
+root = tk.Tk()
+root.withdraw()
 strWBin = filedialog.askopenfilename(title = "Select spreadsheet",filetypes = (("Excel files","*.xlsx"),("Text Files","*.txt"),("All Files","*.*")))
 if strWBin =="":
 	print ("You cancelled so I'm exiting")
@@ -187,13 +187,13 @@ strPath = strWBin[:iLoc]
 strOutPath = strPath+"/"+strOutFolderName+"/"
 if not os.path.exists (strOutPath) :
 	os.makedirs(strOutPath)
-	print ("\nPath '{0}' didn't exists, so I create it!\n".format(strOutPath))
-
-print ("I will be executing the following command on a list of routers from one of the sheets in this spreadsheet:\n{}".format(strCommand))
-print ("Here is a list of sheets in this spreadsheet:")
+	print ("\nPath '{0}' for output files didn't exists, so I create it!\n".format(strOutPath))
+print ("Opening that spreadsheet, please stand by ...")
 app = win32.gencache.EnsureDispatch('Excel.Application')
 app.Visible = True
 wbin = app.Workbooks.Open (strWBin,0,False)
+print ("I will be executing the following command on a list of routers from one of the sheets in this spreadsheet:\n{}".format(strCommand))
+print ("Here is a list of sheets in this spreadsheet:")
 iSheetCount = wbin.Worksheets.Count
 for i in range(1,iSheetCount+1):
 	strTemp = wbin.Worksheets(i).Name
@@ -300,7 +300,6 @@ ResultHeaders()
 
 iInputLineNum = 2
 iOutLineNum = 2
-iErrCount = 0
 strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 strCmdVars = []
 FailedDevs = []
@@ -309,6 +308,7 @@ for x in range(iCmdVars):
 	strCmdVars.append(wsInput.Cells(iInputLineNum,iCmdCol[x]).Value)
 
 while strHostname != "" and strHostname != None :
+	iErrCount = 0
 	if iCmdVars > 0:
 		strCmd = strCommand.format(*strCmdVars)
 	else:
@@ -334,6 +334,23 @@ while strHostname != "" and strHostname != None :
 	for x in range(iCmdVars):
 		strCmdVars[x] = (wsInput.Cells(iInputLineNum,iCmdCol[x]).Value)
 # End while hostname
+print ("Failed to complete lines {} due to errors.".format(FailedDevs))
+print ("Retrying them one more time")
+for iInputLineNum in FailedDevs:
+	for x in range(iCmdVars):
+		strCmdVars[x] = (wsInput.Cells(iInputLineNum,iCmdCol[x]).Value)
+	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
+	if iCmdVars > 0:
+		strCmd = strCommand.format(*strCmdVars)
+	else:
+		strCmd = strCommand
+	print ("Processing {} ...".format(strHostname))
+	dictDevices[strHostname] = strCmd
+	strOut = GetResults(strHostname,strCmd)
+	if "Exception:"	not in strOut:
+		FailedDevs.remove(iInputLineNum)
+		AnalyzeResults(strOut.splitlines())
+
 wsResult.Range(wsResult.Cells(1, 1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
 wbin.Save()
 now = time.asctime()
@@ -341,9 +358,8 @@ tStop = time.time()
 iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
-
-print ("Completed at {}".format(now))
 print ("Failed to complete lines {} due to errors.".format(FailedDevs))
+print ("Completed at {}".format(now))
 print ("Took {0} to complete, which is {1} hours, {2} minutes and {3} seconds.".format(iElapseSec,iHours,iMin,iSec))
 
 # messagebox.showinfo("All Done","Processing has completed, return to the command window for details")
