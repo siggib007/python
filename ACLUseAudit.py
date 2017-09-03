@@ -22,7 +22,7 @@ pip install paramiko
 '''
 
 strResultSheetName = "ACLInts"
-strCommand = "show access-lists {0} {1} usage pfilter location all "
+strCommand = "show access-lists {0} {1} usage pfilter location all"
 iMaxError = 4
 
 def ResultHeaders():
