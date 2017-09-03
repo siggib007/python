@@ -21,28 +21,26 @@ pip install paramiko
 
 '''
 
-strResultSheetName = "MyOutput3"
-strCommand = "show run ipv6 access-list"
+strResultSheetName = "ACLInts"
+strCommand = "show access-lists {0} {1} usage pfilter location all "
 iMaxError = 4
 
 def ResultHeaders():
 	wsResult.Cells(1,1).Value  = "primaryIPAddress"
 	wsResult.Cells(1,2).Value  = "hostName"
 	wsResult.Cells(1,3).Value  = "ABFACLName"
-	wsResult.Cells(1,4).Value  = "CNO1"
-	wsResult.Cells(1,5).Value  = "CNO2"
-	wsResult.Cells(1,6).Value  = "CNO3"
-	wsResult.Cells(1,7).Value  = "CNO4"
-	wsResult.Cells(1,8).Value  = "CNO5"
-	wsResult.Cells(1,9).Value  = "PDNS"
-	wsResult.Cells(1,10).Value = "SDNS"
-	wsResult.Cells(1,11).Value = "NextHopIP"
-	wsResult.Cells(1,12).Value = "NextHopIP2"
+	wsResult.Cells(1,4).Value  = "Int1"
+	wsResult.Cells(1,5).Value  = "Int2"
+	wsResult.Cells(1,6).Value  = "Int3"
+	wsResult.Cells(1,7).Value  = "Int4"
+	wsResult.Cells(1,8).Value  = "Int5"
+	wsResult.Cells(1,9).Value  = "Int6"
+	wsResult.Cells(1,10).Value = "Int7"
+
 
 def AnalyzeResults(strOutputList):
 	global iOutLineNum
-	bFoundABFACL = False
-	bInACL = False
+	iIntNum = 1
 	try:
 		wsResult.Cells(iOutLineNum,1).Value = socket.gethostbyname(strHostname)
 	except OSError as err:
@@ -53,49 +51,18 @@ def AnalyzeResults(strOutputList):
 		wsResult.Cells(iOutLineNum,1).Value  = "Generic Exception: {0}".format(err)
 
 	wsResult.Cells(iOutLineNum,2).Value = strHostname
+	wsResult.Cells(iOutLineNum,3).Value = strCmdVars[1]
+
 	print ("There are {} number of lines in the output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			wsResult.Cells(iOutLineNum,3).Value = strLine
-			bFoundABFACL = True
 			print ("Found an exception message, aborting analysis")
+			wsResult.Cells(iOutLineNum,3).Value = strLine
 			break
 
-		strLineTokens = strLine.split(" ")
-		if len(strLineTokens) > 1:
-			if strLineTokens[2][:11]== "ABF-NAT-PAT":
-				if bFoundABFACL:
-					iOutLineNum += 1
-					wsResult.Cells(iOutLineNum,1).Value = socket.gethostbyname(strHostname)
-					wsResult.Cells(iOutLineNum,2).Value = strHostname
-				#end if bFoundABFACL
-				bFoundABFACL = True
-				bInACL = True
-				wsResult.Cells(iOutLineNum,3).Value = strLineTokens[2]
-			elif strLineTokens[1] == "access-list":
-				bInACL = False
-			if bInACL:
-				if len(strLineTokens) > 5:
-					if strLineTokens[1] == "70":
-						wsResult.Cells(iOutLineNum,4).Value = strLineTokens[6]
-					if strLineTokens[1] == "80":
-						wsResult.Cells(iOutLineNum,5).Value = strLineTokens[6]
-					if strLineTokens[1] == "90":
-						wsResult.Cells(iOutLineNum,6).Value = strLineTokens[6]
-					if strLineTokens[1] == "100":
-						wsResult.Cells(iOutLineNum,7).Value = strLineTokens[6]
-					if strLineTokens[1] == "110":
-						wsResult.Cells(iOutLineNum,8).Value = strLineTokens[6]
-				if len(strLineTokens) > 8:
-					if strLineTokens[1] == "140":
-						wsResult.Cells(iOutLineNum,9).Value = strLineTokens[5]
-						wsResult.Cells(iOutLineNum,12).Value = strLineTokens[10]
-					if strLineTokens[1] == "130":
-						# print (strLine)
-						wsResult.Cells(iOutLineNum,10).Value = strLineTokens[5]
-						wsResult.Cells(iOutLineNum,11).Value = strLineTokens[10]
-	if bFoundABFACL == False:
-		wsResult.Cells(iOutLineNum,3).Value = "Not found"
+		if "Interface : " in strLine:
+			wsResult.Cells(iOutLineNum,3+iIntNum).Value = strLine[12:]
+			iIntNum += 1
 	iOutLineNum += 1
 # end function AnalyzeResults
 
