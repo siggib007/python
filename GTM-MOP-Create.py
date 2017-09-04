@@ -138,6 +138,29 @@ while wsPools.Cells(x,1).Value != "" and wsPools.Cells(x,1).Value != None :
 		wsPools.Cells(x,2).Value + ":" + strMemberName + " } ttl 180 }\n")
 	x += 1
 
+objFileOut.write ("\n")
+x=2
+while wsTopologies.Cells(x,1).Value != "" and wsTopologies.Cells(x,1).Value != None :
+	objFileOut.write ("create gtm topology ldns: region \"/Common/" + wsTopologies.Cells(x,2).Value + "\" server: pool /" + strPartition +
+		"/" + wsTopologies.Cells(x,1).Value + " { score " + str(int(wsTopologies.Cells(x,3).Value)) + " }\n")
+	x += 1
+
+objFileOut.write ("\n")
+x=2
+while wsFQDNs.Cells(x,1).Value != "" and wsFQDNs.Cells(x,1).Value != None :
+	if wsFQDNs.Cells(x,2).Value == "Yes":
+		strEnable = "enabled"
+	else:
+		strEnable = "disabled"
+	strBase = "create gtm wideip " + wsFQDNs.Cells(x,1).Value + " { ipv6-no-error-response " + strEnable + " pool-lb-mode " + strLBMode + " pools add {"
+	y = 0
+	strTemp = ""
+	while wsFQDNs.Cells(x,y+3).Value != "" and wsFQDNs.Cells(x,y+3).Value != None :
+		strTemp += " " + wsFQDNs.Cells(x,y+3).Value + " { order " + str(y) + " }"
+		y += 1
+	objFileOut.write (strBase + strTemp + " } }\n")
+	x += 1
+
 objFileOut.close
 now = time.asctime()
 tStop = time.time()
@@ -145,4 +168,4 @@ iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
 print ("Completed at {}".format(now))
-print ("Took {0} seconds to complete, which is {1} hours, {2} minutes and {3} seconds.".format(iElapseSec,iHours,iMin,iSec))
+print ("Took {0:.1f} seconds to complete, which is {1} hours, {2} minutes and {3:.1f} seconds.".format(iElapseSec,iHours,iMin,iSec))

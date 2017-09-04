@@ -360,6 +360,6 @@ iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
 print ("Failed to complete lines {} due to errors.".format(FailedDevs))
 print ("Completed at {}".format(now))
-print ("Took {0} seconds to complete, which is {1} hours, {2} minutes and {3} seconds.".format(iElapseSec,iHours,iMin,iSec))
+print ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,iHours,iMin,iSec))
 
 # messagebox.showinfo("All Done","Processing has completed, return to the command window for details")
