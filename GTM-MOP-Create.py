@@ -145,4 +145,4 @@ iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
 print ("Completed at {}".format(now))
-print ("Took {0} to complete, which is {1} hours, {2} minutes and {3} seconds.".format(iElapseSec,iHours,iMin,iSec))
+print ("Took {0} seconds to complete, which is {1} hours, {2} minutes and {3} seconds.".format(iElapseSec,iHours,iMin,iSec))
