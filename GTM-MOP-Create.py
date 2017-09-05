@@ -26,6 +26,8 @@ import os
 dictSheets={}
 tStart=time.time()
 iInputColumn = 1
+dictServers={}
+PoolList = []
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -118,14 +120,28 @@ objFileOut = open(strOutFile,"w")
 objFileOut.write ("**** IMPLEMENT ON {} ****\n".format(strSyncGroupMembers))
 objFileOut.write ("cd /Common\n")
 x=2
+
 while wsPools.Cells(x,1).Value != "" and wsPools.Cells(x,1).Value != None :
 	strPortNumber = str(int(wsPools.Cells(x,4).Value))
 	strMemberName = wsPools.Cells(x,3).Value
 	strMemberName = strMemberName.replace(".","_")
 	strMemberName =  wsPools.Cells(x,2).Value + "_VS(" + strMemberName + "_" + strPortNumber + ")"
-	objFileOut.write ("create gtm server " + wsPools.Cells(x,2).Value + " addresses add { " + wsPools.Cells(x,3).Value +
+	if wsPools.Cells(x,2).Value in dictServers:
+		strBase = "modify gtm server " + wsPools.Cells(x,2).Value
+		if wsPools.Cells(x,3).Value in dictServers[wsPools.Cells(x,2).Value]:
+			strBase += (" virtual-servers add { " + strMemberName + " { destination " + wsPools.Cells(x,3).Value + ":" +
+						strPortNumber + " monitor min 1 of { tcp_half_open } } }\n")
+		else:
+			strBase += (" addresses add { " + wsPools.Cells(x,3).Value + " } product generic-host datacenter " +
+						wsPools.Cells(x,5).Value + " virtual-servers add { " + strMemberName + " { destination " +
+						wsPools.Cells(x,3).Value + ":" + strPortNumber + " monitor min 1 of { tcp_half_open } } }\n")
+			dictServers[wsPools.Cells(x,2).Value].append(wsPools.Cells(x,3).Value)
+	else:
+		strBase = ("create gtm server " + wsPools.Cells(x,2).Value + " addresses add { " + wsPools.Cells(x,3).Value +
 		" } product generic-host datacenter " + wsPools.Cells(x,5).Value + " virtual-servers add { " + strMemberName +
 		" { destination " + wsPools.Cells(x,3).Value + ":" + strPortNumber + " monitor min 1 of { tcp_half_open } } }\n")
+		dictServers[wsPools.Cells(x,2).Value]=[wsPools.Cells(x,3).Value]
+	objFileOut.write (strBase)
 	x += 1
 objFileOut.write ("\ncd /{}\n".format(strPartition))
 x=2
@@ -134,8 +150,13 @@ while wsPools.Cells(x,1).Value != "" and wsPools.Cells(x,1).Value != None :
 	strMemberName = wsPools.Cells(x,3).Value
 	strMemberName = strMemberName.replace(".","_")
 	strMemberName =  wsPools.Cells(x,2).Value + "_VS(" + strMemberName + "_" + strPortNumber + ")"
-	objFileOut.write ("create gtm pool " + wsPools.Cells(x,1).Value + " { alternate-mode none fallback-mode none members add { /Common/" +
+	if wsPools.Cells(x,1).Value in PoolList:
+		strBase = "modify gtm pool " + wsPools.Cells(x,1).Value + " { members add { /Common/" + wsPools.Cells(x,2).Value + ":" + strMemberName + " } ttl 180 }\n"
+	else:
+		strBase = ("create gtm pool " + wsPools.Cells(x,1).Value + " { alternate-mode none fallback-mode none members add { /Common/" +
 		wsPools.Cells(x,2).Value + ":" + strMemberName + " } ttl 180 }\n")
+		PoolList.append(wsPools.Cells(x,1).Value)
+	objFileOut.write (strBase)
 	x += 1
 
 objFileOut.write ("\n")
