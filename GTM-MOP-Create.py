@@ -28,6 +28,7 @@ tStart=time.time()
 iInputColumn = 1
 dictServers={}
 PoolList = []
+iMaxOverViewRow = 50
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -65,7 +66,10 @@ app = win32.gencache.EnsureDispatch('Excel.Application')
 app.Visible = True
 wbin = app.Workbooks.Open (strWBin,0,False)
 iSheetCount = wbin.Worksheets.Count
-print ("Validating the spreadsheet. It has {0} sheets".format(iSheetCount))
+print ("Validating the spreadsheet. Looking for four specific sheets: Overview, FQDNs, Pools and Topologies. This file has {0} sheets".format(iSheetCount))
+if iSheetCount < 4:
+	print ("Wrong files, only has {} sheets, looking for at least 4. Existing.".format(iSheetCount))
+	sys.exit(1)
 for i in range(1,iSheetCount+1):
 	strTemp = wbin.Worksheets(i).Name
 	print ("Sheet #{0} is called {1}".format(i,strTemp))
@@ -99,12 +103,28 @@ strSyncGroupName = wsOverView.Cells(2,2).Value
 strPartition = wsOverView.Cells(3,2).Value
 strLBMode = wsOverView.Cells(4,2).Value
 strAppName = wsOverView.Cells(5,2).Value
+print ("Looking for Healthcheck Source IP location.")
+x=7
+while wsOverView.Cells(x,1).Value != "HealthCheck Source IP's" and x < iMaxOverViewRow:
+	x += 1
+if x < iMaxOverViewRow:
+	print ("Found Healthcheck source IP section at line {}.".format(x))
+else:
+	print ("Unable to find Healthcheck Source IP section, exiting!")
+	sys.exit(1)
+print ("Loading Healthcheck Source IP's")
+dictHealthCheck={}
+x += 1
+while wsOverView.Cells(x,1).Value != "" and wsOverView.Cells(x,1).Value != None :
+	dictHealthCheck[wsOverView.Cells(x,1).Value] = wsOverView.Cells(x,2).Value
+	x += 1
+# print ("Healthcheck Source IP's:\n{}".format(dictHealthCheck))
 print ("Working with sync group {}, looking for device names in that group.".format(strSyncGroupName))
-x=5
-while wsOverView.Cells(x,1).Value != strSyncGroupName and x < 50:
+x=7
+while wsOverView.Cells(x,1).Value != strSyncGroupName and x < iMaxOverViewRow:
 	x += 1
 iSyncGroupRow = x
-if iSyncGroupRow < 50:
+if iSyncGroupRow < iMaxOverViewRow:
 	print ("Found {} sync group on line {}".format(strSyncGroupName,iSyncGroupRow))
 else:
 	print ("unable to find the definition for sync group {}, exiting!".format(strSyncGroupName))
@@ -119,8 +139,10 @@ strOutFile = strPath+"/"+strAppName+"-GTM-Implement.txt"
 objFileOut = open(strOutFile,"w")
 objFileOut.write ("**** IMPLEMENT ON {} ****\n".format(strSyncGroupMembers))
 objFileOut.write ("cd /Common\n")
+strAlogSecFile = strPath+"/"+strAppName+"-GTMHealthCheck Algosec.csv"
+objAlgosec = open(strAlogSecFile,"w")
+objAlgosec.write ("Firewall Rules Request\nExpires\nSource IP,Source IP NAT,Destination IP,Destination IP NAT,Service,Description,User,Application\n")
 x=2
-
 while wsPools.Cells(x,1).Value != "" and wsPools.Cells(x,1).Value != None :
 	strPortNumber = str(int(wsPools.Cells(x,4).Value))
 	strMemberName = wsPools.Cells(x,3).Value
@@ -142,6 +164,9 @@ while wsPools.Cells(x,1).Value != "" and wsPools.Cells(x,1).Value != None :
 		" { destination " + wsPools.Cells(x,3).Value + ":" + strPortNumber + " monitor min 1 of { tcp_half_open } } }\n")
 		dictServers[wsPools.Cells(x,2).Value]=[wsPools.Cells(x,3).Value]
 	objFileOut.write (strBase)
+	for strGTM in strSyncGroupMembers:
+		if strGTM in dictHealthCheck:
+			objAlgosec.write (dictHealthCheck[strGTM]+",,"+wsPools.Cells(x,3).Value+",,tcp/"+strPortNumber+",GTM Health Check,,\n")
 	x += 1
 objFileOut.write ("\ncd /{}\n".format(strPartition))
 x=2
