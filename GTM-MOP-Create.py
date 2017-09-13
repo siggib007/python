@@ -56,7 +56,7 @@ if strWBin =="":
 print ("You selected: " + strWBin)
 print ("File extention is:{}".format(strWBin[-4:]))
 if strWBin[-4:] != "xlsx" :
-	print ("I was expecting an excel input file xlsx extension. Don't know what do to except exit")
+	print ("I was expecting an excel input file with xlsx extension. Don't know what do to except exit")
 	sys.exit(2)
 #end if xlsx
 iLoc = strWBin.rfind("/")
@@ -135,10 +135,16 @@ while wsOverView.Cells(iSyncGroupRow,x).Value != "" and wsOverView.Cells(iSyncGr
 	strSyncGroupMembers.append(wsOverView.Cells(iSyncGroupRow,x).Value)
 	x += 1
 print ("**** IMPLEMENT ON {} ****".format(strSyncGroupMembers))
-strOutFile = strPath+"/"+strAppName+"-GTM-Implement.txt"
-objFileOut = open(strOutFile,"w")
-objFileOut.write ("**** IMPLEMENT ON {} ****\n".format(strSyncGroupMembers))
-objFileOut.write ("cd /Common\n")
+strImplFile = strPath+"/"+strAppName+"-GTM-Implement.txt"
+strBackoutFile = strPath+"/"+strAppName+"-GTM-BackOut.txt"
+strVerifyFile = strPath+"/"+strAppName+"-GTM-Verify.txt"
+objFileImpl = open(strImplFile,"w")
+objFileBackOut = open(strBackoutFile,"w")
+objFileVerify = open(strVerifyFile,"w")
+objFileImpl.write ("**** IMPLEMENT ON {} ****\n".format(strSyncGroupMembers))
+objFileImpl.write ("cd /Common\n")
+objFileVerify.write ("cd /Common\n")
+objFileBackOut.write ("cd /Common\n")
 strAlogSecFile = strPath+"/"+strAppName+"-GTMHealthCheck Algosec.csv"
 objAlgosec = open(strAlogSecFile,"w")
 objAlgosec.write ("Firewall Rules Request\nExpires\nSource IP,Source IP NAT,Destination IP,Destination IP NAT,Service,Description,User,Application\n")
@@ -149,26 +155,30 @@ while wsPools.Cells(x,1).Value != "" and wsPools.Cells(x,1).Value != None :
 	strMemberName = strMemberName.replace(".","_")
 	strMemberName =  wsPools.Cells(x,2).Value + "_VS(" + strMemberName + "_" + strPortNumber + ")"
 	if wsPools.Cells(x,2).Value in dictServers:
-		strBase = "modify gtm server " + wsPools.Cells(x,2).Value
+		strImpl = "modify gtm server " + wsPools.Cells(x,2).Value
 		if wsPools.Cells(x,3).Value in dictServers[wsPools.Cells(x,2).Value]:
-			strBase += (" virtual-servers add { " + strMemberName + " { destination " + wsPools.Cells(x,3).Value + ":" +
+			strImpl += (" virtual-servers add { " + strMemberName + " { destination " + wsPools.Cells(x,3).Value + ":" +
 						strPortNumber + " monitor min 1 of { tcp_half_open } } }\n")
 		else:
-			strBase += (" addresses add { " + wsPools.Cells(x,3).Value + " } product generic-host datacenter " +
+			strImpl += (" addresses add { " + wsPools.Cells(x,3).Value + " } product generic-host datacenter " +
 						wsPools.Cells(x,5).Value + " virtual-servers add { " + strMemberName + " { destination " +
 						wsPools.Cells(x,3).Value + ":" + strPortNumber + " monitor min 1 of { tcp_half_open } } }\n")
 			dictServers[wsPools.Cells(x,2).Value].append(wsPools.Cells(x,3).Value)
 	else:
-		strBase = ("create gtm server " + wsPools.Cells(x,2).Value + " addresses add { " + wsPools.Cells(x,3).Value +
+		strImpl = ("create gtm server " + wsPools.Cells(x,2).Value + " addresses add { " + wsPools.Cells(x,3).Value +
 		" } product generic-host datacenter " + wsPools.Cells(x,5).Value + " virtual-servers add { " + strMemberName +
 		" { destination " + wsPools.Cells(x,3).Value + ":" + strPortNumber + " monitor min 1 of { tcp_half_open } } }\n")
 		dictServers[wsPools.Cells(x,2).Value]=[wsPools.Cells(x,3).Value]
-	objFileOut.write (strBase)
+		objFileBackOut.write ("delete gtm server " + wsPools.Cells(x,2).Value + "\n")
+		objFileVerify.write ("show gtm server " + wsPools.Cells(x,2).Value + "\n")
+	objFileImpl.write (strImpl)
 	for strGTM in strSyncGroupMembers:
 		if strGTM in dictHealthCheck:
 			objAlgosec.write (dictHealthCheck[strGTM]+",,"+wsPools.Cells(x,3).Value+",,tcp/"+strPortNumber+",GTM Health Check,,\n")
 	x += 1
-objFileOut.write ("\ncd /{}\n".format(strPartition))
+objFileImpl.write ("\ncd /{}\n".format(strPartition))
+objFileBackOut.write ("\ncd /{}\n".format(strPartition))
+objFileVerify.write ("#\n# *** Verify above Virtual Servers do not exist ***\n#\n\ncd /{}\n".format(strPartition))
 x=2
 while wsPools.Cells(x,1).Value != "" and wsPools.Cells(x,1).Value != None :
 	strPortNumber = str(int(wsPools.Cells(x,4).Value))
@@ -181,17 +191,27 @@ while wsPools.Cells(x,1).Value != "" and wsPools.Cells(x,1).Value != None :
 		strBase = ("create gtm pool " + wsPools.Cells(x,1).Value + " { alternate-mode none fallback-mode none members add { /Common/" +
 		wsPools.Cells(x,2).Value + ":" + strMemberName + " } ttl 180 }\n")
 		PoolList.append(wsPools.Cells(x,1).Value)
-	objFileOut.write (strBase)
+		objFileBackOut.write ("delete gtm pool " + wsPools.Cells(x,1).Value + "\n")
+		objFileVerify.write ("show gtm pool " + wsPools.Cells(x,1).Value + "\n")
+	objFileImpl.write (strBase)
 	x += 1
 
-objFileOut.write ("\n")
+objFileImpl.write ("\n")
+objFileBackOut.write ("\n")
+objFileVerify.write ("#\n# *** Verify above Pools was not found ***\n#\n\n")
 x=2
 while wsTopologies.Cells(x,1).Value != "" and wsTopologies.Cells(x,1).Value != None :
-	objFileOut.write ("create gtm topology ldns: region \"/Common/" + wsTopologies.Cells(x,2).Value + "\" server: pool /" + strPartition +
+	objFileImpl.write ("create gtm topology ldns: region \"/Common/" + wsTopologies.Cells(x,2).Value + "\" server: pool /" + strPartition +
+		"/" + wsTopologies.Cells(x,1).Value + " { score " + str(int(wsTopologies.Cells(x,3).Value)) + " }\n")
+	objFileBackOut.write ("delete gtm topology ldns: region \"/Common/" + wsTopologies.Cells(x,2).Value + "\" server: pool /" + strPartition +
+		"/" + wsTopologies.Cells(x,1).Value + " { score " + str(int(wsTopologies.Cells(x,3).Value)) + " }\n")
+	objFileVerify.write ("list gtm topology ldns: region \"/Common/" + wsTopologies.Cells(x,2).Value + "\" server: pool /" + strPartition +
 		"/" + wsTopologies.Cells(x,1).Value + " { score " + str(int(wsTopologies.Cells(x,3).Value)) + " }\n")
 	x += 1
 
-objFileOut.write ("\n")
+objFileImpl.write ("\n")
+objFileBackOut.write ("\n")
+objFileVerify.write ("#\n# *** Verify above topologies were not found ***\n#\n\n")
 x=2
 while wsFQDNs.Cells(x,1).Value != "" and wsFQDNs.Cells(x,1).Value != None :
 	if wsFQDNs.Cells(x,2).Value == "Yes":
@@ -204,10 +224,17 @@ while wsFQDNs.Cells(x,1).Value != "" and wsFQDNs.Cells(x,1).Value != None :
 	while wsFQDNs.Cells(x,y+3).Value != "" and wsFQDNs.Cells(x,y+3).Value != None :
 		strTemp += " " + wsFQDNs.Cells(x,y+3).Value + " { order " + str(y) + " }"
 		y += 1
-	objFileOut.write (strBase + strTemp + " } }\n")
+	objFileImpl.write (strBase + strTemp + " } }\n")
+	objFileBackOut.write ("delete gtm wideip " + wsFQDNs.Cells(x,1).Value + "\n")
+	objFileVerify.write ("show gtm wideip " + wsFQDNs.Cells(x,1).Value + "\n")
+
 	x += 1
 
-objFileOut.close
+objFileVerify.write ("#\n# *** Verify above Wide-IP was not found  ***\n#\n\n")
+objFileImpl.close
+objFileBackOut.close
+objFileVerify.close
+
 now = time.asctime()
 tStop = time.time()
 iElapseSec = tStop - tStart
