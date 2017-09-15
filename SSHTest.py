@@ -25,11 +25,51 @@ try:
 	SSH = paramiko.SSHClient()
 	SSH.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 	SSH.connect(strDevName, username=strUserName, password=strPWD, look_for_keys=False, allow_agent=False, timeout=1)
-	stdin, stdout, stderr = SSH.exec_command(strCommand)
+	objShell = SSH.invoke_shell()
+	# time.sleep(5)
+	# strOut = objShell.recv(5000)
+	# objShell.send(strCommand)
+	#stdin, stdout, stderr = SSH.exec_command(strCommand)
+	# strOut = stdout.read()
+	# strErr = stderr.read()
+	# print ("show command sent")
+	# print ("Raw stderr:\n{}".format(strErr))
+	# print ("Raw output:\n{}".format(strOut))
+	# strErr = strErr.decode("utf-8")
+	# print ("decoded error: {}".format(strErr))
+	# strOut = ""
+	while not objShell.recv_ready():
+		# print ("Not ready")
+		time.sleep(1)
+	# while not strOut.endswith("#"):
+	# 	resp = objShell.recv(9999)
+	# 	if resp == "":
+	# 		break
+	# 	strOut += resp.decode("ASCII")
+	# # strOut = objShell.recv(5000)
+	# # strOut = buff.decode("utf-8")
+	# # print ("Received type: {}".format(type(strOut)))
+	# print ("Command Output:\n{}".format(strOut))
+	strResp = objShell.recv(999) # Clear the buffer
+	objShell.send(strCommand+"\n")
 	print ("show command sent")
-	strOut = stdout.read()
-	strOut = strOut.decode("utf-8")
-	print ("Received type: {}".format(type(strOut)))
+	# time.sleep(4)
+	# strOut = ""
+	i = 0
+	while not objShell.recv_ready():
+		time.sleep(1)
+		print ("Not ready")
+		if i>30:
+			break
+		i+=1
+	strResp = objShell.recv(999)
+	strOut = strResp.decode("utf-8")
+	# while not strOut.endswith("#"):
+	# 	resp = objShell.recv(99)
+	# 	# print ("REceived: {}".format(resp))
+	# 	if resp == "" :
+	# 		break
+	# 	strOut += resp.decode("utf-8")
 	print ("Command Output:\n{}".format(strOut))
 	SSH.close()
 except paramiko.ssh_exception.AuthenticationException as err:
@@ -38,5 +78,5 @@ except paramiko.SSHException as err:
 	print ("SSH Exception: {0}".format(err))
 except OSError as err:
 	print ("socket Exception: {0}".format(err))
-except Exception as err:
-	print ("{0}".format(err))
+# except Exception as err:
+# 	print ("{0}".format(err))
