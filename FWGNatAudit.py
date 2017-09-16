@@ -22,7 +22,7 @@ pip install paramiko
 '''
 
 strResultSheetName = "FWG NAT Pools"
-strCommand = "show run all-partitions | include ip nat"
+strCommand = "show run all-partitions | include ip nat pool "
 iMaxError = 4
 
 def ResultHeaders():
