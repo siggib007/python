@@ -25,6 +25,7 @@ def ResultHeaders():
 	wsResult.Cells(1,3).Value   = "Remote AS"
 	wsResult.Cells(1,4).Value   = "VRF"
 	wsResult.Cells(1,5).Value   = "Recv count"
+	wsResult.Cells(1,6).Value   = "Description"
 	wsDetails.Cells(1,1).Value  = "Router"
 	wsDetails.Cells(1,2).Value  = "Neighbor"
 	wsDetails.Cells(1,3).Value  = "VRF"
@@ -36,7 +37,7 @@ def AnalyzeResults(strOutputList):
 	bNeighborSection = False
 	strVRF = "Global Table"
 
-	print ("There are {} number of lines in the output".format(len(strOutputList)))
+	print ("There are {} lines in the output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
 			wsResult.Cells(iOutLineNum,3).Value = strLine
@@ -48,20 +49,25 @@ def AnalyzeResults(strOutputList):
 			iLoc = strLine.find("number ")+7
 			iLocalAS = strLine[iLoc:]
 		strLineTokens = strLine.split()
+		strPeerIP = ""
 		if len(strLineTokens) > 1:
 			if strLineTokens[0]== "VRF:":
 				strVRF = strLineTokens[1]
 			if bNeighborSection:
 				if len(strLineTokens) > 8:
 					iRemoteAS = strLineTokens[2]
-					if iRemoteAS != iLocalAS:
+					strCount = str(strLineTokens[9])
+					strPeerIP = strLineTokens[0]
+					if iRemoteAS != iLocalAS and strCount != "Idle" :
 						iOutLineNum += 1
 						wsResult.Cells(iOutLineNum,1).Value = strHostname
-						wsResult.Cells(iOutLineNum,2).Value = strLineTokens[0]
+						wsResult.Cells(iOutLineNum,2).Value = strPeerIP
 						wsResult.Cells(iOutLineNum,3).Value = strLineTokens[2]
 						wsResult.Cells(iOutLineNum,4).Value = strVRF
 						wsResult.Cells(iOutLineNum,5).Value = strLineTokens[9]
-						dictPeers[strLineTokens[0]] = strVRF
+						dictPeers[strPeerIP] = {}
+						dictPeers[strPeerIP]["VRF"] = strVRF
+						dictPeers[strPeerIP]["LineID"] = iOutLineNum
 				else:
 					wsResult.Cells(iOutLineNum,2).Value = "Line {} was unexpectedly short".format(strLine)
 			if strLineTokens[0]== "Neighbor":
@@ -76,7 +82,7 @@ def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 	global iOut2Line
 	bInSection = False
 
-	print ("Analyzing route table. There are {} number of lines in the output".format(len(strOutList)))
+	print ("Analyzing route table. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
 			wsResult.Cells(iOutLineNum,3).Value = strLine
@@ -94,6 +100,20 @@ def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 				wsDetails.Cells(iOut2Line,4).Value = strLineTokens[0]
 			if strLineTokens[0] == "Network":
 				bInSection = True
+# end function AnalyzeRoutes
+
+def ParseDescr(strOutList,iLineNum):
+	print ("Analyzing route table. There are {} lines in the output".format(len(strOutList)))
+	for strLine in strOutList:
+		if "Exception:" in strLine:
+			wsResult.Cells(iLineNum,6).Value = strLine
+			bFoundABFACL = True
+			print ("Found an exception message, aborting analysis")
+			break
+
+		if "Description" in strLine:
+			wsResult.Cells(iLineNum,6).Value = strLine[14:]
+#end function ParseDescr
 
 import tkinter as tk
 from tkinter import filedialog
@@ -152,7 +172,26 @@ def GetResults(strHostname,strCmd):
 		print ("Generic Exception: {0}".format(err))
 		strOut = "Generic Exception: {0}".format(err)
 	return strOut
+#end function GetResults
 
+def ValidateRetry(strHostname,strCmd):
+	global iErrCount
+	global FailedDevs
+
+	strOut = GetResults(strHostname,strCmd)
+	if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
+		while iErrCount < iMaxError:
+			print ("Trying again in 5 sec")
+			time.sleep(5)
+			strOut = GetResults(strHostname,strCmd)
+			if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
+				iErrCount += 1
+			else:
+				break
+		if iErrCount == iMaxError:
+			FailedDevs.append(iInputLineNum)
+	return strOut
+# end function ValidateRetry
 
 DefUserName = getpass.getuser()
 print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
@@ -281,51 +320,34 @@ FailedDevs = []
 
 while strHostname != "" and strHostname != None :
 	iErrCount = 0
-
-
 	print ("Processing {} ...".format(strHostname))
 	dictDevices[strHostname] = strCommand1
-	strOut = GetResults(strHostname,strCommand1)
-	if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
-		while iErrCount < iMaxError:
-			print ("Trying again in 5 sec")
-			time.sleep(5)
-			strOut = GetResults(strHostname,strCommand1)
-			if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
-				iErrCount += 1
-			else:
-				break
-		if iErrCount == iMaxError:
-			FailedDevs.append(iInputLineNum)
-	strOut += GetResults(strHostname,strCommand2)
-	if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
-		while iErrCount < iMaxError:
-			print ("Trying again in 5 sec")
-			time.sleep(5)
-			strOut = GetResults(strHostname,strCommand2)
-			if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
-				iErrCount += 1
-			else:
-				break
-		if iErrCount == iMaxError:
-			FailedDevs.append(iInputLineNum)
-
+	strOut = ValidateRetry(strHostname,strCommand1)
+	strOut += ValidateRetry(strHostname,strCommand2)
 	dictPeers = AnalyzeResults(strOut.splitlines())
+
 	for strPeerIP in dictPeers:
-		strVRF = dictPeers[strPeerIP]
+		strVRF = dictPeers[strPeerIP]["VRF"]
+		iLineNum = dictPeers[strPeerIP]["LineID"]
 		if strVRF == "Global Table":
 			strCmd = "show bgp neighbors {} advertised-routes".format(strPeerIP)
+			strCmd2 = "show bgp neighbors {} | include Description:".format(strPeerIP)
 		else:
 			strCmd = "show bgp vrf {} neighbors {} advertised-routes".format(strVRF,strPeerIP)
-		strOut = GetResults(strHostname,strCmd)
+			strCmd2 = "show bgp vrf {} neighbors {} | include Description:".format(strVRF,strPeerIP)
+		strOut = ValidateRetry(strHostname,strCmd2)
+		ParseDescr(strOut.splitlines(), iLineNum)
+		strOut = ValidateRetry(strHostname,strCmd)
 		AnalyzeRoutes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
 
 	time.sleep(1)
 	iInputLineNum += 1
 	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 # End while hostname
-if len(FailedDevs)>0:
-	print ("Failed to complete lines {} due to errors.".format(FailedDevs))
+if len(FailedDevs) == 0:
+	print ("All devices are successful")
+else:
+	print ("Failed to complete {} lines {} due to errors.".format(len(FailedDevs),FailedDevs))
 	print ("Retrying them one more time")
 	for iInputLineNum in FailedDevs:
 		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
@@ -338,14 +360,15 @@ if len(FailedDevs)>0:
 			dictPeers = AnalyzeResults(strOut.splitlines())
 
 wsResult.Range(wsResult.Cells(1, 1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
-wsDetails.Range(wsResult.Cells(1, 1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
+wsDetails.Range(wsDetails.Cells(1, 1),wsDetails.Cells(iOut2Line,12)).EntireColumn.AutoFit()
 wbin.Save()
 now = time.asctime()
 tStop = time.time()
 iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
-print ("Failed to complete lines {} due to errors.".format(FailedDevs))
+if len(FailedDevs) > 0:
+	print ("Failed to complete lines {} due to errors.".format(FailedDevs))
 print ("Completed at {}".format(now))
 print ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,iHours,iMin,iSec))
 
