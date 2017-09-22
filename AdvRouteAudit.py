@@ -15,8 +15,6 @@ pip install paramiko
 
 strSummarySheet = "BGPSummary"
 strDetailSheet = "BGPAdv"
-strCommand1 = "show bgp summary"
-strCommand2 = "show bgp vrf all summary"
 iMaxError = 4
 
 def ResultHeaders():
@@ -103,7 +101,7 @@ def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 # end function AnalyzeRoutes
 
 def ParseDescr(strOutList,iLineNum):
-	print ("Analyzing route table. There are {} lines in the output".format(len(strOutList)))
+	print ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
 			wsResult.Cells(iLineNum,6).Value = strLine
@@ -130,6 +128,7 @@ dictSheets={}
 dictDevices={}
 dictPeers={}
 iResultNum = 0
+iResult2Num = 0
 tStart=time.time()
 iInputColumn = 1
 strOutFolderName = strSummarySheet
@@ -235,6 +234,9 @@ for i in range(1,iSheetCount+1):
 	if strTemp == strSummarySheet :
 		iResultNum = i
 		continue
+	if strTemp == strDetailSheet :
+		iResult2Num = i
+		continue
 	print ("{0}) {1}".format(i,strTemp))
 # end for loop
 i += 1
@@ -248,7 +250,7 @@ except ValueError:
 if iSelect < 1 or iSelect > i :
 	print("Invalid choice: {}".format(iSelect))
 	iSelect = i
-if iSelect == iResultNum:
+if iSelect == iResultNum or iSelect == iResult2Num:
 	print("Sorry that is the results sheet, not the input sheet.")
 	iSelect = i
 if iSelect == i :
@@ -317,7 +319,9 @@ iOutLineNum = 1
 iOut2Line = 1
 strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 FailedDevs = []
-
+strIPVerList = ["ipv4","ipv6"]
+strCommand1 = "show bgp summary"
+strCommand2 = "show bgp vrf all summary"
 while strHostname != "" and strHostname != None :
 	iErrCount = 0
 	print ("Processing {} ...".format(strHostname))
@@ -344,9 +348,12 @@ while strHostname != "" and strHostname != None :
 	iInputLineNum += 1
 	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 # End while hostname
+
 if len(FailedDevs) == 0:
 	print ("All devices are successful")
+	bFailedDev = False
 else:
+	bFailedDev = True
 	print ("Failed to complete {} lines {} due to errors.".format(len(FailedDevs),FailedDevs))
 	print ("Retrying them one more time")
 	for iInputLineNum in FailedDevs:
@@ -367,6 +374,8 @@ tStop = time.time()
 iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
+if bFailedDev and len(FailedDevs) == 0:
+	print ("All devices successful after final retries")
 if len(FailedDevs) > 0:
 	print ("Failed to complete lines {} due to errors.".format(FailedDevs))
 print ("Completed at {}".format(now))
