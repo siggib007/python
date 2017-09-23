@@ -4,7 +4,7 @@ Author Siggi Bjarnason Copyright 2017
 Website http://www.ipcalc.us/ and http://www.icecomputing.com
 
 Description:
-This is script that will discover all the BGP peers on a particular Cisco Router running IOS-XR
+This is script that will discover all the BGP peers on a particular Cisco Router running
 and caputer all the routes being advertised over each peer.
 
 Following packages need to be installed as administrator
@@ -14,20 +14,26 @@ pip install paramiko
 '''
 
 strSummarySheet = "BGPSummary"
-strDetailSheet = "BGPAdv"
+strDetailSheet  = "By Router"
+strPrefixeSheet = "By Prefix"
 iMaxError = 4
 
 def ResultHeaders():
 	wsResult.Cells(1,1).Value   = "Router"
-	wsResult.Cells(1,2).Value   = "Neighbor"
-	wsResult.Cells(1,3).Value   = "Remote AS"
-	wsResult.Cells(1,4).Value   = "VRF"
-	wsResult.Cells(1,5).Value   = "Recv count"
-	wsResult.Cells(1,6).Value   = "Description"
+	wsResult.Cells(1,2).Value   = "Version"
+	wsResult.Cells(1,3).Value   = "Neighbor"
+	wsResult.Cells(1,4).Value   = "Remote AS"
+	wsResult.Cells(1,5).Value   = "VRF"
+	wsResult.Cells(1,6).Value   = "Recv count"
+	wsResult.Cells(1,7).Value   = "Description"
 	wsDetails.Cells(1,1).Value  = "Router"
 	wsDetails.Cells(1,2).Value  = "Neighbor"
 	wsDetails.Cells(1,3).Value  = "VRF"
 	wsDetails.Cells(1,4).Value  = "Adv Prefix"
+	wsPrefixes.Cells(1,1).Value = "Prefix"
+	wsPrefixes.Cells(1,2).Value = "VRF"
+	wsPrefixes.Cells(1,3).Value = "VRF Count"
+	wsPrefixes.Cells(1,4).Value = "Router-PeerIP"
 
 def AnalyzeResults(strOutputList):
 	global iOutLineNum
@@ -56,13 +62,14 @@ def AnalyzeResults(strOutputList):
 					iRemoteAS = strLineTokens[2]
 					strCount = str(strLineTokens[9])
 					strPeerIP = strLineTokens[0]
-					if iRemoteAS != iLocalAS and strCount != "Idle" :
+					if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" :
 						iOutLineNum += 1
 						wsResult.Cells(iOutLineNum,1).Value = strHostname
-						wsResult.Cells(iOutLineNum,2).Value = strPeerIP
-						wsResult.Cells(iOutLineNum,3).Value = strLineTokens[2]
-						wsResult.Cells(iOutLineNum,4).Value = strVRF
-						wsResult.Cells(iOutLineNum,5).Value = strLineTokens[9]
+						wsResult.Cells(iOutLineNum,2).Value = strHostVer
+						wsResult.Cells(iOutLineNum,3).Value = strPeerIP
+						wsResult.Cells(iOutLineNum,4).Value = strLineTokens[2]
+						wsResult.Cells(iOutLineNum,5).Value = strVRF
+						wsResult.Cells(iOutLineNum,6).Value = strLineTokens[9]
 						dictPeers[strPeerIP] = {}
 						dictPeers[strPeerIP]["VRF"] = strVRF
 						dictPeers[strPeerIP]["LineID"] = iOutLineNum
@@ -78,6 +85,7 @@ def AnalyzeResults(strOutputList):
 
 def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 	global iOut2Line
+	global dictPrefixes
 	bInSection = False
 
 	print ("Analyzing route table. There are {} lines in the output".format(len(strOutList)))
@@ -92,10 +100,19 @@ def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 		if len(strLineTokens) > 1:
 			if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
 				iOut2Line += 1
+				strAdvPrefix = strLineTokens[0]
 				wsDetails.Cells(iOut2Line,1).Value = strHostname
 				wsDetails.Cells(iOut2Line,2).Value = strPeerIP
 				wsDetails.Cells(iOut2Line,3).Value = strVRF
-				wsDetails.Cells(iOut2Line,4).Value = strLineTokens[0]
+				wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
+				if strAdvPrefix in dictPrefixes:
+					dictPrefixes[strAdvPrefix]["Peer"].append(strHostname + "-"+strPeerIP)
+					if strVRF not in dictPrefixes[strAdvPrefix]["VRF"]:
+						dictPrefixes[strAdvPrefix]["VRF"].append(strVRF)
+				else:
+					dictPrefixes[strAdvPrefix]={}
+					dictPrefixes[strAdvPrefix]["VRF"]=[strVRF]
+					dictPrefixes[strAdvPrefix]["Peer"]=[strHostname + "-"+strPeerIP]
 			if strLineTokens[0] == "Network":
 				bInSection = True
 # end function AnalyzeRoutes
@@ -104,7 +121,7 @@ def ParseDescr(strOutList,iLineNum):
 	print ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
-			wsResult.Cells(iLineNum,6).Value = strLine
+			wsResult.Cells(iLineNum,7).Value = strLine
 			bFoundABFACL = True
 			print ("Found an exception message, aborting analysis")
 			break
@@ -126,9 +143,11 @@ import os
 
 dictSheets={}
 dictDevices={}
+dictPrefixes={}
 dictPeers={}
 iResultNum = 0
 iResult2Num = 0
+iResult3Num = 0
 tStart=time.time()
 iInputColumn = 1
 strOutFolderName = strSummarySheet
@@ -237,6 +256,9 @@ for i in range(1,iSheetCount+1):
 	if strTemp == strDetailSheet :
 		iResult2Num = i
 		continue
+	if strTemp == strPrefixeSheet :
+		iResult3Num = i
+		continue
 	print ("{0}) {1}".format(i,strTemp))
 # end for loop
 i += 1
@@ -250,7 +272,7 @@ except ValueError:
 if iSelect < 1 or iSelect > i :
 	print("Invalid choice: {}".format(iSelect))
 	iSelect = i
-if iSelect == iResultNum or iSelect == iResult2Num:
+if iSelect == iResultNum or iSelect == iResult2Num or iSelect == iResult3Num:
 	print("Sorry that is the results sheet, not the input sheet.")
 	iSelect = i
 if iSelect == i :
@@ -277,7 +299,7 @@ if iInputColumn < 1 or iInputColumn > iCol :
 	iInputColumn = iCol
 if iInputColumn == iCol :
 	sys.exit(1)
-
+# wbin.Worksheets(1).Activate
 if strSummarySheet in dictSheets:
 	strSelect = getInput("Summary sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strSummarySheet))
 	strSelect = strSelect.lower()
@@ -287,7 +309,7 @@ if strSummarySheet in dictSheets:
 		sys.exit(1)
 else:
 	print ("Summary sheet not found, creating one")
-	wbin.Sheets.Add()
+	wbin.Sheets.Add(After=wbin.Worksheets(iSheetCount))
 	wsResult = wbin.ActiveSheet
 	wsResult.Name = strSummarySheet
 
@@ -300,16 +322,30 @@ if strDetailSheet in dictSheets:
 		sys.exit(1)
 else:
 	print ("Detail sheet not found, creating one")
-	wbin.Sheets.Add()
+	wbin.Sheets.Add(After=wsResult)
 	wsDetails = wbin.ActiveSheet
 	wsDetails.Name = strDetailSheet
+
+if strPrefixeSheet in dictSheets:
+	strSelect = getInput("Prefix sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strPrefixeSheet))
+	strSelect = strSelect.lower()
+	if strSelect[0] == "y":
+		wsPrefixes = wbin.Worksheets(strPrefixeSheet)
+	else:
+		sys.exit(1)
+else:
+	print ("Prefix sheet not found, creating one")
+	wbin.Sheets.Add(After=wsDetails)
+	wsPrefixes = wbin.ActiveSheet
+	wsPrefixes.Name = strPrefixeSheet
 # End if valid input sheet
 
 strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
 if strUserName == "":
 	strUserName = DefUserName
 # end if username is empty
-
+# wbin.Worksheets(strSummarySheet).Activate
+# wsResult.select
 strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
 
 ResultHeaders()
@@ -317,6 +353,7 @@ ResultHeaders()
 iInputLineNum = 2
 iOutLineNum = 1
 iOut2Line = 1
+strHostVer = "Unknown"
 strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 FailedDevs = []
 strIPVerList = ["ipv4","ipv6"]
@@ -326,6 +363,17 @@ while strHostname != "" and strHostname != None :
 	iErrCount = 0
 	print ("Processing {} ...".format(strHostname))
 	dictDevices[strHostname] = strCommand1
+	strOut = ValidateRetry(strHostname,"show version")
+	if "IOS XR" in strOut:
+		strHostVer = "IOS-XR"
+	if "IOS XE" in strOut:
+		strHostVer = "IOS-XE"
+	if "NX-OS" in strOut:
+		strHostVer = "Nexus"
+	if "IOS" in strOut and strHostVer == "Unknown" :
+		strHostVer = "IOS"
+
+
 	strOut = ValidateRetry(strHostname,strCommand1)
 	strOut += ValidateRetry(strHostname,strCommand2)
 	dictPeers = AnalyzeResults(strOut.splitlines())
@@ -366,6 +414,16 @@ else:
 			FailedDevs.remove(iInputLineNum)
 			dictPeers = AnalyzeResults(strOut.splitlines())
 
+iOut3Line  = 2
+for strPrefix in dictPrefixes:
+	iColNumber = 4
+	wsPrefixes.Cells(iOut3Line,1).Value = strPrefix
+	wsPrefixes.Cells(iOut3Line,2).Value = dictPrefixes[strPrefix]["VRF"][0]
+	wsPrefixes.Cells(iOut3Line,3).Value = len(dictPrefixes[strPrefix]["Peer"])
+	for strRouter in dictPrefixes[strPrefix]["Peer"]:
+		wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
+		iColNumber += 1
+	iOut3Line += 1
 wsResult.Range(wsResult.Cells(1, 1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
 wsDetails.Range(wsDetails.Cells(1, 1),wsDetails.Cells(iOut2Line,12)).EntireColumn.AutoFit()
 wbin.Save()
@@ -379,6 +437,6 @@ if bFailedDev and len(FailedDevs) == 0:
 if len(FailedDevs) > 0:
 	print ("Failed to complete lines {} due to errors.".format(FailedDevs))
 print ("Completed at {}".format(now))
-print ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,iHours,iMin,iSec))
+print ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
 
 # messagebox.showinfo("All Done","Processing has completed, return to the command window for details")
