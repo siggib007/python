@@ -105,14 +105,15 @@ def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 				wsDetails.Cells(iOut2Line,2).Value = strPeerIP
 				wsDetails.Cells(iOut2Line,3).Value = strVRF
 				wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
+				strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 				if strAdvPrefix in dictPrefixes:
-					dictPrefixes[strAdvPrefix]["Peer"].append(strHostname + "-"+strPeerIP)
+					dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
 					if strVRF not in dictPrefixes[strAdvPrefix]["VRF"]:
 						dictPrefixes[strAdvPrefix]["VRF"].append(strVRF)
 				else:
 					dictPrefixes[strAdvPrefix]={}
 					dictPrefixes[strAdvPrefix]["VRF"]=[strVRF]
-					dictPrefixes[strAdvPrefix]["Peer"]=[strHostname + "-"+strPeerIP]
+					dictPrefixes[strAdvPrefix]["Peer"]=[strRouterVRFPeer]
 			if strLineTokens[0] == "Network":
 				bInSection = True
 # end function AnalyzeRoutes
@@ -127,7 +128,7 @@ def ParseDescr(strOutList,iLineNum):
 			break
 
 		if "Description" in strLine:
-			wsResult.Cells(iLineNum,6).Value = strLine[14:]
+			wsResult.Cells(iLineNum,7).Value = strLine[14:]
 #end function ParseDescr
 
 import tkinter as tk
@@ -356,9 +357,8 @@ iOut2Line = 1
 strHostVer = "Unknown"
 strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 FailedDevs = []
-strIPVerList = ["ipv4","ipv6"]
-strCommand1 = "show bgp summary"
-strCommand2 = "show bgp vrf all summary"
+strCommand1 = "show bgp ipv4 unicast summary "
+strCommand2 = "show bgp vrf all ipv4 unicast summary"
 while strHostname != "" and strHostname != None :
 	iErrCount = 0
 	print ("Processing {} ...".format(strHostname))
@@ -372,7 +372,7 @@ while strHostname != "" and strHostname != None :
 		strHostVer = "Nexus"
 	if "IOS" in strOut and strHostVer == "Unknown" :
 		strHostVer = "IOS"
-
+	print ("Found IOS version to be {}".format(strHostVer))
 
 	strOut = ValidateRetry(strHostname,strCommand1)
 	strOut += ValidateRetry(strHostname,strCommand2)
@@ -382,11 +382,11 @@ while strHostname != "" and strHostname != None :
 		strVRF = dictPeers[strPeerIP]["VRF"]
 		iLineNum = dictPeers[strPeerIP]["LineID"]
 		if strVRF == "Global Table":
-			strCmd = "show bgp neighbors {} advertised-routes".format(strPeerIP)
-			strCmd2 = "show bgp neighbors {} | include Description:".format(strPeerIP)
+			strCmd = "show bgp ipv4 unicast neighbors {} advertised-routes".format(strPeerIP)
+			strCmd2 = "show bgp ipv4 unicast neighbors {} | include Description:".format(strPeerIP)
 		else:
-			strCmd = "show bgp vrf {} neighbors {} advertised-routes".format(strVRF,strPeerIP)
-			strCmd2 = "show bgp vrf {} neighbors {} | include Description:".format(strVRF,strPeerIP)
+			strCmd = "show bgp vrf {} ipv4 unicast neighbors {} advertised-routes".format(strVRF,strPeerIP)
+			strCmd2 = "show bgp vrf {} ipv4 unicast neighbors {} | include Description:".format(strVRF,strPeerIP)
 		strOut = ValidateRetry(strHostname,strCmd2)
 		ParseDescr(strOut.splitlines(), iLineNum)
 		strOut = ValidateRetry(strHostname,strCmd)
@@ -424,8 +424,9 @@ for strPrefix in dictPrefixes:
 		wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
 		iColNumber += 1
 	iOut3Line += 1
-wsResult.Range(wsResult.Cells(1, 1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
-wsDetails.Range(wsDetails.Cells(1, 1),wsDetails.Cells(iOut2Line,12)).EntireColumn.AutoFit()
+wsResult.Range(wsResult.Cells(1,1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
+wsDetails.Range(wsDetails.Cells(1,1),wsDetails.Cells(iOut2Line,12)).EntireColumn.AutoFit()
+wsPrefixes.Range(wsPrefixes.Cells(1,1),wsPrefixes.Cells(iOut3Line,312)).EntireColumn.AutoFit()
 wbin.Save()
 now = time.asctime()
 tStop = time.time()
