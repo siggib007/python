@@ -41,12 +41,12 @@ def AnalyzeResults(strOutputList):
 	bNeighborSection = False
 	strVRF = "Global Table"
 
-	print ("There are {} lines in the output".format(len(strOutputList)))
+	LogEntry ("There are {} lines in the output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
 			wsResult.Cells(iOutLineNum,3).Value = strLine
 			bFoundABFACL = True
-			print ("Found an exception message, aborting analysis")
+			LogEntry ("Found an exception message, aborting analysis")
 			break
 
 		if "local AS number " in strLine:
@@ -88,12 +88,12 @@ def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 	global dictPrefixes
 	bInSection = False
 
-	print ("Analyzing route table. There are {} lines in the output".format(len(strOutList)))
+	LogEntry ("Analyzing route table. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
 			wsResult.Cells(iOutLineNum,3).Value = strLine
 			bFoundABFACL = True
-			print ("Found an exception message, aborting analysis")
+			LogEntry ("Found an exception message, aborting analysis")
 			break
 
 		strLineTokens = strLine.split()
@@ -119,12 +119,12 @@ def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 # end function AnalyzeRoutes
 
 def ParseDescr(strOutList,iLineNum):
-	print ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
+	LogEntry ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
 			wsResult.Cells(iLineNum,7).Value = strLine
 			bFoundABFACL = True
-			print ("Found an exception message, aborting analysis")
+			LogEntry ("Found an exception message, aborting analysis")
 			break
 
 		if "Description" in strLine:
@@ -166,7 +166,7 @@ def GetResults(strHostname,strCmd):
 		SSH.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 		SSH.connect(strHostname, username=strUserName, password=strPWD, look_for_keys=False, allow_agent=False)
 		stdin, stdout, stderr = SSH.exec_command(strCmd)
-		print ("sent {0} to {1}".format(strCmd,strHostname))
+		LogEntry ("sent {0} to {1}".format(strCmd,strHostname))
 		strOut = stdout.read()
 		SSH.close()
 		strOut = strOut.decode("utf-8")
@@ -177,18 +177,18 @@ def GetResults(strHostname,strCmd):
 			objFileOut = open(strOutFile,"w")
 		objFileOut.write (strOut)
 		objFileOut.close()
-		print ("output written to "+strOutFile)
+		LogEntry ("output written to "+strOutFile)
 	except paramiko.ssh_exception.AuthenticationException as err:
-		print ("Auth Exception: {0}".format(err))
+		LogEntry ("Auth Exception: {0}".format(err))
 		sys.exit(1)
 	except paramiko.SSHException as err:
-		print ("SSH Exception: {0}".format(err))
+		LogEntry ("SSH Exception: {0}".format(err))
 		strOut = "SSH Exception: {0}".format(err)
 	except OSError as err:
-		print ("Socket Exception: {0}".format(err))
+		LogEntry ("Socket Exception: {0}".format(err))
 		strOut = "Socket Exception: {0}".format(err)
 	except Exception as err:
-		print ("Generic Exception: {0}".format(err))
+		LogEntry ("Generic Exception: {0}".format(err))
 		strOut = "Generic Exception: {0}".format(err)
 	return strOut
 #end function GetResults
@@ -200,7 +200,7 @@ def ValidateRetry(strHostname,strCmd):
 	strOut = GetResults(strHostname,strCmd)
 	if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
 		while iErrCount < iMaxError:
-			print ("Trying again in 5 sec")
+			LogEntry ("Trying again in 5 sec")
 			time.sleep(5)
 			strOut = GetResults(strHostname,strCmd)
 			if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
@@ -211,6 +211,11 @@ def ValidateRetry(strHostname,strCmd):
 			FailedDevs.append(iInputLineNum)
 	return strOut
 # end function ValidateRetry
+
+def LogEntry(strMsg):
+	strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
+	objLogOut.write("{0} : {1}\n".format(strTimeStamp,strMsg))
+	print (strMsg)
 
 DefUserName = getpass.getuser()
 print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
@@ -232,11 +237,15 @@ if strWBin =="":
 print ("You selected: " + strWBin)
 print ("File extention is:{}".format(strWBin[-4:]))
 if strWBin[-4:] != "xlsx" :
-	print ("I was expecting an excel input file xlsx extension. Don't know what do to except exit")
+	print ("I was expecting an excel input file with xlsx extension. Don't know what do to except exit")
 	sys.exit(2)
 #end if xlsx
 iLoc = strWBin.rfind("/")
 strPath = strWBin[:iLoc]
+iLoc = strWBin.rfind(".")
+strLogFile = strWBin[:iLoc]+".log"
+objLogOut = open(strLogFile,"a",1)
+LogEntry("Started logging to {}".format(strLogFile))
 strOutPath = strPath+"/"+strOutFolderName+"/"
 if not os.path.exists (strOutPath) :
 	os.makedirs(strOutPath)
@@ -361,7 +370,7 @@ strCommand1 = "show bgp ipv4 unicast summary "
 strCommand2 = "show bgp vrf all ipv4 unicast summary"
 while strHostname != "" and strHostname != None :
 	iErrCount = 0
-	print ("Processing {} ...".format(strHostname))
+	LogEntry ("Processing {} ...".format(strHostname))
 	dictDevices[strHostname] = strCommand1
 	strOut = ValidateRetry(strHostname,"show version")
 	if "IOS XR" in strOut:
@@ -372,7 +381,7 @@ while strHostname != "" and strHostname != None :
 		strHostVer = "Nexus"
 	if "IOS" in strOut and strHostVer == "Unknown" :
 		strHostVer = "IOS"
-	print ("Found IOS version to be {}".format(strHostVer))
+	LogEntry ("Found IOS version to be {}".format(strHostVer))
 
 	strOut = ValidateRetry(strHostname,strCommand1)
 	strOut += ValidateRetry(strHostname,strCommand2)
@@ -398,15 +407,15 @@ while strHostname != "" and strHostname != None :
 # End while hostname
 
 if len(FailedDevs) == 0:
-	print ("All devices are successful")
+	LogEntry ("All devices are successful")
 	bFailedDev = False
 else:
 	bFailedDev = True
-	print ("Failed to complete {} lines {} due to errors.".format(len(FailedDevs),FailedDevs))
-	print ("Retrying them one more time")
+	LogEntry ("Failed to complete {} lines {} due to errors.".format(len(FailedDevs),FailedDevs))
+	LogEntry ("Retrying them one more time")
 	for iInputLineNum in FailedDevs:
 		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
-		print ("Processing {} ...".format(strHostname))
+		LogEntry ("Processing {} ...".format(strHostname))
 		dictDevices[strHostname] = strCommand1
 		strOut = GetResults(strHostname,strCommand1)
 		strOut += GetResults(strHostname,strCommand2)
@@ -419,7 +428,7 @@ for strPrefix in dictPrefixes:
 	iColNumber = 4
 	wsPrefixes.Cells(iOut3Line,1).Value = strPrefix
 	wsPrefixes.Cells(iOut3Line,2).Value = dictPrefixes[strPrefix]["VRF"][0]
-	wsPrefixes.Cells(iOut3Line,3).Value = len(dictPrefixes[strPrefix]["Peer"])
+	wsPrefixes.Cells(iOut3Line,3).Value = len(dictPrefixes[strPrefix]["VRF"])
 	for strRouter in dictPrefixes[strPrefix]["Peer"]:
 		wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
 		iColNumber += 1
@@ -434,10 +443,12 @@ iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
 if bFailedDev and len(FailedDevs) == 0:
-	print ("All devices successful after final retries")
+	LogEntry ("All devices successful after final retries")
 if len(FailedDevs) > 0:
-	print ("Failed to complete lines {} due to errors.".format(FailedDevs))
-print ("Completed at {}".format(now))
-print ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
+	LogEntry ("Failed to complete lines {} due to errors.".format(FailedDevs))
+LogEntry ("Completed at {}".format(now))
+LogEntry ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
+objLogOut.close
+print ("Log file {} closed".format(strLogFile))
 
 # messagebox.showinfo("All Done","Processing has completed, return to the command window for details")
