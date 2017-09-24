@@ -31,9 +31,9 @@ def ResultHeaders():
 	wsDetails.Cells(1,3).Value  = "VRF"
 	wsDetails.Cells(1,4).Value  = "Adv Prefix"
 	wsPrefixes.Cells(1,1).Value = "Prefix"
-	wsPrefixes.Cells(1,2).Value = "VRF"
-	wsPrefixes.Cells(1,3).Value = "VRF Count"
-	wsPrefixes.Cells(1,4).Value = "Router-PeerIP"
+	wsPrefixes.Cells(1,2).Value = "VRFs"
+	wsPrefixes.Cells(1,3).Value = "Peer Count"
+	wsPrefixes.Cells(1,4).Value = "Router-VRF-PeerIP"
 
 def AnalyzeResults(strOutputList):
 	global iOutLineNum
@@ -180,7 +180,7 @@ def GetResults(strHostname,strCmd):
 		LogEntry ("output written to "+strOutFile)
 	except paramiko.ssh_exception.AuthenticationException as err:
 		LogEntry ("Auth Exception: {0}".format(err))
-		sys.exit(1)
+		strOut = "Auth Exception: {0}".format(err)
 	except paramiko.SSHException as err:
 		LogEntry ("SSH Exception: {0}".format(err))
 		strOut = "SSH Exception: {0}".format(err)
@@ -196,8 +196,30 @@ def GetResults(strHostname,strCmd):
 def ValidateRetry(strHostname,strCmd):
 	global iErrCount
 	global FailedDevs
+	global iAuthFail
+	global strPWD
+	global strUserName
 
 	strOut = GetResults(strHostname,strCmd)
+	if "Auth Exception" in strOut:
+		while iAuthFail < 3:
+			strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
+			if strUserName == "":
+				strUserName = DefUserName
+			# end if username is empty
+			strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
+			if strPWD == "":
+				print ("empty password, exiting")
+				sys.exit(5)
+			iAuthFail += 1
+			strOut = GetResults(strHostname,strCmd)
+			if "Auth Exception" not in strOut:
+				iAuthFail = 0
+				break
+		if iAuthFail == 3:
+			sys.exit(5)
+
+
 	if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
 		while iErrCount < iMaxError:
 			LogEntry ("Trying again in 5 sec")
@@ -244,7 +266,7 @@ iLoc = strWBin.rfind("/")
 strPath = strWBin[:iLoc]
 iLoc = strWBin.rfind(".")
 strLogFile = strWBin[:iLoc]+".log"
-objLogOut = open(strLogFile,"a",1)
+objLogOut = open(strLogFile,"w",1)
 LogEntry("Started logging to {}".format(strLogFile))
 strOutPath = strPath+"/"+strOutFolderName+"/"
 if not os.path.exists (strOutPath) :
@@ -313,6 +335,9 @@ if iInputColumn == iCol :
 if strSummarySheet in dictSheets:
 	strSelect = getInput("Summary sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strSummarySheet))
 	strSelect = strSelect.lower()
+	if strSelect == "":
+		strSelect = "y"
+		print ("Blank input assuming yes")
 	if strSelect[0] == "y":
 		wsResult = wbin.Worksheets(strSummarySheet)
 	else:
@@ -326,6 +351,9 @@ else:
 if strDetailSheet in dictSheets:
 	strSelect = getInput("Detail sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strDetailSheet))
 	strSelect = strSelect.lower()
+	if strSelect == "":
+		strSelect = "y"
+		print ("Blank input assuming yes")
 	if strSelect[0] == "y":
 		wsDetails = wbin.Worksheets(strDetailSheet)
 	else:
@@ -339,6 +367,9 @@ else:
 if strPrefixeSheet in dictSheets:
 	strSelect = getInput("Prefix sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strPrefixeSheet))
 	strSelect = strSelect.lower()
+	if strSelect == "":
+		strSelect = "y"
+		print ("Blank input assuming yes")
 	if strSelect[0] == "y":
 		wsPrefixes = wbin.Worksheets(strPrefixeSheet)
 	else:
@@ -354,8 +385,7 @@ strUserName = getInput("Please provide username for use when login into the rout
 if strUserName == "":
 	strUserName = DefUserName
 # end if username is empty
-# wbin.Worksheets(strSummarySheet).Activate
-# wsResult.select
+
 strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
 
 ResultHeaders()
@@ -370,6 +400,7 @@ strCommand1 = "show bgp ipv4 unicast summary "
 strCommand2 = "show bgp vrf all ipv4 unicast summary"
 while strHostname != "" and strHostname != None :
 	iErrCount = 0
+	iAuthFail = 0
 	LogEntry ("Processing {} ...".format(strHostname))
 	dictDevices[strHostname] = strCommand1
 	strOut = ValidateRetry(strHostname,"show version")
@@ -427,8 +458,8 @@ iOut3Line  = 2
 for strPrefix in dictPrefixes:
 	iColNumber = 4
 	wsPrefixes.Cells(iOut3Line,1).Value = strPrefix
-	wsPrefixes.Cells(iOut3Line,2).Value = dictPrefixes[strPrefix]["VRF"][0]
-	wsPrefixes.Cells(iOut3Line,3).Value = len(dictPrefixes[strPrefix]["VRF"])
+	wsPrefixes.Cells(iOut3Line,2).Value = ";".join(dictPrefixes[strPrefix]["VRF"])
+	wsPrefixes.Cells(iOut3Line,3).Value = len(dictPrefixes[strPrefix]["Peer"])
 	for strRouter in dictPrefixes[strPrefix]["Peer"]:
 		wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
 		iColNumber += 1
@@ -451,4 +482,3 @@ LogEntry ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and
 objLogOut.close
 print ("Log file {} closed".format(strLogFile))
 
-# messagebox.showinfo("All Done","Processing has completed, return to the command window for details")
