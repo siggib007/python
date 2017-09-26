@@ -333,14 +333,16 @@ if iInputColumn == iCol :
 	sys.exit(1)
 # wbin.Worksheets(1).Activate
 if strSummarySheet in dictSheets:
-	strSelect = getInput("Summary sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strSummarySheet))
+	strSelect = getInput("Summary sheet '{}' exists, is it OK to overwrite (y/n): ".format(strSummarySheet))
 	strSelect = strSelect.lower()
 	if strSelect == "":
 		strSelect = "y"
 		print ("Blank input assuming yes")
 	if strSelect[0] == "y":
 		wsResult = wbin.Worksheets(strSummarySheet)
+		wsResult.Range(wsResult.Columns(1),wsResult.Columns(15)).Clear()
 	else:
+		print ("No problem at all, exiting so you can rename, etc.")
 		sys.exit(1)
 else:
 	print ("Summary sheet not found, creating one")
@@ -349,14 +351,16 @@ else:
 	wsResult.Name = strSummarySheet
 
 if strDetailSheet in dictSheets:
-	strSelect = getInput("Detail sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strDetailSheet))
+	strSelect = getInput("Detail sheet '{}' exists, is it OK to overwrite (y/n): ".format(strDetailSheet))
 	strSelect = strSelect.lower()
 	if strSelect == "":
 		strSelect = "y"
 		print ("Blank input assuming yes")
 	if strSelect[0] == "y":
 		wsDetails = wbin.Worksheets(strDetailSheet)
+		wsDetails.Range(wsDetails.Columns(1),wsDetails.Columns(15)).Clear()
 	else:
+		print ("No problem at all, exiting so you can rename, etc.")
 		sys.exit(1)
 else:
 	print ("Detail sheet not found, creating one")
@@ -365,14 +369,16 @@ else:
 	wsDetails.Name = strDetailSheet
 
 if strPrefixeSheet in dictSheets:
-	strSelect = getInput("Prefix sheet '{}' exists and some data will be overwritten, OK (y/n): ".format(strPrefixeSheet))
+	strSelect = getInput("Prefix sheet '{}' exists, is it OK to overwrite (y/n): ".format(strPrefixeSheet))
 	strSelect = strSelect.lower()
 	if strSelect == "":
 		strSelect = "y"
 		print ("Blank input assuming yes")
 	if strSelect[0] == "y":
 		wsPrefixes = wbin.Worksheets(strPrefixeSheet)
+		wsPrefixes.Range(wsPrefixes.Columns(1),wsPrefixes.Columns(555)).Clear()
 	else:
+		print ("No problem at all, exiting so you can rename, etc.")
 		sys.exit(1)
 else:
 	print ("Prefix sheet not found, creating one")
