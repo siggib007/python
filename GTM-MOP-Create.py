@@ -204,9 +204,9 @@ while wsTopologies.Cells(x,1).Value != "" and wsTopologies.Cells(x,1).Value != N
 	objFileImpl.write ("create gtm topology ldns: region \"/Common/" + wsTopologies.Cells(x,2).Value + "\" server: pool /" + strPartition +
 		"/" + wsTopologies.Cells(x,1).Value + " { score " + str(int(wsTopologies.Cells(x,3).Value)) + " }\n")
 	objFileBackOut.write ("delete gtm topology ldns: region \"/Common/" + wsTopologies.Cells(x,2).Value + "\" server: pool /" + strPartition +
-		"/" + wsTopologies.Cells(x,1).Value + " { score " + str(int(wsTopologies.Cells(x,3).Value)) + " }\n")
+		"/" + wsTopologies.Cells(x,1).Value + " \n")
 	objFileVerify.write ("list gtm topology ldns: region \"/Common/" + wsTopologies.Cells(x,2).Value + "\" server: pool /" + strPartition +
-		"/" + wsTopologies.Cells(x,1).Value + " { score " + str(int(wsTopologies.Cells(x,3).Value)) + " }\n")
+		"/" + wsTopologies.Cells(x,1).Value + " \n")
 	x += 1
 
 objFileImpl.write ("\n")
