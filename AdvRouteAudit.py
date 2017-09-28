@@ -17,6 +17,26 @@ strSummarySheet = "BGPSummary"
 strDetailSheet  = "By Router"
 strPrefixeSheet = "By Prefix"
 iMaxError = 4
+dictBaseCmd = {
+		"IOS-XR":{
+			"Match":"IOS XR",
+			"IPv4-GT-Summary":"show bgp ipv4 unicast summary",
+			"IPv4-VRF-Summary":"show bgp vrf all ipv4 unicast summary",
+			"IPv4-GT-Advertise":"show bgp ipv4 unicast neighbors {} advertised-routes",
+			"IPv4-VRF-Advertise":"show bgp vrf {} ipv4 unicast neighbors {} advertised-routes",
+			"IPv4-GT-Description":"show bgp ipv4 unicast neighbors {} | include Description:",
+			"IPv4-VRF-Description":"show bgp vrf {} ipv4 unicast neighbors {} | include Description:",
+		},
+		"IOS-XE":{
+			"Match":"IOS XE",
+			"IPv4-GT-Summary":"show bgp ipv4 unicast summary",
+			"IPv4-VRF-Summary":"show bgp vrf all ipv4 unicast summary",
+			"IPv4-GT-Advertise":"show bgp ipv4 unicast neighbors {} advertised-routes",
+			"IPv4-VRF-Advertise":"show bgp vrf {} ipv4 unicast neighbors {} advertised-routes",
+			"IPv4-GT-Description":"show bgp ipv4 unicast neighbors {} | include Description:",
+			"IPv4-VRF-Description":"show bgp vrf {} ipv4 unicast neighbors {} | include Description:",
+		}
+	}
 
 def ResultHeaders():
 	wsResult.Cells(1,1).Value   = "Router"
@@ -49,36 +69,49 @@ def AnalyzeResults(strOutputList):
 			LogEntry ("Found an exception message, aborting analysis")
 			break
 
-		if "local AS number " in strLine:
-			iLoc = strLine.find("number ")+7
-			iLocalAS = strLine[iLoc:]
-		strLineTokens = strLine.split()
-		strPeerIP = ""
-		if len(strLineTokens) > 1:
-			if strLineTokens[0]== "VRF:":
-				strVRF = strLineTokens[1]
-			if bNeighborSection:
-				if len(strLineTokens) > 8:
-					iRemoteAS = strLineTokens[2]
-					strCount = str(strLineTokens[9])
-					strPeerIP = strLineTokens[0]
-					if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" :
-						iOutLineNum += 1
-						wsResult.Cells(iOutLineNum,1).Value = strHostname
-						wsResult.Cells(iOutLineNum,2).Value = strHostVer
-						wsResult.Cells(iOutLineNum,3).Value = strPeerIP
-						wsResult.Cells(iOutLineNum,4).Value = strLineTokens[2]
-						wsResult.Cells(iOutLineNum,5).Value = strVRF
-						wsResult.Cells(iOutLineNum,6).Value = strLineTokens[9]
-						dictPeers[strPeerIP] = {}
-						dictPeers[strPeerIP]["VRF"] = strVRF
-						dictPeers[strPeerIP]["LineID"] = iOutLineNum
-				else:
-					wsResult.Cells(iOutLineNum,2).Value = "Line {} was unexpectedly short".format(strLine)
-			if strLineTokens[0]== "Neighbor":
-				bNeighborSection = True
-		else:
-			bNeighborSection = False
+		if strHostVer == "IOS-XR":
+			if "local AS number " in strLine:
+				iLoc = strLine.find("number ")+7
+				iLocalAS = strLine[iLoc:]
+			strLineTokens = strLine.split()
+			strPeerIP = ""
+			if len(strLineTokens) > 1:
+				if strLineTokens[0]== "VRF:":
+					strVRF = strLineTokens[1]
+				if bNeighborSection:
+					if len(strLineTokens) > 8:
+						iRemoteAS = strLineTokens[2]
+						strCount = str(strLineTokens[9])
+						strPeerIP = strLineTokens[0]
+						if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" :
+							iOutLineNum += 1
+							wsResult.Cells(iOutLineNum,1).Value = strHostname
+							wsResult.Cells(iOutLineNum,2).Value = strHostVer
+							wsResult.Cells(iOutLineNum,3).Value = strPeerIP
+							wsResult.Cells(iOutLineNum,4).Value = strLineTokens[2]
+							wsResult.Cells(iOutLineNum,5).Value = strVRF
+							wsResult.Cells(iOutLineNum,6).Value = strLineTokens[9]
+							dictPeers[strPeerIP] = {}
+							dictPeers[strPeerIP]["VRF"] = strVRF
+							dictPeers[strPeerIP]["LineID"] = iOutLineNum
+					else:
+						wsResult.Cells(iOutLineNum,2).Value = "Line {} was unexpectedly short".format(strLine)
+				if strLineTokens[0]== "Neighbor":
+					bNeighborSection = True
+			else:
+				bNeighborSection = False
+		if strHostVer == "IOS-XE":
+			wsResult.Cells(iOutLineNum,1).Value = strHostname
+			wsResult.Cells(iOutLineNum,2).Value = strHostVer
+			wsResult.Cells(iOutLineNum,3).Value = "Parsing not implemented yet"
+		if strHostVer == "IOS":
+			wsResult.Cells(iOutLineNum,1).Value = strHostname
+			wsResult.Cells(iOutLineNum,2).Value = strHostVer
+			wsResult.Cells(iOutLineNum,3).Value = "Parsing not implemented yet"
+		if strHostVer == "Unknown":
+			wsResult.Cells(iOutLineNum,1).Value = strHostname
+			wsResult.Cells(iOutLineNum,2).Value = strHostVer
+			wsResult.Cells(iOutLineNum,3).Value = "Can't parse output for unknown platform"
 	return dictPeers
 
 # end function AnalyzeResults
@@ -402,41 +435,38 @@ iOut2Line = 1
 strHostVer = "Unknown"
 strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 FailedDevs = []
-strCommand1 = "show bgp ipv4 unicast summary "
-strCommand2 = "show bgp vrf all ipv4 unicast summary"
 while strHostname != "" and strHostname != None :
 	iErrCount = 0
 	iAuthFail = 0
 	LogEntry ("Processing {} ...".format(strHostname))
-	dictDevices[strHostname] = strCommand1
+	dictDevices[strHostname] = strHostVer
 	strOut = ValidateRetry(strHostname,"show version")
-	if "IOS XR" in strOut:
-		strHostVer = "IOS-XR"
-	if "IOS XE" in strOut:
-		strHostVer = "IOS-XE"
-	if "NX-OS" in strOut:
-		strHostVer = "Nexus"
-	if "IOS" in strOut and strHostVer == "Unknown" :
-		strHostVer = "IOS"
+	for strOS in dictBaseCmd:
+		if strOS == "IOS":
+			if "IOS" in strOut and strHostVer == "Unknown" :
+				strHostVer = "IOS"
+		else:
+			if dictBaseCmd[strOS]["Match"] in strOut:
+				strHostVer = strOS
 	LogEntry ("Found IOS version to be {}".format(strHostVer))
 
-	strOut = ValidateRetry(strHostname,strCommand1)
-	strOut += ValidateRetry(strHostname,strCommand2)
+	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Summary"])
+	strOut += ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"])
 	dictPeers = AnalyzeResults(strOut.splitlines())
 
 	for strPeerIP in dictPeers:
 		strVRF = dictPeers[strPeerIP]["VRF"]
 		iLineNum = dictPeers[strPeerIP]["LineID"]
 		if strVRF == "Global Table":
-			strCmd = "show bgp ipv4 unicast neighbors {} advertised-routes".format(strPeerIP)
-			strCmd2 = "show bgp ipv4 unicast neighbors {} | include Description:".format(strPeerIP)
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Description"].format(strPeerIP))
+			ParseDescr(strOut.splitlines(), iLineNum)
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Advertise"].format(strVRF,strPeerIP))
+			AnalyzeRoutes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
 		else:
-			strCmd = "show bgp vrf {} ipv4 unicast neighbors {} advertised-routes".format(strVRF,strPeerIP)
-			strCmd2 = "show bgp vrf {} ipv4 unicast neighbors {} | include Description:".format(strVRF,strPeerIP)
-		strOut = ValidateRetry(strHostname,strCmd2)
-		ParseDescr(strOut.splitlines(), iLineNum)
-		strOut = ValidateRetry(strHostname,strCmd)
-		AnalyzeRoutes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Description"].format(strVRF,strPeerIP))
+			ParseDescr(strOut.splitlines(), iLineNum)
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
+			AnalyzeRoutes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
 
 	time.sleep(1)
 	iInputLineNum += 1
@@ -453,9 +483,9 @@ else:
 	for iInputLineNum in FailedDevs:
 		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 		LogEntry ("Processing {} ...".format(strHostname))
-		dictDevices[strHostname] = strCommand1
-		strOut = GetResults(strHostname,strCommand1)
-		strOut += GetResults(strHostname,strCommand2)
+		dictDevices[strHostname] = dictBaseCmd[strHostVer]["IPv4-GT-Summary"]
+		strOut = GetResults(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Summary"])
+		strOut += GetResults(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"])
 		if "Exception:"	not in strOut:
 			FailedDevs.remove(iInputLineNum)
 			dictPeers = AnalyzeResults(strOut.splitlines())

@@ -218,7 +218,7 @@ while wsFQDNs.Cells(x,1).Value != "" and wsFQDNs.Cells(x,1).Value != None :
 		strEnable = "enabled"
 	else:
 		strEnable = "disabled"
-	strBase = "create gtm wideip " + wsFQDNs.Cells(x,1).Value + " { ipv6-no-error-response " + strEnable + " pool-lb-mode " + strLBMode + " pools add {"
+	strBase = "create gtm wideip " + wsFQDNs.Cells(x,1).Value + " { ipv6-no-error-response " + strEnable + " pool-lb-mode " + strLBMode.lower() + " pools add {"
 	y = 0
 	strTemp = ""
 	while wsFQDNs.Cells(x,y+3).Value != "" and wsFQDNs.Cells(x,y+3).Value != None :
