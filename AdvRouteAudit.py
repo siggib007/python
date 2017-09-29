@@ -62,14 +62,14 @@ def AnalyzeResults(strOutputList):
 	strVRF = "Global Table"
 
 	LogEntry ("There are {} lines in the output".format(len(strOutputList)))
-	for strLine in strOutputList:
-		if "Exception:" in strLine:
-			wsResult.Cells(iOutLineNum,3).Value = strLine
-			bFoundABFACL = True
-			LogEntry ("Found an exception message, aborting analysis")
-			break
+	if strHostVer == "IOS-XR":
+		for strLine in strOutputList:
+			if "Exception:" in strLine:
+				wsResult.Cells(iOutLineNum,3).Value = strLine
+				bFoundABFACL = True
+				LogEntry ("Found an exception message, aborting analysis")
+				break
 
-		if strHostVer == "IOS-XR":
 			if "local AS number " in strLine:
 				iLoc = strLine.find("number ")+7
 				iLocalAS = strLine[iLoc:]
@@ -100,18 +100,16 @@ def AnalyzeResults(strOutputList):
 					bNeighborSection = True
 			else:
 				bNeighborSection = False
-		if strHostVer == "IOS-XE":
-			wsResult.Cells(iOutLineNum,1).Value = strHostname
-			wsResult.Cells(iOutLineNum,2).Value = strHostVer
-			wsResult.Cells(iOutLineNum,3).Value = "Parsing not implemented yet"
-		if strHostVer == "IOS":
-			wsResult.Cells(iOutLineNum,1).Value = strHostname
-			wsResult.Cells(iOutLineNum,2).Value = strHostVer
-			wsResult.Cells(iOutLineNum,3).Value = "Parsing not implemented yet"
-		if strHostVer == "Unknown":
-			wsResult.Cells(iOutLineNum,1).Value = strHostname
-			wsResult.Cells(iOutLineNum,2).Value = strHostVer
-			wsResult.Cells(iOutLineNum,3).Value = "Can't parse output for unknown platform"
+	if strHostVer == "IOS-XE" or strHostVer == "IOS":
+		wsResult.Cells(iOutLineNum,1).Value = strHostname
+		wsResult.Cells(iOutLineNum,2).Value = strHostVer
+		wsResult.Cells(iOutLineNum,3).Value = "Parsing not implemented yet"
+		LogEntry("AnalyzeResults not implemented yet for {}".format(strHostVer))
+	if strHostVer == "Unknown":
+		wsResult.Cells(iOutLineNum,1).Value = strHostname
+		wsResult.Cells(iOutLineNum,2).Value = strHostVer
+		wsResult.Cells(iOutLineNum,3).Value = "Can't parse output for unknown platform"
+		LogEntry("Can't AnalyzeResults for unknown platform")
 	return dictPeers
 
 # end function AnalyzeResults
@@ -122,46 +120,67 @@ def AnalyzeRoutes(strOutList,strVRF,strPeerIP,strHostname):
 	bInSection = False
 
 	LogEntry ("Analyzing route table. There are {} lines in the output".format(len(strOutList)))
-	for strLine in strOutList:
-		if "Exception:" in strLine:
-			wsResult.Cells(iOutLineNum,3).Value = strLine
-			bFoundABFACL = True
-			LogEntry ("Found an exception message, aborting analysis")
-			break
+	if strHostVer == "IOS-XR":
+		for strLine in strOutList:
+			if "Exception:" in strLine:
+				wsResult.Cells(iOutLineNum,3).Value = strLine
+				bFoundABFACL = True
+				LogEntry ("Found an exception message, aborting analysis")
+				break
 
-		strLineTokens = strLine.split()
-		if len(strLineTokens) > 1:
-			if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
-				iOut2Line += 1
-				strAdvPrefix = strLineTokens[0]
-				wsDetails.Cells(iOut2Line,1).Value = strHostname
-				wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-				wsDetails.Cells(iOut2Line,3).Value = strVRF
-				wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
-				strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
-				if strAdvPrefix in dictPrefixes:
-					dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
-					if strVRF not in dictPrefixes[strAdvPrefix]["VRF"]:
-						dictPrefixes[strAdvPrefix]["VRF"].append(strVRF)
-				else:
-					dictPrefixes[strAdvPrefix]={}
-					dictPrefixes[strAdvPrefix]["VRF"]=[strVRF]
-					dictPrefixes[strAdvPrefix]["Peer"]=[strRouterVRFPeer]
-			if strLineTokens[0] == "Network":
-				bInSection = True
+			strLineTokens = strLine.split()
+			if len(strLineTokens) > 1:
+				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
+					iOut2Line += 1
+					strAdvPrefix = strLineTokens[0]
+					wsDetails.Cells(iOut2Line,1).Value = strHostname
+					wsDetails.Cells(iOut2Line,2).Value = strPeerIP
+					wsDetails.Cells(iOut2Line,3).Value = strVRF
+					wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
+					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
+					if strAdvPrefix in dictPrefixes:
+						dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
+						if strVRF not in dictPrefixes[strAdvPrefix]["VRF"]:
+							dictPrefixes[strAdvPrefix]["VRF"].append(strVRF)
+					else:
+						dictPrefixes[strAdvPrefix]={}
+						dictPrefixes[strAdvPrefix]["VRF"]=[strVRF]
+						dictPrefixes[strAdvPrefix]["Peer"]=[strRouterVRFPeer]
+				if strLineTokens[0] == "Network":
+					bInSection = True
+	if strHostVer == "IOS-XE" or strHostVer == "IOS":
+		wsDetails.Cells(iOut2Line,1).Value = strHostname
+		wsDetails.Cells(iOut2Line,2).Value = strHostVer
+		wsDetails.Cells(iOut2Line,3).Value = "Parsing not implemented yet"
+		LogEntry("AnalyzeRoutes not implemented yet for {}".format(strHostVer))
+	if strHostVer == "Unknown":
+		wsDetails.Cells(iOut2Line,1).Value = strHostname
+		wsDetails.Cells(iOut2Line,2).Value = strHostVer
+		wsDetails.Cells(iOut2Line,3).Value = "Can't parse output for unknown platform"
+			LogEntry("Can't Analyze Routes for unknown platform")
 # end function AnalyzeRoutes
 
 def ParseDescr(strOutList,iLineNum):
 	LogEntry ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
-	for strLine in strOutList:
-		if "Exception:" in strLine:
-			wsResult.Cells(iLineNum,7).Value = strLine
-			bFoundABFACL = True
-			LogEntry ("Found an exception message, aborting analysis")
-			break
-
-		if "Description" in strLine:
-			wsResult.Cells(iLineNum,7).Value = strLine[14:]
+	if strHostVer == "IOS-XR":
+		for strLine in strOutList:
+			if "Exception:" in strLine:
+				wsResult.Cells(iLineNum,7).Value = strLine
+				bFoundABFACL = True
+				LogEntry ("Found an exception message, aborting analysis")
+				break
+			if "Description" in strLine:
+				wsResult.Cells(iLineNum,7).Value = strLine[14:]
+	if strHostVer == "IOS-XE" or strHostVer == "IOS":
+		wsDetails.Cells(iOut2Line,1).Value = strHostname
+		wsDetails.Cells(iOut2Line,2).Value = strHostVer
+		wsDetails.Cells(iOut2Line,3).Value = "Parsing not implemented yet"
+		LogEntry("ParseDescr not implemented yet for {}".format(strHostVer))
+	if strHostVer == "Unknown":
+		wsDetails.Cells(iOut2Line,1).Value = strHostname
+		wsDetails.Cells(iOut2Line,2).Value = strHostVer
+		wsDetails.Cells(iOut2Line,3).Value = "Can't parse output for unknown platform"
+			LogEntry("Can't find peer description on unknown platform")
 #end function ParseDescr
 
 import tkinter as tk
