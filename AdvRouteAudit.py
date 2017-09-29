@@ -215,7 +215,8 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname):
 def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname):
 	global iOut2Line
 	global dictPrefixes
-	bInSection = False
+	iPrefixCount = 0
+	strNextHop = ""
 
 	LogEntry ("Analyzing ipv6 route table. There are {} lines in the output".format(len(strOutList)))
 	if strHostVer == "IOS-XR":
@@ -227,23 +228,30 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname):
 				break
 
 			strLineTokens = strLine.split()
-			if len(strLineTokens) > 1:
+			if len(strLineTokens) > 0:
 				if strLineTokens[0].find(":") == 4:
-					iOut2Line += 1
-					strAdvPrefix = strLineTokens[0]
-					wsDetails.Cells(iOut2Line,1).Value = strHostname
-					wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-					wsDetails.Cells(iOut2Line,3).Value = strVRF
-					wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
-					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
-					if strAdvPrefix in dictPrefixes:
-						dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
-						if strVRF not in dictPrefixes[strAdvPrefix]["VRF"]:
-							dictPrefixes[strAdvPrefix]["VRF"].append(strVRF)
-					else:
-						dictPrefixes[strAdvPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
-				if strLineTokens[0] == "Network":
-					bInSection = True
+					if iPrefixCount == 0:
+						if len(strLineTokens) > 1:
+							strNextHop = strLineTokens[1]
+						strAdvPrefix = strLineTokens[0]
+						iPrefixCount += 1
+					if iPrefixCount == 1 and strNextHop == "":
+						strNextHop = strLineTokens[0]
+					if strNextHop != "" and strNextHop != strLineTokens[0]:
+						strAdvPrefix = strLineTokens[0]
+						iOut2Line += 1
+						iPrefixCount += 1
+						wsDetails.Cells(iOut2Line,1).Value = strHostname
+						wsDetails.Cells(iOut2Line,2).Value = strPeerIP
+						wsDetails.Cells(iOut2Line,3).Value = strVRF
+						wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
+						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
+						if strAdvPrefix in dictPrefixes:
+							dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
+							if strVRF not in dictPrefixes[strAdvPrefix]["VRF"]:
+								dictPrefixes[strAdvPrefix]["VRF"].append(strVRF)
+						else:
+							dictPrefixes[strAdvPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
 # end function AnalyzeIPv6Routes
 
 def ParseDescr(strOutList,iLineNum):
