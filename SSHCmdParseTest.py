@@ -21,7 +21,7 @@ if strUserName == "":
 # end if username is empty
 strPWD = getpass.getpass(prompt="what is {0} password for {1}: ".format(strUserName,strDevName))
 strCmd  = getInput("Please provide command to run on {}: ".format(strDevName))
-# strCmd = "show bgp vrf INTERNET ipv6 unicast summary"
+# strCmd = "show bgp vrf CDN ipv6 unicast summary"
 print ("OK connecting to {0} as {1} and executing '{2}'".format(strDevName,strUserName,strCmd))
 try:
 	SSH = paramiko.SSHClient()
