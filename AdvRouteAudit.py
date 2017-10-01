@@ -10,6 +10,7 @@ and caputer all the routes being advertised over each peer.
 Following packages need to be installed as administrator
 pip install pypiwin32
 pip install paramiko
+pip install playsound
 
 '''
 
@@ -364,8 +365,8 @@ def ParseDescr(strOutList,iLineNum):
 #end function ParseDescr
 
 import tkinter as tk
-from tkinter import filedialog
-from tkinter import messagebox
+from tkinter import filedialog, messagebox
+from playsound import playsound, PlaysoundException
 import win32com.client as win32 #pip install pypiwin32
 import getpass
 import time
@@ -439,6 +440,7 @@ def ValidateRetry(strHostname,strCmd):
 
 	strOut = GetResults(strHostname,strCmd)
 	if "Auth Exception" in strOut:
+		playsound(r'c:\windows\media\tada.wav')
 		while iAuthFail < 3:
 			strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
 			if strUserName == "":
