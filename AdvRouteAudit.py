@@ -54,22 +54,25 @@ dictBaseCmd = {
 	}
 
 def ResultHeaders():
-	wsResult.Cells(1,1).Value   = "Router"
-	wsResult.Cells(1,2).Value   = "Version"
-	wsResult.Cells(1,3).Value   = "Neighbor"
-	wsResult.Cells(1,4).Value   = "Remote AS"
-	wsResult.Cells(1,5).Value   = "VRF"
-	wsResult.Cells(1,6).Value   = "Recv count"
-	wsResult.Cells(1,7).Value   = "Description"
-	wsDetails.Cells(1,1).Value  = "Router"
-	wsDetails.Cells(1,2).Value  = "Neighbor"
-	wsDetails.Cells(1,3).Value  = "VRF"
-	wsDetails.Cells(1,4).Value  = "Adv Prefix"
-	wsDetails.Cells(1,5).Value  = "Description"
-	wsPrefixes.Cells(1,1).Value = "Prefix"
-	wsPrefixes.Cells(1,2).Value = "VRFs"
-	wsPrefixes.Cells(1,3).Value = "Peer Count"
-	wsPrefixes.Cells(1,4).Value = "Router-VRF-PeerIP"
+	try:
+		wsResult.Cells(1,1).Value   = "Router"
+		wsResult.Cells(1,2).Value   = "Version"
+		wsResult.Cells(1,3).Value   = "Neighbor"
+		wsResult.Cells(1,4).Value   = "Remote AS"
+		wsResult.Cells(1,5).Value   = "VRF"
+		wsResult.Cells(1,6).Value   = "Recv count"
+		wsResult.Cells(1,7).Value   = "Description"
+		wsDetails.Cells(1,1).Value  = "Router"
+		wsDetails.Cells(1,2).Value  = "Neighbor"
+		wsDetails.Cells(1,3).Value  = "VRF"
+		wsDetails.Cells(1,4).Value  = "Adv Prefix"
+		wsDetails.Cells(1,5).Value  = "Description"
+		wsPrefixes.Cells(1,1).Value = "Prefix"
+		wsPrefixes.Cells(1,2).Value = "VRFs"
+		wsPrefixes.Cells(1,3).Value = "Peer Count"
+		wsPrefixes.Cells(1,4).Value = "Router-VRF-PeerIP"
+	except Exception as err:
+		LogEntry ("Generic Exception: {0}".format(err))
 
 def CollectVRFs(strOutputList):
 	bInSection = False
@@ -108,7 +111,12 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 	LogEntry ("There are {} lines in the show bgp summary output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			wsResult.Cells(iOutLineNum,3).Value = strLine
+			try:
+				iOutLineNum += 1
+				wsResult.Cells(iOutLineNum,3).Value = strLine
+			except Exception as err:
+				LogEntry ("Generic Exception: {0}".format(err))
+
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
@@ -128,26 +136,38 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 						strCount = str(strLineTokens[9])
 						strPeerIP = strLineTokens[0]
 						if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" :
-							iOutLineNum += 1
-							wsResult.Cells(iOutLineNum,1).Value = strHostname
-							wsResult.Cells(iOutLineNum,2).Value = strHostVer
-							wsResult.Cells(iOutLineNum,3).Value = strPeerIP
-							wsResult.Cells(iOutLineNum,4).Value = strLineTokens[2]
-							wsResult.Cells(iOutLineNum,5).Value = strVRF
-							wsResult.Cells(iOutLineNum,6).Value = strLineTokens[9]
+							try:
+								iOutLineNum += 1
+								wsResult.Cells(iOutLineNum,1).Value = strHostname
+								wsResult.Cells(iOutLineNum,2).Value = strHostVer
+								wsResult.Cells(iOutLineNum,3).Value = strPeerIP
+								wsResult.Cells(iOutLineNum,4).Value = strLineTokens[2]
+								wsResult.Cells(iOutLineNum,5).Value = strVRF
+								wsResult.Cells(iOutLineNum,6).Value = strLineTokens[9]
+							except Exception as err:
+								LogEntry ("Generic Exception: {0}".format(err))
 							dictIPv4Peers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
 					else:
-						wsResult.Cells(iOutLineNum,2).Value = "Line {} was unexpectedly short".format(strLine)
+						try:
+							iOutLineNum += 1
+							wsResult.Cells(iOutLineNum,2).Value = "Line {} was unexpectedly short".format(strLine)
+						except Exception as err:
+							LogEntry ("Generic Exception: {0}".format(err))
+
 				if strLineTokens[0]== "Neighbor":
 					bNeighborSection = True
 			else:
 				bNeighborSection = False
 		if strHostVer == "IOS":
-			iOutLineNum += 1
-			wsResult.Cells(iOutLineNum,1).Value = strHostname
-			wsResult.Cells(iOutLineNum,2).Value = strHostVer
-			wsResult.Cells(iOutLineNum,5).Value = strVRF
-			wsResult.Cells(iOutLineNum,3).Value = "IPv4 Parsing not implemented yet"
+			try:
+				iOutLineNum += 1
+				wsResult.Cells(iOutLineNum,1).Value = strHostname
+				wsResult.Cells(iOutLineNum,2).Value = strHostVer
+				wsResult.Cells(iOutLineNum,5).Value = strVRF
+				wsResult.Cells(iOutLineNum,3).Value = "IPv4 Parsing not implemented yet"
+			except Exception as err:
+				LogEntry ("Generic Exception: {0}".format(err))
+
 			LogEntry("AnalyzeIPv4Results not implemented yet for {}".format(strHostVer))
 			break
 
@@ -164,7 +184,11 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 	LogEntry ("There are {} lines in the show bgp summary output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			wsResult.Cells(iOutLineNum,3).Value = strLine
+			try:
+				iOutLineNum += 1
+				wsResult.Cells(iOutLineNum,3).Value = strLine
+			except Exception as err:
+				LogEntry ("Generic Exception: {0}".format(err))
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
@@ -193,26 +217,33 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 							iRemoteAS = strLineTokens[2]
 							strCount = str(strLineTokens[9])
 						if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" and strPeerIP != "":
-							iOutLineNum += 1
-							wsResult.Cells(iOutLineNum,1).Value = strHostname
-							wsResult.Cells(iOutLineNum,2).Value = strHostVer
-							wsResult.Cells(iOutLineNum,3).Value = strPeerIP
-							wsResult.Cells(iOutLineNum,4).Value = iRemoteAS
-							wsResult.Cells(iOutLineNum,5).Value = strVRF
-							wsResult.Cells(iOutLineNum,6).Value = strCount
-							dictPeers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
+							try:
+								iOutLineNum += 1
+								wsResult.Cells(iOutLineNum,1).Value = strHostname
+								wsResult.Cells(iOutLineNum,2).Value = strHostVer
+								wsResult.Cells(iOutLineNum,3).Value = strPeerIP
+								wsResult.Cells(iOutLineNum,4).Value = iRemoteAS
+								wsResult.Cells(iOutLineNum,5).Value = strVRF
+								wsResult.Cells(iOutLineNum,6).Value = strCount
+							except Exception as err:
+								LogEntry ("Generic Exception: {0}".format(err))
+						dictPeers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
 				if strLineTokens[0]== "Neighbor":
 					bNeighborSection = True
 			else:
 				bNeighborSection = False
 		if strHostVer == "IOS":
 			iOutLineNum += 1
-			wsResult.Cells(iOutLineNum,1).Value = strHostname
-			wsResult.Cells(iOutLineNum,2).Value = strHostVer
-			wsResult.Cells(iOutLineNum,5).Value = strVRF
-			wsResult.Cells(iOutLineNum,3).Value = "IPv6 Parsing not implemented yet"
-			LogEntry("AnalyzeIPv6Results not implemented yet for {}".format(strHostVer))
-			break
+			try:
+				iOutLineNum += 1
+				wsResult.Cells(iOutLineNum,1).Value = strHostname
+				wsResult.Cells(iOutLineNum,2).Value = strHostVer
+				wsResult.Cells(iOutLineNum,5).Value = strVRF
+				wsResult.Cells(iOutLineNum,3).Value = "IPv6 Parsing not implemented yet"
+				LogEntry("AnalyzeIPv6Results not implemented yet for {}".format(strHostVer))
+				break
+			except Exception as err:
+				LogEntry ("Generic Exception: {0}".format(err))
 
 	return dictPeers
 # end function AnalyzeIPv6Results
@@ -225,6 +256,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	LogEntry ("Analyzing advertised IPv4 routes. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
+			iOut2Line += 1
 			wsResult.Cells(iOutLineNum,3).Value = strLine
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
@@ -237,13 +269,17 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
-					iOut2Line += 1
 					strAdvPrefix = strLineTokens[0]
-					wsDetails.Cells(iOut2Line,1).Value = strHostname
-					wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-					wsDetails.Cells(iOut2Line,3).Value = strVRF
-					wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
-					wsDetails.Cells(iOut2Line,5).Value = strDescr
+					try:
+						iOut2Line += 1
+						wsDetails.Cells(iOut2Line,1).Value = strHostname
+						wsDetails.Cells(iOut2Line,2).Value = strPeerIP
+						wsDetails.Cells(iOut2Line,3).Value = strVRF
+						wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
+						wsDetails.Cells(iOut2Line,5).Value = strDescr
+					except Exception as err:
+						LogEntry ("Generic Exception: {0}".format(err))
+
 					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 					if strAdvPrefix in dictPrefixes:
 						dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
@@ -256,13 +292,17 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 		if strHostVer == "IOS-XE":
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Total" and strLineTokens[0] != "Network" and strLineTokens[1].count(".") == 3 and "/" in strLineTokens[1] :
-					iOut2Line += 1
 					strAdvPrefix = strLineTokens[1]
-					wsDetails.Cells(iOut2Line,1).Value = strHostname
-					wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-					wsDetails.Cells(iOut2Line,3).Value = strVRF
-					wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
-					wsDetails.Cells(iOut2Line,5).Value = strDescr
+					try:
+						iOut2Line += 1
+						wsDetails.Cells(iOut2Line,1).Value = strHostname
+						wsDetails.Cells(iOut2Line,2).Value = strPeerIP
+						wsDetails.Cells(iOut2Line,3).Value = strVRF
+						wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
+						wsDetails.Cells(iOut2Line,5).Value = strDescr
+					except Exception as err:
+						LogEntry ("Generic Exception: {0}".format(err))
+
 					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 					if strAdvPrefix in dictPrefixes:
 						dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
@@ -283,6 +323,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	LogEntry ("Analyzing advertised IPv6 routes. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
+			iOut2Line += 1
 			wsResult.Cells(iOutLineNum,3).Value = strLine
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
@@ -304,13 +345,17 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 						strNextHop = strLineTokens[0]
 					if strNextHop != "" and strNextHop != strLineTokens[0]:
 						strAdvPrefix = strLineTokens[0]
-						iOut2Line += 1
 						iPrefixCount += 1
-						wsDetails.Cells(iOut2Line,1).Value = strHostname
-						wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-						wsDetails.Cells(iOut2Line,3).Value = strVRF
-						wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
-						wsDetails.Cells(iOut2Line,5).Value = strDescr
+						try:
+							iOut2Line += 1
+							wsDetails.Cells(iOut2Line,1).Value = strHostname
+							wsDetails.Cells(iOut2Line,2).Value = strPeerIP
+							wsDetails.Cells(iOut2Line,3).Value = strVRF
+							wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
+							wsDetails.Cells(iOut2Line,5).Value = strDescr
+						except Exception as err:
+							LogEntry ("Generic Exception: {0}".format(err))
+
 						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 						if strAdvPrefix in dictPrefixes:
 							dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
@@ -330,13 +375,17 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 						strNextHop = strLineTokens[1]
 					if strNextHop != "" and strNextHop != strLineTokens[1]:
 						strAdvPrefix = strLineTokens[1]
-						iOut2Line += 1
 						iPrefixCount += 1
-						wsDetails.Cells(iOut2Line,1).Value = strHostname
-						wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-						wsDetails.Cells(iOut2Line,3).Value = strVRF
-						wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
-						wsDetails.Cells(iOut2Line,5).Value = strDescr
+						try:
+							iOut2Line += 1
+							wsDetails.Cells(iOut2Line,1).Value = strHostname
+							wsDetails.Cells(iOut2Line,2).Value = strPeerIP
+							wsDetails.Cells(iOut2Line,3).Value = strVRF
+							wsDetails.Cells(iOut2Line,4).Value = strAdvPrefix
+							wsDetails.Cells(iOut2Line,5).Value = strDescr
+						except Exception as err:
+							LogEntry ("Generic Exception: {0}".format(err))
+
 						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 						if strAdvPrefix in dictPrefixes:
 							dictPrefixes[strAdvPrefix]["Peer"].append(strRouterVRFPeer)
@@ -360,7 +409,11 @@ def ParseDescr(strOutList,iLineNum):
 		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE":
 			if "Description" in strLine:
 				# print ("Descr line: {}".format(strLine))
-				wsResult.Cells(iLineNum,7).Value = strLine[14:]
+				try:
+					wsResult.Cells(iLineNum,7).Value = strLine[14:]
+				except Exception as err:
+					LogEntry ("Generic Exception: {0}".format(err))
+
 				return strLine[14:]
 #end function ParseDescr
 
@@ -629,7 +682,13 @@ else:
 	wbin.Sheets.Add(After=wsDetails)
 	wsPrefixes = wbin.ActiveSheet
 	wsPrefixes.Name = strPrefixeSheet
-# End if valid input sheet
+
+iInputLineNum = 2
+while wsInput.Cells(iInputLineNum,iInputColumn).Value != "" and wsInput.Cells(iInputLineNum,iInputColumn).Value != None :
+	iInputLineNum += 1
+iDevCount = iInputLineNum-2
+
+print ("There are {} devices listed in sheet '{}' column {}".format(iDevCount,wsInput.Name,iInputColumn))
 
 strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
 if strUserName == "":
@@ -653,6 +712,8 @@ while strHostname != "" and strHostname != None :
 	iErrCount = 0
 	iAuthFail = 0
 	LogEntry ("Processing {} ...".format(strHostname))
+	iPercentComplete = (iInputLineNum - 2)/iDevCount
+	LogEntry ("Device {} out of {}. Completed {:.1%}".format(iInputLineNum - 1,iDevCount,iPercentComplete))
 	strOut = ValidateRetry(strHostname,"show version")
 	for strOS in dictBaseCmd:
 		if dictBaseCmd[strOS]["Match"] in strOut:
@@ -665,14 +726,18 @@ while strHostname != "" and strHostname != None :
 				strHostVer = "IOS"
 	LogEntry ("Found IOS version to be {}".format(strHostVer))
 	dictDevices[strHostname] = strHostVer
-	if strHostVer == "Unknown":
-		iOutLineNum += 1
-		wsResult.Cells(iOutLineNum,1).Value = strHostname
-		wsResult.Cells(iOutLineNum,2).Value = strHostVer
-		LogEntry("Can't process unknown platform")
-		iInputLineNum += 1
-		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
-		continue
+	try:
+		if strHostVer == "Unknown":
+			iOutLineNum += 1
+			wsResult.Cells(iOutLineNum,1).Value = strHostname
+			wsResult.Cells(iOutLineNum,2).Value = strHostVer
+			LogEntry("Can't process unknown platform")
+			iInputLineNum += 1
+			strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
+			continue
+	except Exception as err:
+		LogEntry ("Generic Exception: {0}".format(err))
+
 	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["shVRF"])
 	lstVRFs = CollectVRFs(strOut.splitlines())
 
@@ -683,7 +748,7 @@ while strHostname != "" and strHostname != None :
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv4Results(strOut.splitlines(),strVRF)
 		dictIPv4Peers.update(dictTemp)
-
+	LogEntry ("{} is device {} out of {}. Completed {:.1%}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete))
 	for strPeerIP in dictIPv4Peers:
 		strVRF = dictIPv4Peers[strPeerIP]["VRF"]
 		iLineNum = dictIPv4Peers[strPeerIP]["LineID"]
@@ -700,11 +765,13 @@ while strHostname != "" and strHostname != None :
 
 	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Summary"])
 	dictIPv6Peers = AnalyzeIPv6Results(strOut.splitlines(),"Global Table")
+	LogEntry ("Device {} out of {}. Completed {:.1%}".format(iInputLineNum - 1,iDevCount,iPercentComplete))
 
 	for strVRF in lstVRFs:
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv6Results(strOut.splitlines(),strVRF)
 		dictIPv6Peers.update(dictTemp)
+	LogEntry ("Device {} out of {}. Completed {:.1%}".format(iInputLineNum - 1,iDevCount,iPercentComplete))
 
 	for strPeerIP in dictIPv6Peers:
 		if strPeerIP == "":
@@ -722,7 +789,7 @@ while strHostname != "" and strHostname != None :
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
 			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
 
-	time.sleep(1)
+	#time.sleep(1)
 	iInputLineNum += 1
 	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 # End while hostname
@@ -757,19 +824,31 @@ else:
 					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
 					AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
 iOut3Line  = 2
-for strPrefix in dictPrefixes:
-	iColNumber = 4
-	wsPrefixes.Cells(iOut3Line,1).Value = strPrefix
-	wsPrefixes.Cells(iOut3Line,2).Value = ";".join(dictPrefixes[strPrefix]["VRF"])
-	wsPrefixes.Cells(iOut3Line,3).Value = len(dictPrefixes[strPrefix]["Peer"])
-	for strRouter in dictPrefixes[strPrefix]["Peer"]:
-		wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
-		iColNumber += 1
-	iOut3Line += 1
-wsResult.Range(wsResult.Cells(1,1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
-wsDetails.Range(wsDetails.Cells(1,1),wsDetails.Cells(iOut2Line,12)).EntireColumn.AutoFit()
-wsPrefixes.Range(wsPrefixes.Cells(1,1),wsPrefixes.Cells(iOut3Line,312)).EntireColumn.AutoFit()
-wbin.Save()
+LogEntry ("Starting on By Prefix tab...")
+try:
+	for strPrefix in dictPrefixes:
+		iColNumber = 4
+		wsPrefixes.Cells(iOut3Line,1).Value = strPrefix
+		wsPrefixes.Cells(iOut3Line,2).Value = ";".join(dictPrefixes[strPrefix]["VRF"])
+		wsPrefixes.Cells(iOut3Line,3).Value = len(dictPrefixes[strPrefix]["Peer"])
+		for strRouter in dictPrefixes[strPrefix]["Peer"]:
+			wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
+			iColNumber += 1
+		iOut3Line += 1
+		if iOut3Line%100 == 0:
+			LogEntry ("Completed {} lines".format(iOut3Line))
+
+except Exception as err:
+	LogEntry ("Generic Exception: {0}".format(err))
+
+try:
+	wsResult.Range(wsResult.Cells(1,1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
+	wsDetails.Range(wsDetails.Cells(1,1),wsDetails.Cells(iOut2Line,12)).EntireColumn.AutoFit()
+	wsPrefixes.Range(wsPrefixes.Cells(1,1),wsPrefixes.Cells(iOut3Line,312)).EntireColumn.AutoFit()
+	wbin.Save()
+except Exception as err:
+	LogEntry ("Generic Exception: {0}".format(err))
+
 now = time.asctime()
 tStop = time.time()
 iElapseSec = tStop - tStart
