@@ -391,6 +391,8 @@ def PrintUsage():
     print("python {} 218.55.213.55 0.0.0.31".format(strScriptName))
     print("python {} 2607:fb90:7c90::/44 ".format(strScriptName))
     print(r"python {} c:\temp\iplist.txt c:\temp\ipcalcresult.csv".format(strScriptName))
+    print("\nTo run in an interactive mode, where you are continually prompted for next subnet")
+    print("  python {} -i".format(strScriptName))
 # end function
 
 # function CheckIPv6
@@ -460,10 +462,9 @@ SysArgs = sys.argv
 iSysArgLen = len(sys.argv)
 strMask = ""
 iBitMask = ""
+bContinue = True
 
 if iSysArgLen < 2:
-	# PrintUsage()
-	# sys.exit(1)
 	strInput = getInput ("Please provide subnet: ")
 	strInputParts = strInput.split()
 	if len(strInputParts)>0:
@@ -475,172 +476,44 @@ if iSysArgLen < 2:
 else:
 	strIPAddress = SysArgs[1]
 
-if strIPAddress=="-?" or strIPAddress=="?" or "-h" in strIPAddress or strIPAddress.lower() == "help" :
-	PrintUsage()
-	sys.exit(1)
-# end if
 if iSysArgLen > 2:
 	strMask = SysArgs[2]
 # End If
 
-if (":" in strIPAddress and ":\\" not in strIPAddress) or len(strIPAddress)==32 :
-	IPv6Info = CheckIPv6(strIPAddress)
-	IP_Result = IPv6Calc(IPv6Info)
-
-	if "Msg" in IP_Result:
-		print (IP_Result['Msg'])
-	# end if
-	print ("IP Addr: " + IP_Result['IPAddr'])
-	print ("Bit Mask: " + str(IP_Result['BitMask']))
-	iHostcount = IP_Result['Hostcount']
-	if iHostcount == 1:
-		print ("Host only")
-	if iHostcount == 2:
-		print ("only subnet and broadcast")
-	if iHostcount > 2:
-		print ("Host count: " + str(iHostcount-2))
-
-	print ("Subnet IP: " + IP_Result['Subnet'])
-	print ("Broadcast IP: " + IP_Result['Broadcast'])
-	if bWhoisQuery:
-		print ("Please stand by while I query ARIN for more details...")
-		QueryResult = QueryARIN(IP_Result['IPAddr'])
-		if isinstance(QueryResult,dict):
-			strType = QueryResult['Type']
-			if strType=="RV" or strType=="AP" or strType=="AF":
-				print ("Assigned by " + strOrg)
-			else:
-				strOrgURL = "  https://whois.arin.net/rest/org/"+QueryResult['Handle']
-				strOrg = QueryResult['Org']
-				if strType == "IU":
-					strOrg = QueryResult['Name']
-					strOrgURL = ""
-				#end if
-				strStart = QueryResult['StartIP']
-				strEnd = QueryResult['EndIP']
-				strCIDR = QueryResult['CIDR']
-				strRef = QueryResult['Ref']
-				print ("Information from ARIN")
-				print ("Org: "+strOrg+strOrgURL  )
-				print ("Netblock: " + strStart +"/"+strCIDR+"("+strStart+"-"+strEnd+")")
-				print (strRef)
-				print ("Type:" + strType)
-			# end if
-		# End If
-		if isinstance(QueryResult,str):
-			print (QueryResult)
-		# end if
-	#end if
-	sys.exit(0)
-# end if
-
-if "\\" in strIPAddress or ".txt" in strIPAddress or ".csv" in strIPAddress :
-	print ("File processing Mode: Infile="+strIPAddress+" Outfile="+strMask)
-	if os.path.isfile(strIPAddress):
-		if strMask=="":
-			iLoc = strIPAddress.find('.')
-			strMask=strIPAddress[:iLoc]+"-out.csv"
-			print ("No putput file provided, will use: "+strMask)
-		#end if
-		print("reading " + strIPAddress)
-		fhInput = open(strIPAddress,'r')
-		try:
-			fhOutput = open(strMask,'w')
-		except IOError as e:
-			print("Failed to create {0}. Error {1} : {2}".format(strMask,e.errno,e.strerror))
-			sys.exit(3)
-		# end try
-		strOut = ("IP Address,Bit Mask,Mask,Inverse Mask,Subnet IP,Broadcast IP,Host count,"
-					"Net Block Start,Net Block End,CIDR,Org,Org Reference,Messages\n")
-		fhOutput.write (strOut)
-		for strLine in fhInput:
-			strIPAddress = strLine.strip()
-			print("Processing "+strIPAddress)
-			if ":" in strIPAddress or len(strIPAddress)==32 :
-				IPv6Info = CheckIPv6(strIPAddress)
-				IP_Result = IPv6Calc(IPv6Info)
-				if "IPError" in IP_Result:
-					strOut = IP_Result['IPError']
-				else:
-					strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+",,,"
-							+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
-							+str(IP_Result['Hostcount']))
-			else:
-				IP_Result = IPCalc(strIPAddress)
-				if "IPError" in IP_Result:
-					strOut = IP_Result['IPError']
-				else:
-					strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+","
-							+str(IP_Result['Mask'])+","+str(IP_Result['InvMask'])+","
-							+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
-							+str(IP_Result['Hostcount']))
-				# end if
-			# end if
-			if bWhoisQuery and "IPAddr" in IP_Result:
-				print ("Please stand by while I query ARIN for more details...")
-				QueryResult = QueryARIN(IP_Result['IPAddr'])
-				if isinstance(QueryResult,dict):
-					strType = QueryResult['Type']
-					if strType=="RV" or strType=="AP" or strType=="AF":
-						strOut = strOut + "," + "Assigned by " + QueryResult['Org']
-					else:
-						strOrgURL = "  https://whois.arin.net/rest/org/"+QueryResult['Handle']
-						strOrg = QueryResult['Org']
-						if strType == "IU":
-							strOrg = QueryResult['Name']
-							strOrgURL = ""
-						#end if
-						strStart = QueryResult['StartIP']
-						strEnd = QueryResult['EndIP']
-						strCIDR = QueryResult['CIDR']
-						strRef = QueryResult['Ref']
-						strOrg = strOrg.replace(",",";")
-						strOut = (strOut + "," + strStart + "," + strEnd + "," + strCIDR + ","
-									+ strOrg + "," + strOrgURL)
-					# end if
-				# End If
-				if isinstance(QueryResult,str):
-					strOut = strOut + "," + QueryResult
-				# end if
-			if "MaskErr" in IP_Result and "IPError" not in IP_Result:
-				strOut = strOut + "," + IP_Result['MaskErr'].replace(",",";")
-			else:
-				strOut = strOut + ","
-			# end if
-			fhOutput.write(strOut+"\n")
-		#next
-	else:
-		print (strIPAddress+" does not seem to exists, bailing out!!")
-		sys.exit(2)
-	#end if
+if strIPAddress == "-i":
+	bInteractive = True
 else:
-	print ("You provided IP address of '" + strIPAddress + " " + strMask + "'")
+	bInteractive = False
 
-	if strMask != "":
-		strType = MaskType(strMask)
-		if strType =="dotDec":
-			print ("The mask provided is a normal dotted decimal mask")
-		elif strType == "inv":
-			print ("You provided an inverse mask")
-		# else:
-		# 	print(strMask + " is not a valid mask")
+while bContinue:
+	bContinue = bInteractive
+	if bInteractive:
+		strInput = getInput ("Please provide subnet: ")
+		strInputParts = strInput.split()
+		if len(strInputParts)>0:
+			strIPAddress = strInputParts[0]
+		else:
+			strIPAddress = strInput
+		if len(strInputParts)>1:
+			strMask = strInputParts[1]
+
+	if strIPAddress.lower() == "quit" or strIPAddress.lower() == "exit":
+		sys.exit(0)
+
+	if strIPAddress=="-?" or strIPAddress=="?" or "-h" in strIPAddress or strIPAddress.lower() == "help" :
+		PrintUsage()
+		sys.exit(1)
 	# end if
 
-	IP_Result = IPCalc (strIPAddress + " " + strMask)
-	if "IPError" in IP_Result:
-		print(IP_Result['IPError'])
-	else:
-		if "MaskErr" in IP_Result:
-			print (IP_Result['MaskErr'])
+	if (":" in strIPAddress and ":\\" not in strIPAddress) or len(strIPAddress)==32 :
+		IPv6Info = CheckIPv6(strIPAddress)
+		IP_Result = IPv6Calc(IPv6Info)
+
+		if "Msg" in IP_Result:
+			print (IP_Result['Msg'])
 		# end if
-		if "Maskmsg" in IP_Result:
-			print (IP_Result['Maskmsg'])
-		# end if
-		strIPAddress = IP_Result['IPAddr']
-		print ("IP Addr: " + strIPAddress)
-		print ("Bit Mask: " + IP_Result['BitMask'])
-		print ("Mask: " + IP_Result['Mask'])
-		print ("Inverse Mask: " + IP_Result['InvMask'])
+		print ("IP Addr: " + IP_Result['IPAddr'])
+		print ("Bit Mask: " + str(IP_Result['BitMask']))
 		iHostcount = IP_Result['Hostcount']
 		if iHostcount == 1:
 			print ("Host only")
@@ -651,17 +524,16 @@ else:
 
 		print ("Subnet IP: " + IP_Result['Subnet'])
 		print ("Broadcast IP: " + IP_Result['Broadcast'])
-
 		if bWhoisQuery:
 			print ("Please stand by while I query ARIN for more details...")
-			QueryResult = QueryARIN(strIPAddress)
+			QueryResult = QueryARIN(IP_Result['IPAddr'])
 			if isinstance(QueryResult,dict):
 				strType = QueryResult['Type']
-				strOrg = QueryResult['Org']
 				if strType=="RV" or strType=="AP" or strType=="AF":
 					print ("Assigned by " + strOrg)
 				else:
 					strOrgURL = "  https://whois.arin.net/rest/org/"+QueryResult['Handle']
+					strOrg = QueryResult['Org']
 					if strType == "IU":
 						strOrg = QueryResult['Name']
 						strOrgURL = ""
@@ -681,5 +553,155 @@ else:
 				print (QueryResult)
 			# end if
 		#end if
-	#end if
-# end if
+		sys.exit(0)
+	# end if
+
+	if "\\" in strIPAddress or ".txt" in strIPAddress or ".csv" in strIPAddress :
+		print ("File processing Mode: Infile="+strIPAddress+" Outfile="+strMask)
+		if os.path.isfile(strIPAddress):
+			if strMask=="":
+				iLoc = strIPAddress.find('.')
+				strMask=strIPAddress[:iLoc]+"-out.csv"
+				print ("No putput file provided, will use: "+strMask)
+			#end if
+			print("reading " + strIPAddress)
+			fhInput = open(strIPAddress,'r')
+			try:
+				fhOutput = open(strMask,'w')
+			except IOError as e:
+				print("Failed to create {0}. Error {1} : {2}".format(strMask,e.errno,e.strerror))
+				sys.exit(3)
+			# end try
+			strOut = ("IP Address,Bit Mask,Mask,Inverse Mask,Subnet IP,Broadcast IP,Host count,"
+						"Net Block Start,Net Block End,CIDR,Org,Org Reference,Messages\n")
+			fhOutput.write (strOut)
+			for strLine in fhInput:
+				strIPAddress = strLine.strip()
+				print("Processing "+strIPAddress)
+				if ":" in strIPAddress or len(strIPAddress)==32 :
+					IPv6Info = CheckIPv6(strIPAddress)
+					IP_Result = IPv6Calc(IPv6Info)
+					if "IPError" in IP_Result:
+						strOut = IP_Result['IPError']
+					else:
+						strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+",,,"
+								+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
+								+str(IP_Result['Hostcount']))
+				else:
+					IP_Result = IPCalc(strIPAddress)
+					if "IPError" in IP_Result:
+						strOut = IP_Result['IPError']
+					else:
+						strOut = (str(IP_Result['IPAddr'])+","+str(IP_Result['BitMask'])+","
+								+str(IP_Result['Mask'])+","+str(IP_Result['InvMask'])+","
+								+str(IP_Result['Subnet'])+","+str(IP_Result['Broadcast'])+","
+								+str(IP_Result['Hostcount']))
+					# end if
+				# end if
+				if bWhoisQuery and "IPAddr" in IP_Result:
+					print ("Please stand by while I query ARIN for more details...")
+					QueryResult = QueryARIN(IP_Result['IPAddr'])
+					if isinstance(QueryResult,dict):
+						strType = QueryResult['Type']
+						if strType=="RV" or strType=="AP" or strType=="AF":
+							strOut = strOut + "," + "Assigned by " + QueryResult['Org']
+						else:
+							strOrgURL = "  https://whois.arin.net/rest/org/"+QueryResult['Handle']
+							strOrg = QueryResult['Org']
+							if strType == "IU":
+								strOrg = QueryResult['Name']
+								strOrgURL = ""
+							#end if
+							strStart = QueryResult['StartIP']
+							strEnd = QueryResult['EndIP']
+							strCIDR = QueryResult['CIDR']
+							strRef = QueryResult['Ref']
+							strOrg = strOrg.replace(",",";")
+							strOut = (strOut + "," + strStart + "," + strEnd + "," + strCIDR + ","
+										+ strOrg + "," + strOrgURL)
+						# end if
+					# End If
+					if isinstance(QueryResult,str):
+						strOut = strOut + "," + QueryResult
+					# end if
+				if "MaskErr" in IP_Result and "IPError" not in IP_Result:
+					strOut = strOut + "," + IP_Result['MaskErr'].replace(",",";")
+				else:
+					strOut = strOut + ","
+				# end if
+				fhOutput.write(strOut+"\n")
+			#next
+		else:
+			print (strIPAddress+" does not seem to exists, bailing out!!")
+			sys.exit(2)
+		#end if
+	else:
+		print ("You provided IP address of '" + strIPAddress + " " + strMask + "'")
+
+		if strMask != "":
+			strType = MaskType(strMask)
+			if strType =="dotDec":
+				print ("The mask provided is a normal dotted decimal mask")
+			elif strType == "inv":
+				print ("You provided an inverse mask")
+			# else:
+			# 	print(strMask + " is not a valid mask")
+		# end if
+
+		IP_Result = IPCalc (strIPAddress + " " + strMask)
+		if "IPError" in IP_Result:
+			print(IP_Result['IPError'])
+		else:
+			if "MaskErr" in IP_Result:
+				print (IP_Result['MaskErr'])
+			# end if
+			if "Maskmsg" in IP_Result:
+				print (IP_Result['Maskmsg'])
+			# end if
+			strIPAddress = IP_Result['IPAddr']
+			print ("IP Addr: " + strIPAddress)
+			print ("Bit Mask: " + IP_Result['BitMask'])
+			print ("Mask: " + IP_Result['Mask'])
+			print ("Inverse Mask: " + IP_Result['InvMask'])
+			iHostcount = IP_Result['Hostcount']
+			if iHostcount == 1:
+				print ("Host only")
+			if iHostcount == 2:
+				print ("only subnet and broadcast")
+			if iHostcount > 2:
+				print ("Host count: " + str(iHostcount-2))
+
+			print ("Subnet IP: " + IP_Result['Subnet'])
+			print ("Broadcast IP: " + IP_Result['Broadcast'])
+
+			if bWhoisQuery:
+				print ("Please stand by while I query ARIN for more details...")
+				QueryResult = QueryARIN(strIPAddress)
+				if isinstance(QueryResult,dict):
+					strType = QueryResult['Type']
+					strOrg = QueryResult['Org']
+					if strType=="RV" or strType=="AP" or strType=="AF":
+						print ("Assigned by " + strOrg)
+					else:
+						strOrgURL = "  https://whois.arin.net/rest/org/"+QueryResult['Handle']
+						if strType == "IU":
+							strOrg = QueryResult['Name']
+							strOrgURL = ""
+						#end if
+						strStart = QueryResult['StartIP']
+						strEnd = QueryResult['EndIP']
+						strCIDR = QueryResult['CIDR']
+						strRef = QueryResult['Ref']
+						print ("Information from ARIN")
+						print ("Org: "+strOrg+strOrgURL  )
+						print ("Netblock: " + strStart +"/"+strCIDR+"("+strStart+"-"+strEnd+")")
+						print (strRef)
+						print ("Type:" + strType)
+					# end if
+				# End If
+				if isinstance(QueryResult,str):
+					print (QueryResult)
+				# end if
+			#end if
+		#end if
+	# end if
