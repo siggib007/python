@@ -272,7 +272,7 @@ def IPCalc (strIPAddress):
 		dictIPInfo['Subnet'] = DotDecGen(iDecSubID)
 		dictIPInfo['Broadcast'] = DotDecGen(iDecBroad)
 	else:
-		dictIPInfo['IPError'] = strIPAddress + " is not a valid IP!"
+		dictIPInfo['IPError'] = "'" + strIPAddress + "' is not a valid IP!"
 	# End if
 	return dictIPInfo
 # end function
@@ -446,6 +446,13 @@ def CheckIPv6(strToCheck):
 		return strToCheck + " is not hex"
 # End Function
 
+def getInput(strPrompt):
+    if sys.version_info[0] > 2 :
+        return input(strPrompt)
+    else:
+        return raw_input(strPrompt)
+# end getInput
+
 # End function section
 
 # Main section of the script
@@ -455,12 +462,20 @@ strMask = ""
 iBitMask = ""
 
 if iSysArgLen < 2:
-	PrintUsage()
-	sys.exit(1)
-# End If
+	# PrintUsage()
+	# sys.exit(1)
+	strInput = getInput ("Please provide subnet: ")
+	strInputParts = strInput.split()
+	if len(strInputParts)>0:
+		strIPAddress = strInputParts[0]
+	else:
+		strIPAddress = strInput
+	if len(strInputParts)>1:
+		strMask = strInputParts[1]
+else:
+	strIPAddress = SysArgs[1]
 
-strIPAddress = SysArgs[1]
-if strIPAddress=="-?" or strIPAddress=="?" or "-h" in strIPAddress:
+if strIPAddress=="-?" or strIPAddress=="?" or "-h" in strIPAddress or strIPAddress.lower() == "help" :
 	PrintUsage()
 	sys.exit(1)
 # end if
@@ -599,7 +614,7 @@ if "\\" in strIPAddress or ".txt" in strIPAddress or ".csv" in strIPAddress :
 		sys.exit(2)
 	#end if
 else:
-	print ("You provided IP address of " + strIPAddress + " " + strMask)
+	print ("You provided IP address of '" + strIPAddress + " " + strMask + "'")
 
 	if strMask != "":
 		strType = MaskType(strMask)
