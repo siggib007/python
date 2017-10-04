@@ -335,7 +335,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 		strLineTokens = strLine.split()
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 0:
-				if strLineTokens[0].find(":") == 4:
+				if strLineTokens[0].find(":") == 4 and "/" in strLineTokens[0] :
 					if iPrefixCount == 0:
 						if len(strLineTokens) > 1:
 							strNextHop = strLineTokens[1]
@@ -835,7 +835,7 @@ try:
 			wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
 			iColNumber += 1
 		iOut3Line += 1
-		if iOut3Line%100 == 0:
+		if iOut3Line%500 == 0:
 			LogEntry ("Completed {} lines".format(iOut3Line))
 
 except Exception as err:
