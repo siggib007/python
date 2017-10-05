@@ -461,6 +461,7 @@ def GetResults(strHostname,strCmd):
 		strOut = stdout.read()
 		SSH.close()
 		strOut = strOut.decode("utf-8")
+		strOut = strCmd + "\n" + strOut
 		strOutFile = strOutPath + strHostname + ".txt"
 		if strHostname in dictDevices:
 			objFileOut = open(strOutFile,"a")
@@ -713,7 +714,23 @@ while strHostname != "" and strHostname != None :
 	iAuthFail = 0
 	LogEntry ("Processing {} ...".format(strHostname))
 	iPercentComplete = (iInputLineNum - 2)/iDevCount
-	LogEntry ("Device {} out of {}. Completed {:.1%}".format(iInputLineNum - 1,iDevCount,iPercentComplete))
+	tElapse = time.time()
+	iElapseSec = tElapse - tStart
+	if iPercentComplete > 0:
+		iEstRemainSec = (iElapseSec/iPercentComplete)-iElapseSec
+		iMin, iSec = divmod(iEstRemainSec, 60)
+		iHours, iMin = divmod(iMin, 60)
+		if iHours == 0:
+			if iMin == 0:
+				strEstRemain = "Estimated time left {} seconds.".format(iSec)
+			else:
+				strEstRemain = "Estimated time left {} minutes.".format(int(iMin))
+		else:
+			strEstRemain = "Estimated time left {} hours and {} minutes.".format(int(iHours),int(iMin))
+	else:
+		strEstRemain = ""
+
+	LogEntry ("Device {0} out of {1}. Completed {2:.1%} {}".format(iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
 	strOut = ValidateRetry(strHostname,"show version")
 	for strOS in dictBaseCmd:
 		if dictBaseCmd[strOS]["Match"] in strOut:
@@ -748,7 +765,7 @@ while strHostname != "" and strHostname != None :
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv4Results(strOut.splitlines(),strVRF)
 		dictIPv4Peers.update(dictTemp)
-	LogEntry ("{} is device {} out of {}. Completed {:.1%}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete))
+	LogEntry ("{0} is device {1} out of {2}. Completed {3:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
 	for strPeerIP in dictIPv4Peers:
 		strVRF = dictIPv4Peers[strPeerIP]["VRF"]
 		iLineNum = dictIPv4Peers[strPeerIP]["LineID"]
@@ -762,16 +779,16 @@ while strHostname != "" and strHostname != None :
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
 			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
 
 	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Summary"])
 	dictIPv6Peers = AnalyzeIPv6Results(strOut.splitlines(),"Global Table")
-	LogEntry ("Device {} out of {}. Completed {:.1%}".format(iInputLineNum - 1,iDevCount,iPercentComplete))
 
 	for strVRF in lstVRFs:
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv6Results(strOut.splitlines(),strVRF)
 		dictIPv6Peers.update(dictTemp)
-	LogEntry ("Device {} out of {}. Completed {:.1%}".format(iInputLineNum - 1,iDevCount,iPercentComplete))
+	LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
 
 	for strPeerIP in dictIPv6Peers:
 		if strPeerIP == "":
@@ -788,6 +805,7 @@ while strHostname != "" and strHostname != None :
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
 			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
 
 	#time.sleep(1)
 	iInputLineNum += 1
@@ -836,7 +854,7 @@ try:
 			iColNumber += 1
 		iOut3Line += 1
 		if iOut3Line%500 == 0:
-			LogEntry ("Completed {} lines".format(iOut3Line))
+			print ("Completed {} lines".format(iOut3Line))
 
 except Exception as err:
 	LogEntry ("Generic Exception: {0}".format(err))
