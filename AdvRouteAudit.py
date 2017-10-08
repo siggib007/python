@@ -100,7 +100,7 @@ def CollectVRFs(strOutputList):
 						lstVRFs.append(strLineTokens[0])
 					if strLineTokens[0]== "Name" and strLineTokens[1]== "Default" and strLineTokens[2]== "RD":
 						bInSection = True
-	print ("VRF's Collected: {}".format(lstVRFs))
+	LogEntry ("VRF's Collected: {}".format(lstVRFs))
 	return lstVRFs
 
 def AnalyzeIPv4Results(strOutputList, strVRF):
@@ -108,7 +108,7 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 	dictIPv4Peers = {}
 	bNeighborSection = False
 
-	LogEntry ("There are {} lines in the show bgp summary output".format(len(strOutputList)))
+	LogEntry ("There are {} lines in the show bgp IPv4 summary output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
 			try:
@@ -181,7 +181,7 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 	bNeighborSection = False
 	strPeerIP = ""
 
-	LogEntry ("There are {} lines in the show bgp summary output".format(len(strOutputList)))
+	LogEntry ("There are {} lines in the show bgp IPv6 summary output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
 			try:
@@ -227,7 +227,7 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 								wsResult.Cells(iOutLineNum,6).Value = strCount
 							except Exception as err:
 								LogEntry ("Generic Exception: {0}".format(err))
-						dictPeers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
+							dictPeers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
 				if strLineTokens[0]== "Neighbor":
 					bNeighborSection = True
 			else:
@@ -257,7 +257,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	for strLine in strOutList:
 		if "Exception:" in strLine:
 			iOut2Line += 1
-			wsResult.Cells(iOutLineNum,3).Value = strLine
+			wsResult.Cells(iOut2Line,3).Value = strLine
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
@@ -266,6 +266,8 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 				LogEntry ("Error: {}".format(strLine))
 				break
 		strLineTokens = strLine.split()
+		if iOut2Line%2000 == 0:
+			print ("Completed {} lines, {:.1%} complete".format(iOut2Line,iOut2Line/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
@@ -324,7 +326,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	for strLine in strOutList:
 		if "Exception:" in strLine:
 			iOut2Line += 1
-			wsResult.Cells(iOutLineNum,3).Value = strLine
+			wsResult.Cells(iOut2Line,3).Value = strLine
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
@@ -333,6 +335,8 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 				LogEntry ("Error: {}".format(strLine))
 				break
 		strLineTokens = strLine.split()
+		if iOut2Line%2000 == 0:
+			print ("Completed {} lines, {:.1%} complete".format(iOut2Line,iOut2Line/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 0:
 				if strLineTokens[0].find(":") == 4 and "/" in strLineTokens[0] :
@@ -461,13 +465,12 @@ def GetResults(strHostname,strCmd):
 		strOut = stdout.read()
 		SSH.close()
 		strOut = strOut.decode("utf-8")
-		strOut = strCmd + "\n" + strOut
 		strOutFile = strOutPath + strHostname + ".txt"
 		if strHostname in dictDevices:
 			objFileOut = open(strOutFile,"a")
 		else:
 			objFileOut = open(strOutFile,"w")
-		objFileOut.write (strOut)
+		objFileOut.write (strCmd + strOut + "\n")
 		objFileOut.close()
 		LogEntry ("output written to "+strOutFile)
 	except paramiko.ssh_exception.AuthenticationException as err:
@@ -531,6 +534,35 @@ def LogEntry(strMsg):
 	strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
 	objLogOut.write("{0} : {1}\n".format(strTimeStamp,strMsg))
 	print (strMsg)
+
+def StatusUpdate():
+	tElapse = time.time()
+	iElapseSec = tElapse - tStart
+	ieMin, ieSec = divmod(iElapseSec, 60)
+	ieHours, ieMin = divmod(ieMin, 60)
+	if ieHours == 0:
+		if ieMin == 0:
+			strElapse = "Elapse time {:.2f} seconds.".format(ieSec)
+		else:
+			strElapse = "Elapse time {} minutes.".format(int(ieMin))
+	else:
+		strElapse = "Elapse time {} hours and {} minutes.".format(int(ieHours),int(ieMin))
+
+	if iPercentComplete > 0:
+		iEstRemainSec = (iElapseSec/iPercentComplete)-iElapseSec
+		iMin, iSec = divmod(iEstRemainSec, 60)
+		iHours, iMin = divmod(iMin, 60)
+		if iHours == 0:
+			if iMin == 0:
+				strEstRemain = "Estimated time left {:.2f} seconds. ".format(iSec)
+			else:
+				strEstRemain = "Estimated time left {} minutes. ".format(int(iMin))
+		else:
+			strEstRemain = "Estimated time left {} hours and {} minutes. ".format(int(iHours),int(iMin))
+	else:
+		strEstRemain = ""
+	return strEstRemain + strElapse
+
 
 DefUserName = getpass.getuser()
 print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
@@ -714,23 +746,8 @@ while strHostname != "" and strHostname != None :
 	iAuthFail = 0
 	LogEntry ("Processing {} ...".format(strHostname))
 	iPercentComplete = (iInputLineNum - 2)/iDevCount
-	tElapse = time.time()
-	iElapseSec = tElapse - tStart
-	if iPercentComplete > 0:
-		iEstRemainSec = (iElapseSec/iPercentComplete)-iElapseSec
-		iMin, iSec = divmod(iEstRemainSec, 60)
-		iHours, iMin = divmod(iMin, 60)
-		if iHours == 0:
-			if iMin == 0:
-				strEstRemain = "Estimated time left {} seconds.".format(iSec)
-			else:
-				strEstRemain = "Estimated time left {} minutes.".format(int(iMin))
-		else:
-			strEstRemain = "Estimated time left {} hours and {} minutes.".format(int(iHours),int(iMin))
-	else:
-		strEstRemain = ""
 
-	LogEntry ("Device {0} out of {1}. Completed {2:.1%} {}".format(iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
+	LogEntry ("Device {0} out of {1}. Completed {2:.1%} {3}".format(iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 	strOut = ValidateRetry(strHostname,"show version")
 	for strOS in dictBaseCmd:
 		if dictBaseCmd[strOS]["Match"] in strOut:
@@ -765,7 +782,7 @@ while strHostname != "" and strHostname != None :
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv4Results(strOut.splitlines(),strVRF)
 		dictIPv4Peers.update(dictTemp)
-	LogEntry ("{0} is device {1} out of {2}. Completed {3:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
+	LogEntry ("{0} is device {1} out of {2}. Completed {3:.1%} {4}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 	for strPeerIP in dictIPv4Peers:
 		strVRF = dictIPv4Peers[strPeerIP]["VRF"]
 		iLineNum = dictIPv4Peers[strPeerIP]["LineID"]
@@ -779,7 +796,7 @@ while strHostname != "" and strHostname != None :
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
 			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
-		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
+		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 
 	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Summary"])
 	dictIPv6Peers = AnalyzeIPv6Results(strOut.splitlines(),"Global Table")
@@ -788,7 +805,7 @@ while strHostname != "" and strHostname != None :
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv6Results(strOut.splitlines(),strVRF)
 		dictIPv6Peers.update(dictTemp)
-	LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
+	LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 
 	for strPeerIP in dictIPv6Peers:
 		if strPeerIP == "":
@@ -805,12 +822,13 @@ while strHostname != "" and strHostname != None :
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
 			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
-		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,strEstRemain))
+		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 
 	#time.sleep(1)
 	iInputLineNum += 1
 	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 # End while hostname
+LogEntry ("{} out of {} Completed. Completed {:.1%}".format(iInputLineNum,iDevCount,1))
 
 if len(FailedDevs) == 0:
 	LogEntry ("All devices are successful")
@@ -834,7 +852,7 @@ else:
 				if strVRF == "Global Table":
 					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Description"].format(strPeerIP))
 					ParseDescr(strOut.splitlines(), iLineNum)
-					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Advertise"].format(strVRF,strPeerIP))
+					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Advertise"].format(strPeerIP))
 					AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
 				else:
 					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Description"].format(strVRF,strPeerIP))
@@ -842,7 +860,8 @@ else:
 					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
 					AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
 iOut3Line  = 2
-LogEntry ("Starting on By Prefix tab...")
+iPrefixCount = len(dictPrefixes)
+LogEntry ("Starting on 'By Prefix' tab...")
 try:
 	for strPrefix in dictPrefixes:
 		iColNumber = 4
@@ -854,7 +873,7 @@ try:
 			iColNumber += 1
 		iOut3Line += 1
 		if iOut3Line%500 == 0:
-			print ("Completed {} lines".format(iOut3Line))
+			print ("Completed {} lines, {:.1%} complete".format(iOut3Line,iOut3Line/iPrefixCount))
 
 except Exception as err:
 	LogEntry ("Generic Exception: {0}".format(err))
