@@ -74,7 +74,9 @@ def ResultHeaders():
 	except Exception as err:
 		LogEntry ("Generic Exception: {0}".format(err))
 
-def CollectVRFs(strOutputList):
+def CollectVRFs():
+	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["shVRF"])
+	strOutputList = strOut.splitlines()
 	bInSection = False
 	lstVRFs = []
 	LogEntry ("There are {} lines in the show vrf output".format(len(strOutputList)))
@@ -252,6 +254,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	global iOut2Line
 	global dictPrefixes
 	bInSection = False
+	iStartLine = iOut2Line
 
 	LogEntry ("Analyzing advertised IPv4 routes. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
@@ -266,8 +269,9 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 				LogEntry ("Error: {}".format(strLine))
 				break
 		strLineTokens = strLine.split()
-		if iOut2Line%2000 == 0:
-			print ("Completed {} lines, {:.1%} complete".format(iOut2Line,iOut2Line/len(strOutList)))
+		iCurLine = iOut2Line - iStartLine + 1
+		if iCurLine%2000 == 0:
+			print ("Completed {} lines, {:.1%} complete".format(iCurLine,iCurLine/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
@@ -321,6 +325,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	global dictPrefixes
 	iPrefixCount = 0
 	strNextHop = ""
+	iStartLine = iOut2Line
 
 	LogEntry ("Analyzing advertised IPv6 routes. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
@@ -335,8 +340,9 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 				LogEntry ("Error: {}".format(strLine))
 				break
 		strLineTokens = strLine.split()
-		if iOut2Line%2000 == 0:
-			print ("Completed {} lines, {:.1%} complete".format(iOut2Line,iOut2Line/len(strOutList)))
+		iCurLine = iOut2Line - iStartLine + 1
+		if iCurLine%500 == 0:
+			print ("Completed {} lines, {:.1%} complete".format(iCurLine,iCurLine/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 0:
 				if strLineTokens[0].find(":") == 4 and "/" in strLineTokens[0] :
@@ -435,8 +441,7 @@ import os
 dictSheets={}
 dictDevices={}
 dictPrefixes={}
-dictIPv4Peers={}
-dictIPv6Peers={}
+
 lstVRFs=[]
 lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Advertise","IPv4-VRF-Advertise","IPv4-GT-Description","IPv4-VRF-Description",
 				     "shVRF","IPv6-GT-Summary","IPv6-VRF-Summary","IPv6-GT-Advertise","IPv6-VRF-Advertise","IPv6-GT-Description","IPv6-VRF-Description"]
@@ -491,9 +496,11 @@ def GetResults(strHostname,strCmd):
 def ValidateRetry(strHostname,strCmd):
 	global iErrCount
 	global FailedDevs
+	global lstFailedDevsName
 	global iAuthFail
 	global strPWD
 	global strUserName
+	global bDevOK
 
 	strOut = GetResults(strHostname,strCmd)
 	if "Auth Exception" in strOut:
@@ -527,6 +534,10 @@ def ValidateRetry(strHostname,strCmd):
 				break
 		if iErrCount == iMaxError:
 			FailedDevs.append(iInputLineNum)
+			lstFailedDevsName.append(strHostname)
+			bDevOK = False
+	if iErrCount < iMaxError:
+		bDevOK = True
 	return strOut
 # end function ValidateRetry
 
@@ -562,6 +573,82 @@ def StatusUpdate():
 	else:
 		strEstRemain = ""
 	return strEstRemain + strElapse
+
+def OSDetect():
+	strHostVer = "Unknown"
+	strOut = ValidateRetry(strHostname,"show version")
+	for strOS in dictBaseCmd:
+		if dictBaseCmd[strOS]["Match"] in strOut:
+			strHostVer = strOS
+		if strOS == "IOS":
+			continue
+	if strHostVer == "Unknown" :
+		if "IOS" in dictBaseCmd:
+			if dictBaseCmd["IOS"]["Match"] in strOut:
+				strHostVer = "IOS"
+	return strHostVer
+
+def IPv4Peers():
+	dictIPv4Peers={}
+
+	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Summary"])
+	dictIPv4Peers = AnalyzeIPv4Results(strOut.splitlines(),"Global Table")
+
+	for strVRF in lstVRFs:
+		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"].format(strVRF))
+		dictTemp = AnalyzeIPv4Results(strOut.splitlines(),strVRF)
+		dictIPv4Peers.update(dictTemp)
+	LogEntry ("{0} is device {1} out of {2}. Completed {3:.1%} {4}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
+	LogEntry ("Gathering details on {} IPv4 Peers.".format(len(dictIPv4Peers)))
+	iCurPeer = 0
+	for strPeerIP in dictIPv4Peers:
+		iCurPeer += 1
+		LogEntry ("Peer {} out of {}".format(iCurPeer,len(dictIPv4Peers)))
+		strVRF = dictIPv4Peers[strPeerIP]["VRF"]
+		iLineNum = dictIPv4Peers[strPeerIP]["LineID"]
+		if strVRF == "Global Table":
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Description"].format(strPeerIP))
+			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Advertise"].format(strPeerIP))
+			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+		else:
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Description"].format(strVRF,strPeerIP))
+			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
+			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
+
+def IPv6Peers():
+	dictIPv6Peers={}
+	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Summary"])
+	dictIPv6Peers = AnalyzeIPv6Results(strOut.splitlines(),"Global Table")
+
+	for strVRF in lstVRFs:
+		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Summary"].format(strVRF))
+		dictTemp = AnalyzeIPv6Results(strOut.splitlines(),strVRF)
+		dictIPv6Peers.update(dictTemp)
+	LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
+
+	LogEntry ("Gathering details on {} IPv6 Peers.".format(len(dictIPv6Peers)))
+	iCurPeer = 0
+	for strPeerIP in dictIPv6Peers:
+		iCurPeer += 1
+		LogEntry ("Peer {} out of {}".format(iCurPeer,len(dictIPv6Peers)))
+		if strPeerIP == "":
+			continue
+		strVRF = dictIPv6Peers[strPeerIP]["VRF"]
+		iLineNum = dictIPv6Peers[strPeerIP]["LineID"]
+		if strVRF == "Global Table":
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Description"].format(strPeerIP))
+			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Advertise"].format(strPeerIP))
+			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+		else:
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Description"].format(strVRF,strPeerIP))
+			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
+			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 
 
 DefUserName = getpass.getuser()
@@ -740,24 +827,18 @@ iOutLineNum = 1
 iOut2Line = 1
 strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 FailedDevs = []
+lstFailedDevsName = []
+bDevOK = True
+
+
 while strHostname != "" and strHostname != None :
-	strHostVer = "Unknown"
 	iErrCount = 0
 	iAuthFail = 0
 	LogEntry ("Processing {} ...".format(strHostname))
 	iPercentComplete = (iInputLineNum - 2)/iDevCount
 
 	LogEntry ("Device {0} out of {1}. Completed {2:.1%} {3}".format(iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
-	strOut = ValidateRetry(strHostname,"show version")
-	for strOS in dictBaseCmd:
-		if dictBaseCmd[strOS]["Match"] in strOut:
-			strHostVer = strOS
-		if strOS == "IOS":
-			continue
-	if strHostVer == "Unknown" :
-		if "IOS" in dictBaseCmd:
-			if dictBaseCmd["IOS"]["Match"] in strOut:
-				strHostVer = "IOS"
+	strHostVer = OSDetect()
 	LogEntry ("Found IOS version to be {}".format(strHostVer))
 	dictDevices[strHostname] = strHostVer
 	try:
@@ -772,93 +853,39 @@ while strHostname != "" and strHostname != None :
 	except Exception as err:
 		LogEntry ("Generic Exception: {0}".format(err))
 
-	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["shVRF"])
-	lstVRFs = CollectVRFs(strOut.splitlines())
+	lstVRFs = CollectVRFs()
+	IPv4Peers()
+	IPv6Peers()
 
-	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Summary"])
-	dictIPv4Peers = AnalyzeIPv4Results(strOut.splitlines(),"Global Table")
-
-	for strVRF in lstVRFs:
-		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"].format(strVRF))
-		dictTemp = AnalyzeIPv4Results(strOut.splitlines(),strVRF)
-		dictIPv4Peers.update(dictTemp)
-	LogEntry ("{0} is device {1} out of {2}. Completed {3:.1%} {4}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
-	for strPeerIP in dictIPv4Peers:
-		strVRF = dictIPv4Peers[strPeerIP]["VRF"]
-		iLineNum = dictIPv4Peers[strPeerIP]["LineID"]
-		if strVRF == "Global Table":
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Description"].format(strPeerIP))
-			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Advertise"].format(strPeerIP))
-			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
-		else:
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Description"].format(strVRF,strPeerIP))
-			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
-			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
-		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
-
-	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Summary"])
-	dictIPv6Peers = AnalyzeIPv6Results(strOut.splitlines(),"Global Table")
-
-	for strVRF in lstVRFs:
-		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Summary"].format(strVRF))
-		dictTemp = AnalyzeIPv6Results(strOut.splitlines(),strVRF)
-		dictIPv6Peers.update(dictTemp)
-	LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
-
-	for strPeerIP in dictIPv6Peers:
-		if strPeerIP == "":
-			continue
-		strVRF = dictIPv6Peers[strPeerIP]["VRF"]
-		iLineNum = dictIPv6Peers[strPeerIP]["LineID"]
-		if strVRF == "Global Table":
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Description"].format(strPeerIP))
-			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Advertise"].format(strPeerIP))
-			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
-		else:
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Description"].format(strVRF,strPeerIP))
-			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
-			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
-		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
-
-	#time.sleep(1)
 	iInputLineNum += 1
 	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 # End while hostname
-LogEntry ("{} out of {} Completed. Completed {:.1%}".format(iInputLineNum,iDevCount,1))
+LogEntry ("{} out of {} Completed. Completed {:.1%}".format(iDevCount,iDevCount,1))
 
 if len(FailedDevs) == 0:
 	LogEntry ("All devices are successful")
 	bFailedDev = False
 else:
 	bFailedDev = True
-	LogEntry ("Failed to complete {} lines {} due to errors.".format(len(FailedDevs),FailedDevs))
+	if len(FailedDevs) == 1:
+		strdev = "device"
+	else:
+		strdev = "devices"
+	LogEntry ("Failed to complete {} {} {} due to errors.".format(len(FailedDevs),strdev,",".join(lstFailedDevsName)))
 	LogEntry ("Retrying them one more time")
 	for iInputLineNum in FailedDevs:
 		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 		LogEntry ("Processing {} ...".format(strHostname))
-		dictDevices[strHostname] = dictBaseCmd[strHostVer]["IPv4-GT-Summary"]
-		strOut = GetResults(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Summary"])
-		if "Exception:"	not in strOut:
-			strOut += GetResults(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"])
-			FailedDevs.remove(iInputLineNum)
-			dictIPv4Peers = AnalyzeIPv4Results(strOut.splitlines())
-			for strPeerIP in dictIPv4Peers:
-				strVRF = dictIPv4Peers[strPeerIP]["VRF"]
-				iLineNum = dictIPv4Peers[strPeerIP]["LineID"]
-				if strVRF == "Global Table":
-					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Description"].format(strPeerIP))
-					ParseDescr(strOut.splitlines(), iLineNum)
-					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Advertise"].format(strPeerIP))
-					AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
-				else:
-					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Description"].format(strVRF,strPeerIP))
-					ParseDescr(strOut.splitlines(), iLineNum)
-					strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
-					AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname)
+		strHostVer = OSDetect()
+		dictDevices[strHostname] = strHostVer
+		if strHostVer != "Unknown" :
+			lstVRFs = CollectVRFs()
+			IPv4Peers()
+			IPv6Peers()
+			if bDevOK:
+				FailedDevs.remove(iInputLineNum)
+				lstFailedDevsName.remove(strHostname)
+
 iOut3Line  = 2
 iPrefixCount = len(dictPrefixes)
 LogEntry ("Starting on 'By Prefix' tab...")
@@ -894,7 +921,12 @@ iHours, iMin = divmod(iMin, 60)
 if bFailedDev and len(FailedDevs) == 0:
 	LogEntry ("All devices successful after final retries")
 if len(FailedDevs) > 0:
-	LogEntry ("Failed to complete lines {} due to errors.".format(FailedDevs))
+	if len(FailedDevs) == 1:
+		strdev = "device"
+	else:
+		strdev = "devices"
+	LogEntry ("Failed to complete {} {} {} due to errors.".format(len(FailedDevs),strdev,",".join(lstFailedDevsName)))
+
 LogEntry ("Completed at {}".format(now))
 LogEntry ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
 objLogOut.close
