@@ -17,7 +17,7 @@ pip install playsound
 strSummarySheet = "BGPSummary"
 strDetailSheet  = "By Router"
 strPrefixeSheet = "By Prefix"
-iMaxError = 4
+iMaxError = 2
 dictBaseCmd = {
 		"IOS-XR":{
 			"Match":"IOS XR",
@@ -270,7 +270,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 				break
 		strLineTokens = strLine.split()
 		iCurLine = iOut2Line - iStartLine + 1
-		if iCurLine%2000 == 0:
+		if iCurLine%500 == 0:
 			print ("Completed {} lines, {:.1%} complete".format(iCurLine,iCurLine/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 1:
@@ -533,8 +533,9 @@ def ValidateRetry(strHostname,strCmd):
 			else:
 				break
 		if iErrCount == iMaxError:
-			FailedDevs.append(iInputLineNum)
-			lstFailedDevsName.append(strHostname)
+			if not bFailedDev:
+				FailedDevs.append(iInputLineNum)
+				lstFailedDevsName.append(strHostname)
 			bDevOK = False
 	if iErrCount < iMaxError:
 		bDevOK = True
@@ -598,12 +599,15 @@ def IPv4Peers():
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv4Results(strOut.splitlines(),strVRF)
 		dictIPv4Peers.update(dictTemp)
-	LogEntry ("{0} is device {1} out of {2}. Completed {3:.1%} {4}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
+	if bFailedDev:
+		LogEntry ("Retrying {}, {} failed devices left to retry.".format(strHostname,len(lstFailedDevsName)-1))
+	else:
+		LogEntry ("{0} is device {1} out of {2}. Completed {3:.1%} {4}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 	LogEntry ("Gathering details on {} IPv4 Peers.".format(len(dictIPv4Peers)))
 	iCurPeer = 0
 	for strPeerIP in dictIPv4Peers:
 		iCurPeer += 1
-		LogEntry ("Peer {} out of {}".format(iCurPeer,len(dictIPv4Peers)))
+		LogEntry ("IPv4 Peer {} out of {}".format(iCurPeer,len(dictIPv4Peers)))
 		strVRF = dictIPv4Peers[strPeerIP]["VRF"]
 		iLineNum = dictIPv4Peers[strPeerIP]["LineID"]
 		if strVRF == "Global Table":
@@ -616,7 +620,10 @@ def IPv4Peers():
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
 			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
-		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
+		if bFailedDev:
+			LogEntry ("Retrying {}, {} failed devices left to retry.".format(strHostname,len(lstFailedDevsName)-1))
+		else:
+			LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 
 def IPv6Peers():
 	dictIPv6Peers={}
@@ -627,13 +634,16 @@ def IPv6Peers():
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv6Results(strOut.splitlines(),strVRF)
 		dictIPv6Peers.update(dictTemp)
-	LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
+	if bFailedDev:
+		LogEntry ("Retrying {}, {} failed devices left to retry.".format(strHostname,len(lstFailedDevsName)-1))
+	else:
+		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 
 	LogEntry ("Gathering details on {} IPv6 Peers.".format(len(dictIPv6Peers)))
 	iCurPeer = 0
 	for strPeerIP in dictIPv6Peers:
 		iCurPeer += 1
-		LogEntry ("Peer {} out of {}".format(iCurPeer,len(dictIPv6Peers)))
+		LogEntry ("IPv6 Peer {} out of {}".format(iCurPeer,len(dictIPv6Peers)))
 		if strPeerIP == "":
 			continue
 		strVRF = dictIPv6Peers[strPeerIP]["VRF"]
@@ -648,7 +658,10 @@ def IPv6Peers():
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
 			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
-		LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
+		if bFailedDev:
+			LogEntry ("Retrying {}, {} failed devices left to retry.".format(strHostname,len(lstFailedDevsName)-1))
+		else:
+			LogEntry ("{} is device {} out of {}. Completed {:.1%} {}".format(strHostname,iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 
 
 DefUserName = getpass.getuser()
@@ -829,6 +842,7 @@ strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 FailedDevs = []
 lstFailedDevsName = []
 bDevOK = True
+bFailedDev = False
 
 
 while strHostname != "" and strHostname != None :
@@ -841,17 +855,18 @@ while strHostname != "" and strHostname != None :
 	strHostVer = OSDetect()
 	LogEntry ("Found IOS version to be {}".format(strHostVer))
 	dictDevices[strHostname] = strHostVer
-	try:
-		if strHostVer == "Unknown":
-			iOutLineNum += 1
-			wsResult.Cells(iOutLineNum,1).Value = strHostname
-			wsResult.Cells(iOutLineNum,2).Value = strHostVer
-			LogEntry("Can't process unknown platform")
-			iInputLineNum += 1
-			strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
-			continue
-	except Exception as err:
-		LogEntry ("Generic Exception: {0}".format(err))
+	if strHostVer == "Unknown":
+		LogEntry("Can't process unknown platform")
+		if bDevOK:
+			try:
+				iOutLineNum += 1
+				wsResult.Cells(iOutLineNum,1).Value = strHostname
+				wsResult.Cells(iOutLineNum,2).Value = strHostVer
+			except Exception as err:
+				LogEntry ("Generic Exception: {0}".format(err))
+		iInputLineNum += 1
+		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
+		continue
 
 	lstVRFs = CollectVRFs()
 	IPv4Peers()
@@ -871,20 +886,32 @@ else:
 		strdev = "device"
 	else:
 		strdev = "devices"
-	LogEntry ("Failed to complete {} {} {} due to errors.".format(len(FailedDevs),strdev,",".join(lstFailedDevsName)))
+	LogEntry ("Failed to complete {} {}, {}, due to errors.".format(len(FailedDevs),strdev,",".join(lstFailedDevsName)))
 	LogEntry ("Retrying them one more time")
-	for iInputLineNum in FailedDevs:
-		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
-		LogEntry ("Processing {} ...".format(strHostname))
+	for iRetryLine in FailedDevs:
+		iErrCount = 0
+		iAuthFail = 0
+		strHostname = wsInput.Cells(iRetryLine,iInputColumn).Value
+		LogEntry ("Retrying {} ...".format(strHostname))
 		strHostVer = OSDetect()
+		LogEntry ("Found IOS version to be {}".format(strHostVer))
 		dictDevices[strHostname] = strHostVer
+		if bDevOK:
+			lstFailedDevsName.remove(strHostname)
 		if strHostVer != "Unknown" :
 			lstVRFs = CollectVRFs()
 			IPv4Peers()
 			IPv6Peers()
-			if bDevOK:
-				FailedDevs.remove(iInputLineNum)
-				lstFailedDevsName.remove(strHostname)
+		else:
+			if not bDevOK:
+				strHostVer = "Failed to connect"
+			try:
+				iOutLineNum += 1
+				wsResult.Cells(iOutLineNum,1).Value = strHostname
+				wsResult.Cells(iOutLineNum,2).Value = strHostVer
+				LogEntry("Can't process unknown platform")
+			except Exception as err:
+				LogEntry ("Generic Exception: {0}".format(err))
 
 iOut3Line  = 2
 iPrefixCount = len(dictPrefixes)
@@ -918,14 +945,14 @@ tStop = time.time()
 iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
-if bFailedDev and len(FailedDevs) == 0:
+if bFailedDev and len(lstFailedDevsName) == 0:
 	LogEntry ("All devices successful after final retries")
-if len(FailedDevs) > 0:
-	if len(FailedDevs) == 1:
+if len(lstFailedDevsName) > 0:
+	if len(lstFailedDevsName) == 1:
 		strdev = "device"
 	else:
 		strdev = "devices"
-	LogEntry ("Failed to complete {} {} {} due to errors.".format(len(FailedDevs),strdev,",".join(lstFailedDevsName)))
+	LogEntry ("Failed to complete {} {}, {}, due to errors.".format(len(lstFailedDevsName),strdev,",".join(lstFailedDevsName)))
 
 LogEntry ("Completed at {}".format(now))
 LogEntry ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
