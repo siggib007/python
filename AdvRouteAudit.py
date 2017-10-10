@@ -14,7 +14,7 @@ pip install playsound
 
 '''
 
-strSummarySheet = "BGPSummary"
+strSummarySheet = "BGP Summary"
 strDetailSheet  = "By Router"
 strPrefixeSheet = "By Prefix"
 iMaxError = 2
@@ -61,7 +61,8 @@ def ResultHeaders():
 		wsResult.Cells(1,4).Value   = "Remote AS"
 		wsResult.Cells(1,5).Value   = "VRF"
 		wsResult.Cells(1,6).Value   = "Recv count"
-		wsResult.Cells(1,7).Value   = "Description"
+		wsResult.Cells(1,7).Value   = "Adv count"
+		wsResult.Cells(1,8).Value   = "Description"
 		wsDetails.Cells(1,1).Value  = "Router"
 		wsDetails.Cells(1,2).Value  = "Neighbor"
 		wsDetails.Cells(1,3).Value  = "VRF"
@@ -250,20 +251,25 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 	return dictPeers
 # end function AnalyzeIPv6Results
 
-def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
+def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum):
 	global iOut2Line
 	global dictPrefixes
 	bInSection = False
 	iStartLine = iOut2Line
 
 	LogEntry ("Analyzing advertised IPv4 routes. There are {} lines in the output".format(len(strOutList)))
-	for strLine in strOutList:
-		if "Exception:" in strLine:
+	try:
+		wsResult.Cells(iLineNum,7).Value = len(strOutList)
+	except Exception as err:
+		LogEntry ("Generic Exception: {0}".format(err))
+	if len(strOutList) > 0:
+		if "Exception:" in strOutList[0]:
 			iOut2Line += 1
 			wsResult.Cells(iOut2Line,3).Value = strLine
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
-			break
+			return
+	for strLine in strOutList:
 		if len(strLine) > 0:
 			if strLine[0] == "%":
 				LogEntry ("Error: {}".format(strLine))
@@ -320,7 +326,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 					bInSection = True
 # end function AnalyzeIPv4Routes
 
-def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
+def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum):
 	global iOut2Line
 	global dictPrefixes
 	iPrefixCount = 0
@@ -328,13 +334,18 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	iStartLine = iOut2Line
 
 	LogEntry ("Analyzing advertised IPv6 routes. There are {} lines in the output".format(len(strOutList)))
-	for strLine in strOutList:
-		if "Exception:" in strLine:
+	try:
+		wsResult.Cells(iLineNum,7).Value = len(strOutList)
+	except Exception as err:
+		LogEntry ("Generic Exception: {0}".format(err))
+	if len(strOutList) > 0:
+		if "Exception:" in strOutList[0]:
 			iOut2Line += 1
 			wsResult.Cells(iOut2Line,3).Value = strLine
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
-			break
+			return
+	for strLine in strOutList:
 		if len(strLine) > 0:
 			if strLine[0] == "%":
 				LogEntry ("Error: {}".format(strLine))
@@ -420,7 +431,7 @@ def ParseDescr(strOutList,iLineNum):
 			if "Description" in strLine:
 				# print ("Descr line: {}".format(strLine))
 				try:
-					wsResult.Cells(iLineNum,7).Value = strLine[14:]
+					wsResult.Cells(iLineNum,8).Value = strLine[14:]
 				except Exception as err:
 					LogEntry ("Generic Exception: {0}".format(err))
 
@@ -475,7 +486,7 @@ def GetResults(strHostname,strCmd):
 			objFileOut = open(strOutFile,"a")
 		else:
 			objFileOut = open(strOutFile,"w")
-		objFileOut.write (strCmd + strOut + "\n")
+		objFileOut.write (strCmd + "\n" + strOut + "\n")
 		objFileOut.close()
 		LogEntry ("output written to "+strOutFile)
 	except paramiko.ssh_exception.AuthenticationException as err:
@@ -614,12 +625,12 @@ def IPv4Peers():
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Description"].format(strPeerIP))
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Advertise"].format(strPeerIP))
-			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 		else:
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Description"].format(strVRF,strPeerIP))
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
-			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 		if bFailedDev:
 			LogEntry ("Retrying {}, {} failed devices left to retry.".format(strHostname,len(lstFailedDevsName)-1))
 		else:
@@ -652,12 +663,12 @@ def IPv6Peers():
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Description"].format(strPeerIP))
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Advertise"].format(strPeerIP))
-			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 		else:
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Description"].format(strVRF,strPeerIP))
 			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
-			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 		if bFailedDev:
 			LogEntry ("Retrying {}, {} failed devices left to retry.".format(strHostname,len(lstFailedDevsName)-1))
 		else:
