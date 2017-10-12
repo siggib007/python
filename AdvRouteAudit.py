@@ -18,6 +18,7 @@ strSummarySheet = "BGP Summary"
 strDetailSheet  = "By Router"
 strPrefixeSheet = "By Prefix"
 iMaxError = 2
+iMaxAuthFail = 2
 dictBaseCmd = {
 		"IOS-XR":{
 			"Match":"IOS XR",
@@ -258,10 +259,6 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	iStartLine = iOut2Line
 
 	LogEntry ("Analyzing advertised IPv4 routes. There are {} lines in the output".format(len(strOutList)))
-	try:
-		wsResult.Cells(iLineNum,7).Value = len(strOutList)
-	except Exception as err:
-		LogEntry ("Generic Exception: {0}".format(err))
 	if len(strOutList) > 0:
 		if "Exception:" in strOutList[0]:
 			iOut2Line += 1
@@ -277,7 +274,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 		strLineTokens = strLine.split()
 		iCurLine = iOut2Line - iStartLine + 1
 		if iCurLine%500 == 0:
-			print ("Completed {} lines, {:.1%} complete".format(iCurLine,iCurLine/len(strOutList)))
+			print ("Completed {:.1%}".format(iCurLine/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
@@ -301,9 +298,14 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						dictPrefixes[strAdvPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
 				if strLineTokens[0] == "Network":
 					bInSection = True
+				if strLineTokens[0] == "Processed":
+					try:
+						wsResult.Cells(iLineNum,7).Value = strLineTokens[1]
+					except Exception as err:
+						LogEntry ("Generic Exception: {0}".format(err))
 		if strHostVer == "IOS-XE":
 			if len(strLineTokens) > 1:
-				if bInSection and strLineTokens[0] != "Total" and strLineTokens[0] != "Network" and strLineTokens[1].count(".") == 3 and "/" in strLineTokens[1] :
+				if bInSection and strLineTokens[0] != "Total" and strLineTokens[0] != "Network" and strLineTokens[1].count(".") == 3 :
 					strAdvPrefix = strLineTokens[1]
 					try:
 						iOut2Line += 1
@@ -324,6 +326,11 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						dictPrefixes[strAdvPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
 				if strLineTokens[0] == "Network":
 					bInSection = True
+				if strLineTokens[0] == "Total":
+					try:
+						wsResult.Cells(iLineNum,7).Value = strLineTokens[4]
+					except Exception as err:
+						LogEntry ("Generic Exception: {0}".format(err))
 # end function AnalyzeIPv4Routes
 
 def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum):
@@ -334,10 +341,6 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	iStartLine = iOut2Line
 
 	LogEntry ("Analyzing advertised IPv6 routes. There are {} lines in the output".format(len(strOutList)))
-	try:
-		wsResult.Cells(iLineNum,7).Value = len(strOutList)
-	except Exception as err:
-		LogEntry ("Generic Exception: {0}".format(err))
 	if len(strOutList) > 0:
 		if "Exception:" in strOutList[0]:
 			iOut2Line += 1
@@ -353,7 +356,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 		strLineTokens = strLine.split()
 		iCurLine = iOut2Line - iStartLine + 1
 		if iCurLine%500 == 0:
-			print ("Completed {} lines, {:.1%} complete".format(iCurLine,iCurLine/len(strOutList)))
+			print ("Completed {:.1%}".format(iCurLine/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 0:
 				if strLineTokens[0].find(":") == 4 and "/" in strLineTokens[0] :
@@ -384,6 +387,11 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 								dictPrefixes[strAdvPrefix]["VRF"].append(strVRF)
 						else:
 							dictPrefixes[strAdvPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
+				if strLineTokens[0] == "Processed":
+					try:
+						wsResult.Cells(iLineNum,7).Value = strLineTokens[1]
+					except Exception as err:
+						LogEntry ("Generic Exception: {0}".format(err))
 		if strHostVer == "IOS-XE":
 			if len(strLineTokens) > 1:
 				if strLineTokens[1].find(":") == 4:
@@ -414,6 +422,11 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 								dictPrefixes[strAdvPrefix]["VRF"].append(strVRF)
 						else:
 							dictPrefixes[strAdvPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}# end function AnalyzeIPv6Routes
+				if strLineTokens[0] == "Total":
+					try:
+						wsResult.Cells(iLineNum,7).Value = strLineTokens[4]
+					except Exception as err:
+						LogEntry ("Generic Exception: {0}".format(err))
 
 def ParseDescr(strOutList,iLineNum):
 	LogEntry ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
@@ -514,40 +527,37 @@ def ValidateRetry(strHostname,strCmd):
 	global bDevOK
 
 	strOut = GetResults(strHostname,strCmd)
-	if "Auth Exception" in strOut:
-		playsound(r'c:\windows\media\tada.wav')
-		while iAuthFail < 3:
+	while "Exception" in strOut and iErrCount < iMaxError:
+		if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
+			iErrCount += 1
+			LogEntry ("Trying again in 5 sec")
+			time.sleep(5)
+		elif "Auth Exception" in strOut:
+			playsound(r'c:\windows\media\tada.wav')
 			strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
 			if strUserName == "":
 				strUserName = DefUserName
 			# end if username is empty
 			strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
 			if strPWD == "":
-				print ("empty password, exiting")
-				sys.exit(5)
+				print ("empty password, next device")
+				iErrCount = iMaxError
+				break
 			iAuthFail += 1
-			strOut = GetResults(strHostname,strCmd)
-			if "Auth Exception" not in strOut:
-				iAuthFail = 0
-				break
-		if iAuthFail == 3:
-			sys.exit(5)
+			if iAuthFail == iMaxAuthFail:
+				iErrCount = iMaxError
+		else:
+			LogEntry("Unknown exception {}\n Next Device!".format(strOut))
+			iErrCount = iMaxError
+			break
+		strOut = GetResults(strHostname,strCmd)
 
 
-	if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
-		while iErrCount < iMaxError:
-			LogEntry ("Trying again in 5 sec")
-			time.sleep(5)
-			strOut = GetResults(strHostname,strCmd)
-			if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
-				iErrCount += 1
-			else:
-				break
-		if iErrCount == iMaxError:
-			if not bFailedDev:
-				FailedDevs.append(iInputLineNum)
-				lstFailedDevsName.append(strHostname)
-			bDevOK = False
+	if iErrCount == iMaxError:
+		if not bFailedDev:
+			FailedDevs.append(iInputLineNum)
+			lstFailedDevsName.append(strHostname)
+		bDevOK = False
 	if iErrCount < iMaxError:
 		bDevOK = True
 	return strOut
@@ -589,6 +599,8 @@ def StatusUpdate():
 def OSDetect():
 	strHostVer = "Unknown"
 	strOut = ValidateRetry(strHostname,"show version")
+	if "Exception" in strOut:
+		return "Connection failed"
 	for strOS in dictBaseCmd:
 		if dictBaseCmd[strOS]["Match"] in strOut:
 			strHostVer = strOS
@@ -787,7 +799,7 @@ if strSummarySheet in dictSheets:
 		sys.exit(1)
 else:
 	print ("Summary sheet not found, creating one")
-	wbin.Sheets.Add(After=wbin.Worksheets(iSheetCount))
+	wbin.Sheets.Add(After=wsInput)
 	wsResult = wbin.ActiveSheet
 	wsResult.Name = strSummarySheet
 
@@ -831,6 +843,8 @@ iInputLineNum = 2
 while wsInput.Cells(iInputLineNum,iInputColumn).Value != "" and wsInput.Cells(iInputLineNum,iInputColumn).Value != None :
 	iInputLineNum += 1
 iDevCount = iInputLineNum-2
+wsResult.Select()
+LogEntry("BGP Summary tab activated")
 
 print ("There are {} devices listed in sheet '{}' column {}".format(iDevCount,wsInput.Name,iInputColumn))
 
@@ -859,11 +873,13 @@ bFailedDev = False
 while strHostname != "" and strHostname != None :
 	iErrCount = 0
 	iAuthFail = 0
+	strHostname = strHostname.upper()
 	LogEntry ("Processing {} ...".format(strHostname))
 	iPercentComplete = (iInputLineNum - 2)/iDevCount
 
 	LogEntry ("Device {0} out of {1}. Completed {2:.1%} {3}".format(iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 	strHostVer = OSDetect()
+
 	LogEntry ("Found IOS version to be {}".format(strHostVer))
 	dictDevices[strHostname] = strHostVer
 	if strHostVer == "Unknown":
@@ -879,9 +895,10 @@ while strHostname != "" and strHostname != None :
 		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 		continue
 
-	lstVRFs = CollectVRFs()
-	IPv4Peers()
-	IPv6Peers()
+	if bDevOK:
+		lstVRFs = CollectVRFs()
+		IPv4Peers()
+		IPv6Peers()
 
 	iInputLineNum += 1
 	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
