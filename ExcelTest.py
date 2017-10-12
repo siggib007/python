@@ -5,6 +5,14 @@ import os
 import subprocess as proc
 import sys
 
+xlSrcExternal = 0 #External data source
+xlSrcModel = 4 #PowerPivot Model
+xlSrcQuery = 3 #Query
+xlSrcRange = 1 #Range
+xlSrcXml = 2 #XML
+xlGuess = 0 # Excel determines whether there is a header, and where it is, if there is one.
+xlNo = 2 # Default. The entire range should be sorted.
+xlYes = 1 # The entire range should not be sorted.
 
 root = tk.Tk()
 root.withdraw()
@@ -35,7 +43,7 @@ else:
 	wsTest.Name = "Testing"
 	print ("Putting some BS into cell D15 of new testing sheet")
 	wsTest.Cells(15,4).Value = "Some BS"
-	wsTest.ListObjects.Add(1, wsTest.Range(wsTest.Cells(1,1),wsTest.Cells(25,6)),"",1,"","TableStyleLight1").Name = "Siggib"
+	wsTest.ListObjects.Add(xlSrcRange, wsTest.Range(wsTest.Cells(1,1),wsTest.Cells(25,6)),"",xlYes,"","TableStyleLight1").Name = "Siggib"
 
 	print ("That workbook has {0} sheets".format(iSheetCount))
 	for i in range(1,iSheetCount+1):

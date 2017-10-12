@@ -274,7 +274,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 		strLineTokens = strLine.split()
 		iCurLine = iOut2Line - iStartLine + 1
 		if iCurLine%500 == 0:
-			print ("Completed {:.1%}".format(iCurLine/len(strOutList)))
+			print ("Completed  {:.1%}".format(iCurLine/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
@@ -331,6 +331,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						wsResult.Cells(iLineNum,7).Value = strLineTokens[4]
 					except Exception as err:
 						LogEntry ("Generic Exception: {0}".format(err))
+	print ("Completed {:.1%}".format(1))
 # end function AnalyzeIPv4Routes
 
 def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum):
@@ -356,7 +357,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 		strLineTokens = strLine.split()
 		iCurLine = iOut2Line - iStartLine + 1
 		if iCurLine%500 == 0:
-			print ("Completed {:.1%}".format(iCurLine/len(strOutList)))
+			print ("Completed  {:.1%}".format(iCurLine/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 0:
 				if strLineTokens[0].find(":") == 4 and "/" in strLineTokens[0] :
@@ -427,6 +428,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						wsResult.Cells(iLineNum,7).Value = strLineTokens[4]
 					except Exception as err:
 						LogEntry ("Generic Exception: {0}".format(err))
+	print ("Completed {:.1%}".format(1))
 
 def ParseDescr(strOutList,iLineNum):
 	LogEntry ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
@@ -462,6 +464,15 @@ import paramiko #pip install paramiko
 import socket
 import os
 
+xlSrcExternal = 0 #External data source
+xlSrcModel = 4 #PowerPivot Model
+xlSrcQuery = 3 #Query
+xlSrcRange = 1 #Range
+xlSrcXml = 2 #XML
+xlGuess = 0 # Excel determines whether there is a header, and where it is, if there is one.
+xlNo = 2 # Default. The entire range should be sorted.
+xlYes = 1 # The entire range should not be sorted.
+
 dictSheets={}
 dictDevices={}
 dictPrefixes={}
@@ -473,6 +484,9 @@ lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Adver
 iResultNum = 0
 iResult2Num = 0
 iResult3Num = 0
+iResultColNum = 1
+iDetailsColNum = 1
+iPrefixColNum = 1
 tStart=time.time()
 iInputColumn = 1
 strOutFolderName = strSummarySheet
@@ -938,9 +952,21 @@ else:
 				iOutLineNum += 1
 				wsResult.Cells(iOutLineNum,1).Value = strHostname
 				wsResult.Cells(iOutLineNum,2).Value = strHostVer
-				LogEntry("Can't process unknown platform")
+				if bDevOK:
+					LogEntry("Can't processess unknown platform")
+				else:
+					LogEntry("Failed to connect on retry")
 			except Exception as err:
 				LogEntry ("Generic Exception: {0}".format(err))
+
+LogEntry ("Done processing...")
+while wsResult.Cells(1,iResultColNum).Value != "" and wsResult.Cells(1,iResultColNum).Value != None :
+	iResultColNum += 1
+while wsDetails.Cells(1,iDetailsColNum).Value != "" and wsDetails.Cells(1,iDetailsColNum).Value != None :
+	iDetailsColNum += 1
+
+iResultColNum -= 1
+iDetailsColNum -= 1
 
 iOut3Line  = 2
 iPrefixCount = len(dictPrefixes)
@@ -954,17 +980,31 @@ try:
 		for strRouter in dictPrefixes[strPrefix]["Peer"]:
 			wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
 			iColNumber += 1
+		if iColNumber > iPrefixColNum:
+			iPrefixColNum = iColNumber
 		iOut3Line += 1
 		if iOut3Line%500 == 0:
 			print ("Completed {} lines, {:.1%} complete".format(iOut3Line,iOut3Line/iPrefixCount))
-
 except Exception as err:
 	LogEntry ("Generic Exception: {0}".format(err))
 
+LogEntry ("Prefix tab completed. Formating ...")
+iColNumber = 4
+while iColNumber < iPrefixColNum:
+	wsPrefixes.Cells(1,iColNumber).Value = "Router-VRF-PeerIP #{}".format(iColNumber-3)
+	LogEntry("Prefix tab: added header Router-VRF-PeerIP #{} to column {}".format(iColNumber-3,iColNumber))
+	iColNumber += 1
+
+iPrefixColNum -= 1
+
+
+wsResult.ListObjects.Add(xlSrcRange, wsResult.Range(wsResult.Cells(1,1),wsResult.Cells(iOutLineNum,iResultColNum)),"",xlYes,"","TableStyleLight1").Name = wsResult.Name
+wsDetails.ListObjects.Add(xlSrcRange, wsDetails.Range(wsDetails.Cells(1,1),wsDetails.Cells(iOut2Line,iDetailsColNum)),"",xlYes,"","TableStyleLight1").Name = wsDetails.Name
+wsPrefixes.ListObjects.Add(xlSrcRange, wsPrefixes.Range(wsPrefixes.Cells(1,1),wsPrefixes.Cells(iOut3Line,iPrefixColNum)),"",xlYes,"","TableStyleLight1").Name = wsPrefixes.Name
 try:
-	wsResult.Range(wsResult.Cells(1,1),wsResult.Cells(iOutLineNum,12)).EntireColumn.AutoFit()
-	wsDetails.Range(wsDetails.Cells(1,1),wsDetails.Cells(iOut2Line,12)).EntireColumn.AutoFit()
-	wsPrefixes.Range(wsPrefixes.Cells(1,1),wsPrefixes.Cells(iOut3Line,312)).EntireColumn.AutoFit()
+	wsResult.Range(wsResult.Cells(1,1),wsResult.Cells(iOutLineNum,iResultColNum)).EntireColumn.AutoFit()
+	wsDetails.Range(wsDetails.Cells(1,1),wsDetails.Cells(iOut2Line,iDetailsColNum)).EntireColumn.AutoFit()
+	wsPrefixes.Range(wsPrefixes.Cells(1,1),wsPrefixes.Cells(iOut3Line,iPrefixColNum)).EntireColumn.AutoFit()
 	wbin.Save()
 except Exception as err:
 	LogEntry ("Generic Exception: {0}".format(err))
