@@ -553,12 +553,13 @@ def ValidateRetry(strHostname,strCmd):
 		strOut = GetResults(strHostname,strCmd)
 
 
-	if iErrCount == iMaxError:
+	if "Exception" in strOut:
 		if not bFailedDev:
 			FailedDevs.append(iInputLineNum)
 			lstFailedDevsName.append(strHostname)
 		bDevOK = False
-	if iErrCount < iMaxError:
+		LogEntry ("Exceeded Max Retry's, next device!")
+	else:
 		bDevOK = True
 	return strOut
 # end function ValidateRetry
@@ -599,8 +600,8 @@ def StatusUpdate():
 def OSDetect():
 	strHostVer = "Unknown"
 	strOut = ValidateRetry(strHostname,"show version")
-	if "Exception" in strOut:
-		return "Connection failed"
+	# if "Exception" in strOut:
+	# 	return "Connection failed"
 	for strOS in dictBaseCmd:
 		if dictBaseCmd[strOS]["Match"] in strOut:
 			strHostVer = strOS

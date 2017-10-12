@@ -35,6 +35,8 @@ else:
 	wsTest.Name = "Testing"
 	print ("Putting some BS into cell D15 of new testing sheet")
 	wsTest.Cells(15,4).Value = "Some BS"
+	wsTest.ListObjects.Add(1, wsTest.Range(wsTest.Cells(1,1),wsTest.Cells(25,6)),"",1,"","TableStyleLight1").Name = "Siggib"
+
 	print ("That workbook has {0} sheets".format(iSheetCount))
 	for i in range(1,iSheetCount+1):
 		strTemp = wbin.Worksheets(i).Name
