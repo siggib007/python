@@ -17,8 +17,8 @@ pip install playsound
 strSummarySheet = "BGP Summary"
 strDetailSheet  = "By Router"
 strPrefixeSheet = "By Prefix"
-iMaxError = 2
-iMaxAuthFail = 2
+iMaxError = 6 # How many times can we experience an error on a single device before marking the device failed and moving on, 0 based
+iMaxAuthFail = 2 # How many auth failures can happen in a row. Zero based.
 dictBaseCmd = {
 		"IOS-XR":{
 			"Match":"IOS XR",
@@ -262,7 +262,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	if len(strOutList) > 0:
 		if "Exception:" in strOutList[0]:
 			iOut2Line += 1
-			wsResult.Cells(iOut2Line,3).Value = strLine
+			wsResult.Cells(iOut2Line,3).Value = strOutList[0]
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			return
@@ -345,7 +345,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	if len(strOutList) > 0:
 		if "Exception:" in strOutList[0]:
 			iOut2Line += 1
-			wsResult.Cells(iOut2Line,3).Value = strLine
+			wsResult.Cells(iOut2Line,3).Value = strOutList[0]
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			return
@@ -723,7 +723,7 @@ if strWBin =="":
 	print ("You cancelled so I'm exiting")
 	sys.exit(2)
 #end if no file
-
+strWBin = strWBin.replace("/","\\")
 print ("You selected: " + strWBin)
 print ("File extention is:{}".format(strWBin[-4:]))
 if strWBin[-4:] != "xlsx" :

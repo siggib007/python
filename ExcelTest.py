@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 import win32com.client as win32 #pip install pypiwin32
+import win32gui, win32console, win32con, ctypes
 import os
 import subprocess as proc
 import sys
@@ -25,6 +26,7 @@ if strWBin =="":
 	print ("no file selected, exiting")
 	sys.exit(2)
 #end if no file
+strWBin = strWBin.replace("/","\\")
 print ("You selected: " + strWBin)
 print ("File extention is:{}".format(strWBin[-4:]))
 if strWBin[-4:] != "xlsx" :
@@ -34,7 +36,10 @@ if strWBin[-4:] != "xlsx" :
 	proc.call(strCmdLine) #Blocking call
 	#proc.Popen(strCmdLine) #Non blocking call
 else:
+	user32 = ctypes.WinDLL('user32', use_last_error=True)
+	user32.LockSetForegroundWindow(1)
 	app = win32.gencache.EnsureDispatch('Excel.Application')
+	win32gui.SetWindowPos(win32console.GetConsoleWindow(), win32con.HWND_TOP, 0, 0, 0, 0, win32con.SWP_NOSIZE | win32con.SWP_NOMOVE)
 	app.Visible = True
 	wbin = app.Workbooks.Open (strWBin,0,True)
 	iSheetCount = wbin.Worksheets.Count
@@ -62,4 +67,4 @@ else:
 		print ("ACL Lines is good!")
 		wsACL = wbin.Worksheets("ACL Lines")
 
-	wbin.SaveAs("c:\\temp\\exceltest.xlsx")
+	# wbin.SaveAs("c:\\temp\\exceltest.xlsx")
