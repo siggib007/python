@@ -46,6 +46,8 @@ else:
 	wbin.Sheets.Add()
 	wsTest = wbin.ActiveSheet
 	wsTest.Name = "Testing"
+	# print ("clearing all cells")
+	# wsTest.Range(Cells.Address).Clear()
 	print ("Putting some BS into cell D15 of new testing sheet")
 	wsTest.Cells(15,4).Value = "Some BS"
 	wsTest.ListObjects.Add(xlSrcRange, wsTest.Range(wsTest.Cells(1,1),wsTest.Cells(25,6)),"",xlYes,"","TableStyleLight1").Name = "Siggib"
@@ -56,6 +58,10 @@ else:
 		print ("Sheet #{0} is called {1}".format(i,strTemp))
 		dictSheets[strTemp]=i
 	# end for loop
+	if "Unsecured Debt" in dictSheets:
+		print ("Found Unsecured Debt, erasing it")
+		wsDebt = wbin.Worksheets("Unsecured Debt")
+		wsDebt.Cells.Clear()
 	if "ACL Names" in dictSheets:
 		print ("ACL Names is good!")
 		wsNames = wbin.Worksheets("ACL Names")
