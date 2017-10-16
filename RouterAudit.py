@@ -24,7 +24,8 @@ pip install playsound
 
 strResultSheetName = "MyOutput3"
 strCommand = "show run ipv6 access-list"
-iMaxError = 4
+iMaxError = 6 # How many times can we experience an error on a single device before marking the device failed and moving on, 0 based
+iMaxAuthFail = 2 # How many auth failures can happen in a row. Zero based.
 
 def ResultHeaders():
 	wsResult.Cells(1,1).Value  = "primaryIPAddress"
@@ -158,7 +159,7 @@ def GetResults(strHostname,strCmd):
 		LogEntry ("output written to "+strOutFile)
 	except paramiko.ssh_exception.AuthenticationException as err:
 		LogEntry ("Auth Exception: {0}".format(err))
-		sys.exit(1)
+		strOut = "Auth Exception: {0}".format(err)
 	except paramiko.SSHException as err:
 		LogEntry ("SSH Exception: {0}".format(err))
 		strOut = "SSH Exception: {0}".format(err)
@@ -457,7 +458,10 @@ else:
 		iAuthFail = 0
 		strHostname = wsInput.Cells(iRetryLine,iInputColumn).Value
 		LogEntry ("Retrying {} ...".format(strHostname))
-		dictDevices[strHostname] = strHostVer
+		dictDevices[strHostname] = strCmd
+		if bDevOK:
+			lstFailedDevsName.remove(strHostname)
+
 		for x in range(iCmdVars):
 			strCmdVars[x] = (wsInput.Cells(iInputLineNum,iCmdCol[x]).Value)
 		if iCmdVars > 0:
@@ -479,7 +483,16 @@ tStop = time.time()
 iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
-LogEntry ("Failed to complete lines {} due to errors.".format(FailedDevs))
+
+if bFailedDev and len(lstFailedDevsName) == 0:
+	LogEntry ("All devices successful after final retries")
+if len(lstFailedDevsName) > 0:
+	if len(lstFailedDevsName) == 1:
+		strdev = "device"
+	else:
+		strdev = "devices"
+	LogEntry ("Failed to complete {} {}, {}, due to errors.".format(len(lstFailedDevsName),strdev,",".join(lstFailedDevsName)))
+
 LogEntry ("Completed at {}".format(now))
 LogEntry ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,iHours,iMin,iSec))
 
