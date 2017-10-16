@@ -22,7 +22,7 @@ pip install playsound
 
 '''
 
-strResultSheetName = "MyOutput3"
+strResultSheetName = "My Output"
 strCommand = "show run ipv6 access-list"
 iMaxError = 6 # How many times can we experience an error on a single device before marking the device failed and moving on, 0 based
 iMaxAuthFail = 2 # How many auth failures can happen in a row. Zero based.
@@ -459,8 +459,6 @@ else:
 		strHostname = wsInput.Cells(iRetryLine,iInputColumn).Value
 		LogEntry ("Retrying {} ...".format(strHostname))
 		dictDevices[strHostname] = strCmd
-		if bDevOK:
-			lstFailedDevsName.remove(strHostname)
 
 		for x in range(iCmdVars):
 			strCmdVars[x] = (wsInput.Cells(iInputLineNum,iCmdCol[x]).Value)
@@ -470,6 +468,8 @@ else:
 			strCmd = strCommand
 		strOut = ValidateRetry(strHostname,strCmd)
 		AnalyzeResults(strOut.splitlines())
+		if bDevOK:
+			lstFailedDevsName.remove(strHostname)
 
 LogEntry ("Done processing...")
 while wsResult.Cells(1,iResultColNum).Value != "" and wsResult.Cells(1,iResultColNum).Value != None :
