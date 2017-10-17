@@ -8,6 +8,7 @@ def getInput(strPrompt):
         return raw_input(strPrompt)
 # end getInput
 
+print ("Welcome to my Python Test script. Your username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],getpass.getuser()))
 sa = sys.argv
 lsa = len(sys.argv)
 if lsa != 2:
@@ -27,7 +28,6 @@ if minutes < 0:
     print("Should be an integer >= 0.")
     sys.exit(1)
 
-print ("Welcome to my Python Test script. Your username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],getpass.getuser()))
 print ("Hello {}".format(getInput("What is your name? ")))
 p = getpass.getpass(prompt="Tell me a secret ")
 print ("I won't tell anyone about {}".format(p))
