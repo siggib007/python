@@ -7,14 +7,15 @@ print ("Welcome to my Python Test script. Your username is {3}. This is running 
 localtime = time.localtime(time.time())
 gmt_time = time.gmtime()
 iGMT_offset = localtime.tm_gmtoff
+# iGMT_offset = -25200
 localgtmdiff = time.mktime(localtime) - time.mktime(gmt_time)
 print ("Local current time :{}".format(localtime))
 print ("GTM current time :{}".format(gmt_time))
 print ("Local time diff from GTM: {}".format(localgtmdiff))
-# print ("Last night :{}".format(lastnight))
-# print ("\n month:{}\n ".format(localtime[1]))
-# print ("\n isdst:{}\n ".format(localtime[8]))
-print ("\n zone:{}\n ".format(localtime.tm_gmtoff))
+print ("\n month:{}\n ".format(localtime[1]))
+print ("\n isdst:{}\n ".format(localtime[8]))
+print ("\n offset:{}\n ".format(localtime.tm_gmtoff))
+print ("\n zone:{}\n ".format(localtime.tm_zone))
 
 now = time.asctime()
 print ("The time now is {}".format(now))

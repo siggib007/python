@@ -8,6 +8,7 @@ This is script where I start to explore Qualys API calls, parsing the XML respon
 
 Following packages need to be installed as administrator
 pip install requests
+pip install xmltodict
 
 '''
 # Import libraries
@@ -19,6 +20,7 @@ import string
 import getpass
 import time
 import xml.etree.ElementTree as ET
+import xmltodict
 # End imports
 
 strBaseURL="https://qualysapi.qg2.apps.qualys.com/"
@@ -28,6 +30,8 @@ strScanAPI = "api/2.0/fo/scan/?"
 strTimeLastNight = " 22:00"
 timeNow = time.localtime(time.time())
 iGMT_offset = timeNow.tm_gmtoff
+iErrCode = ""
+iErrText = ""
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -76,8 +80,26 @@ try:
 except:
 	print ("Failed to decode the response")
 # end try
+dictResponse = xmltodict.parse(WebRequest.text)
+if isinstance(dictResponse,dict):
+	if "SIMPLE_RETURN" in dictResponse:
+		try:
+			if "CODE" in dictResponse["SIMPLE_RETURN"]["RESPONSE"]:
+				iErrCode = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["CODE"]
+				iErrText = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"]
+		except KeyError as e:
+			print ("KeyError: {}".format(e))
+			print (WebRequest.text)
+	else:
+		print (WebRequest.text)
+else:
+	print ("Response not a dictionary")
 
-print ("Root Node: ".format(root.tag))
+if iErrCode != "":
+	print ("There was a problem with your request, code {} {}".format(iErrCode,iErrText))
+
+# print ("Dict Response: \n {}".format(dictResponse))
+# print ("Root Node: {}".format(root.tag))
 # for node in root.iter():
 #     print ("{} : {}".format(node.tag, node.text))
 if root.tag == "SIMPLE_RETURN" and WebRequest.status_code !=200:
