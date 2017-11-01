@@ -23,11 +23,47 @@ import xml.etree.ElementTree as ET
 import xmltodict
 # End imports
 
-strBaseURL="https://qualysapi.qg2.apps.qualys.com/"
-strHeader={'X-Requested-With': 'VMAS'}
-strScanAPI = "api/2.0/fo/scan/?"
+if os.path.isfile("QSInput.txt"):
+	print ("Configuration File exists")
+else:
+	print ("Can't find configuration file QSInput.txt, make sure it is the same directory as this script")
+	sys.exit(4)
 
-strTimeLastNight = " 22:00"
+strLine = "  "
+print ("Reading in configuration")
+objINIFile = open("QSInput.txt","r")
+strLines = objINIFile.readlines()
+objINIFile.close()
+
+for strLine in strLines:
+	strLine = strLine.strip()
+	if "=" in strLine:
+		strConfParts = strLine.split("=")
+		if strConfParts[0] == "APIBaseURL":
+			strBaseURL = strConfParts[1]
+			print ("Found {}".format(strLine))
+		if strConfParts[0] == "APIRequestHeader":
+			strHeadReq = strConfParts[1]
+			print ("Found {}".format(strLine))
+		if strConfParts[0] == "ShowNumDays":
+			iNumDays = int(strConfParts[1])
+			print ("Found {}".format(strLine))
+		if strConfParts[0] == "ShowStartTime":
+			strTimeLastNight = str(strConfParts[1])
+			print ("Found {}".format(strLine))
+		if strConfParts[0] == "QUserID":
+			strUserName = strConfParts[1]
+			print ("Found {}".format(strLine))
+		if strConfParts[0] == "QUserPWD":
+			strPWD = strConfParts[1]
+			print ("Found {}".format(strLine))
+
+
+strHeader={'X-Requested-With': strHeadReq}
+strScanAPI = "api/2.0/fo/scan/?"
+iSecInDays = 86400
+iSecDays = iSecInDays * iNumDays
+
 timeNow = time.localtime(time.time())
 iGMT_offset = timeNow.tm_gmtoff
 iErrCode = ""
@@ -40,7 +76,7 @@ def getInput(strPrompt):
         return raw_input(strPrompt)
 # end getInput
 
-timeLastNightLocal = time.strftime("%Y-%m-%d",time.localtime(time.time()-86400)) + strTimeLastNight
+timeLastNightLocal = time.strftime("%Y-%m-%d",time.localtime(time.time()-iSecDays)) + " " + strTimeLastNight
 timeLastNightGMT = time.localtime(time.mktime(time.strptime(timeLastNightLocal,"%Y-%m-%d %H:%M"))-iGMT_offset)
 strQualysTime = time.strftime("%Y-%m-%dT%H:%M:%SZ",timeLastNightGMT)
 
@@ -48,22 +84,22 @@ DefUserName = getpass.getuser()
 print ("This is a Qualys API Sample script. Your windows username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
 now = time.asctime()
 print ("The time now is {}".format(now))
-strUserName = getInput("Please provide your Qualys username: ")
-if strUserName == "":
-	print ("no username, exiting")
-	sys.exit(5)
+# strUserName = getInput("Please provide your Qualys username: ")
+# if strUserName == "":
+# 	print ("no username, exiting")
+# 	sys.exit(5)
 
-strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
-if strPWD == "":
-	print ("empty password, exiting")
-	sys.exit(5)
+# strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
+# if strPWD == "":
+# 	print ("empty password, exiting")
+# 	sys.exit(5)
 
 
 strListScans = "action=list&user_login={}&launched_after_datetime={}".format(strUserName,strQualysTime)
 strURL = strBaseURL + strScanAPI + strListScans
 print ("Doing a get to URL: {}".format(strURL))
 try:
-	WebRequest = requests.get(strURL, headers=strHeader)
+	WebRequest = requests.get(strURL, headers=strHeader, auth=(strUserName, strPWD))
 except:
 	print ("Failed to connect to Qualys")
 # end try
@@ -90,13 +126,15 @@ if isinstance(dictResponse,dict):
 		except KeyError as e:
 			print ("KeyError: {}".format(e))
 			print (WebRequest.text)
+			iErrCode = "Unknown"
+			iErrText = "Unexpected error"
 	else:
 		print (WebRequest.text)
 else:
 	print ("Response not a dictionary")
 
-if iErrCode != "":
-	print ("There was a problem with your request, code {} {}".format(iErrCode,iErrText))
+if iErrCode != "" or WebRequest.status_code !=200:
+	print ("There was a problem with your request. HTTP error {} code {} {}".format(WebRequest.status_code,iErrCode,iErrText))
 
 # print ("Dict Response: \n {}".format(dictResponse))
 # print ("Root Node: {}".format(root.tag))

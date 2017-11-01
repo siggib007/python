@@ -9,6 +9,7 @@ root = tk.Tk()
 root.withdraw()
 
 print ("Welcome to my Python Test script. Your username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],getpass.getuser()))
+print ("This script is called {}".format(sys.argv[0]))
 localtime = time.localtime(time.time())
 print ("Local current time :{}".format(localtime))
 now = time.asctime()
