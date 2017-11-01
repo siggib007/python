@@ -21,6 +21,13 @@ import time
 import xml.etree.ElementTree as ET
 # End imports
 
+strBaseURL="https://qualysapi.qg2.apps.qualys.com/"
+strHeader={'X-Requested-With': 'VMAS'}
+strScanAPI = "api/2.0/fo/scan/?"
+
+strTimeLastNight = " 22:00"
+timeNow = time.localtime(time.time())
+iGMT_offset = timeNow.tm_gmtoff
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -28,6 +35,10 @@ def getInput(strPrompt):
     else:
         return raw_input(strPrompt)
 # end getInput
+
+timeLastNightLocal = time.strftime("%Y-%m-%d",time.localtime(time.time()-86400)) + strTimeLastNight
+timeLastNightGMT = time.localtime(time.mktime(time.strptime(timeLastNightLocal,"%Y-%m-%d %H:%M"))-iGMT_offset)
+strQualysTime = time.strftime("%Y-%m-%dT%H:%M:%SZ",timeLastNightGMT)
 
 DefUserName = getpass.getuser()
 print ("This is a Qualys API Sample script. Your windows username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
@@ -43,11 +54,10 @@ if strPWD == "":
 	print ("empty password, exiting")
 	sys.exit(5)
 
-strBaseURL="https://qualysapi.qg2.apps.qualys.com/"
-strHeader={'X-Requested-With': 'VMAS'}
-strScanAPI = "api/2.0/fo/scan/?"
-strListScans = "action=list&user_login={}&launched_after_datetime=2017-10-31T05:00:00Z".format(strUserName)
+
+strListScans = "action=list&user_login={}&launched_after_datetime={}".format(strUserName,strQualysTime)
 strURL = strBaseURL + strScanAPI + strListScans
+print ("Doing a get to URL: {}".format(strURL))
 try:
 	WebRequest = requests.get(strURL, headers=strHeader)
 except:
@@ -62,10 +72,15 @@ if isinstance(WebRequest,requests.models.Response)==False:
 # print (WebRequest.text)
 try:
 	root = ET.fromstring(WebRequest.text)
-	print ("doc:\n{}".format(root[0]))
-	print (WebRequest.text)
+	# print (WebRequest.text)
 except:
 	print ("Failed to decode the response")
 # end try
-# for child in root:
-# 	print("{}".format(child))
+
+print ("Root Node: ".format(root.tag))
+# for node in root.iter():
+#     print ("{} : {}".format(node.tag, node.text))
+if root.tag == "SIMPLE_RETURN" and WebRequest.status_code !=200:
+	print ("Error {} Code {} : {}".format(WebRequest.status_code, root[0][1].text,root[0][2].text))
+else:
+	print (WebRequest.text)
