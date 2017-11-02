@@ -63,7 +63,7 @@ for strLine in strLines:
 		if strConfParts[0] == "FilterByUser":
 			strFilterUser = strConfParts[1]
 		if strConfParts[0] == "SecondsBeetweenChecks":
-			iSecSleep = strConfParts[1]
+			iSecSleep = int(strConfParts[1])
 
 
 def MakeAPICall (strURL, strHeader, strUserName,strPWD, strMethod):
@@ -76,8 +76,8 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD, strMethod):
 			WebRequest = requests.get(strURL, headers=strHeader, auth=(strUserName, strPWD))
 		if strMethod.lower() == "post":
 			WebRequest = requests.post(strURL, headers=strHeader, auth=(strUserName, strPWD))
-	except:
-		print ("Failed to connect to Qualys")
+	except Exception as err:
+		print ("Issue with API call. {}".format(err))
 		sys.exit(7)
 	# end try
 
@@ -149,12 +149,14 @@ def GetReportStatus (strReportID):
 	if isinstance(APIResponse,dict):
 		if "REPORT_LIST" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]:
 			if "REPORT" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]:
-				if "STATE" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]:
-					dictResponse["state"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["STATE"]
+				if "SIZE" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]:
+					dictResponse["size"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["SIZE"]
+				if "STATUS" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]:
+					dictResponse["state"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["STATUS"]["STATE"]
 					print ("Current state of report ID {} is {}".format(strReportID,dictResponse["state"]))
 					if dictResponse["state"] != "Finished":
-						dictResponse["msg"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["MESSAGE"]
-						dictResponse["perc"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["PERCENT"]
+						dictResponse["msg"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["STATUS"]["MESSAGE"]
+						dictResponse["perc"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["STATUS"]["PERCENT"]
 						print ("{} {}% complete".format(dictResponse["msg"],dictResponse["perc"]))
 	return dictResponse
 
@@ -200,28 +202,42 @@ if isinstance(APIResponse,dict):
 	else:
 		print ("There are no scans since {}".format(strLastNight))
 
+# print ("Giving the reports {} seconds to generate.".format(iSecSleep))
+# time.sleep(iSecSleep)
 print ("Now checking the status of those reports...")
 dictTemp = {}
 bFinished = False
 while not bFinished:
 	bFinished = True
 	for strReportID in listReportIDs:
+		print ("Checking status on report ID {}".format(strReportID))
 		if strReportID in dictTemp:
 			if "state" in dictTemp[strReportID]:
-				if dictTemp[strReportID]["state"] != "Finished" :
+				if dictTemp[strReportID]["state"] == "Running" :
 					dictTemp[strReportID] = GetReportStatus(strReportID)
 		else:
 			dictTemp[strReportID] = GetReportStatus(strReportID)
 		if isinstance(dictTemp[strReportID],str):
-			print(dictTemp[strReportID])
+			strError = dictTemp[strReportID]
+			dictTemp[strReportID]={"state":"Error","msg":strError}
+			print("{} \n exiting !!!".format(dictTemp[strReportID]))
 			break
 		if isinstance(dictTemp[strReportID],dict):
+			if not dictTemp[strReportID]:
+				print ("Received an empty reponse when checking on report {}".format(strReportID))
+				dictTemp[strReportID]["state"]="Error"
+				dictTemp[strReportID]["msg"]="Empty response from report list"
+				bFinished = False
 			if "state" in dictTemp[strReportID]:
-				if dictTemp[strReportID]["state"] != "Finished":
+				if dictTemp[strReportID]["state"] == "Running":
 					bFinished = False
-				else:
+				if dictTemp[strReportID]["state"] == "Finished" and "report" not in dictTemp[strReportID] :
 					print ("pretending to download completed report ID {}".format(strReportID))
+					dictTemp[strReportID]["report"] = "fake report"
+			else:
+				bFinished = False
 	if isinstance(dictTemp,str):
+		print ("exiting due to error when checking on report")
 		break
 	if not bFinished:
 		print ("Waiting for all reports to complete, checking again in {} seconds".format(iSecSleep))
