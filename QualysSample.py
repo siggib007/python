@@ -19,9 +19,13 @@ import os
 import string
 import getpass
 import time
-import xml.etree.ElementTree as ET
 import xmltodict
 # End imports
+
+DefUserName = getpass.getuser()
+print ("This is a Qualys API Sample script. Your windows username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
+now = time.asctime()
+print ("The time now is {}".format(now))
 
 if os.path.isfile("QSInput.txt"):
 	print ("Configuration File exists")
@@ -41,24 +45,18 @@ for strLine in strLines:
 		strConfParts = strLine.split("=")
 		if strConfParts[0] == "APIBaseURL":
 			strBaseURL = strConfParts[1]
-			print ("Found {}".format(strLine))
 		if strConfParts[0] == "APIRequestHeader":
 			strHeadReq = strConfParts[1]
-			print ("Found {}".format(strLine))
 		if strConfParts[0] == "ShowNumDays":
 			iNumDays = int(strConfParts[1])
-			print ("Found {}".format(strLine))
 		if strConfParts[0] == "ShowStartTime":
 			strTimeLastNight = str(strConfParts[1])
-			print ("Found {}".format(strLine))
 		if strConfParts[0] == "QUserID":
 			strUserName = strConfParts[1]
-			print ("Found {}".format(strLine))
 		if strConfParts[0] == "QUserPWD":
 			strPWD = strConfParts[1]
-			print ("Found {}".format(strLine))
 
-
+print ("calculating stuff ...")
 strHeader={'X-Requested-With': strHeadReq}
 strScanAPI = "api/2.0/fo/scan/?"
 iSecInDays = 86400
@@ -66,8 +64,7 @@ iSecDays = iSecInDays * iNumDays
 
 timeNow = time.localtime(time.time())
 iGMT_offset = timeNow.tm_gmtoff
-iErrCode = ""
-iErrText = ""
+
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -76,71 +73,61 @@ def getInput(strPrompt):
         return raw_input(strPrompt)
 # end getInput
 
+def MakeAPICall (strURL, strHeader, strUserName,strPWD):
+
+	iErrCode = ""
+	iErrText = ""
+
+	print ("Doing a get to URL: \n {}\n".format(strURL))
+	try:
+		WebRequest = requests.get(strURL, headers=strHeader, auth=(strUserName, strPWD))
+	except:
+		print ("Failed to connect to Qualys")
+		sys.exit(7)
+	# end try
+
+	if isinstance(WebRequest,requests.models.Response)==False:
+		print ("response is unknown type")
+		sys.exit(5)
+	# end if
+
+	dictResponse = xmltodict.parse(WebRequest.text)
+	if isinstance(dictResponse,dict):
+		if "SIMPLE_RETURN" in dictResponse:
+			try:
+				if "CODE" in dictResponse["SIMPLE_RETURN"]["RESPONSE"]:
+					iErrCode = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["CODE"]
+					iErrText = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"]
+			except KeyError as e:
+				print ("KeyError: {}".format(e))
+				print (WebRequest.text)
+				iErrCode = "Unknown"
+				iErrText = "Unexpected error"
+	else:
+		print ("Response not a dictionary")
+		sys.exit(8)
+
+	if iErrCode != "" or WebRequest.status_code !=200:
+		return "There was a problem with your request. HTTP error {} code {} {}".format(WebRequest.status_code,iErrCode,iErrText)
+	else:
+		return dictResponse
+
+
 timeLastNightLocal = time.strftime("%Y-%m-%d",time.localtime(time.time()-iSecDays)) + " " + strTimeLastNight
 timeLastNightGMT = time.localtime(time.mktime(time.strptime(timeLastNightLocal,"%Y-%m-%d %H:%M"))-iGMT_offset)
 strQualysTime = time.strftime("%Y-%m-%dT%H:%M:%SZ",timeLastNightGMT)
-
-DefUserName = getpass.getuser()
-print ("This is a Qualys API Sample script. Your windows username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
-now = time.asctime()
-print ("The time now is {}".format(now))
-# strUserName = getInput("Please provide your Qualys username: ")
-# if strUserName == "":
-# 	print ("no username, exiting")
-# 	sys.exit(5)
-
-# strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
-# if strPWD == "":
-# 	print ("empty password, exiting")
-# 	sys.exit(5)
-
+strLastNight = time.strftime("%m/%d/%Y %H:%M %Z",time.localtime(time.mktime(time.strptime(timeLastNightLocal,"%Y-%m-%d %H:%M"))))
 
 strListScans = "action=list&user_login={}&launched_after_datetime={}".format(strUserName,strQualysTime)
 strURL = strBaseURL + strScanAPI + strListScans
-print ("Doing a get to URL: {}".format(strURL))
-try:
-	WebRequest = requests.get(strURL, headers=strHeader, auth=(strUserName, strPWD))
-except:
-	print ("Failed to connect to Qualys")
-# end try
-if WebRequest.status_code !=200:
-	print ("Request response error code " + str(WebRequest.status_code))
-if isinstance(WebRequest,requests.models.Response)==False:
-	print ("response is unknown type")
-# end if
 
-# print (WebRequest.text)
-try:
-	root = ET.fromstring(WebRequest.text)
-	# print (WebRequest.text)
-except:
-	print ("Failed to decode the response")
-# end try
-dictResponse = xmltodict.parse(WebRequest.text)
-if isinstance(dictResponse,dict):
-	if "SIMPLE_RETURN" in dictResponse:
-		try:
-			if "CODE" in dictResponse["SIMPLE_RETURN"]["RESPONSE"]:
-				iErrCode = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["CODE"]
-				iErrText = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"]
-		except KeyError as e:
-			print ("KeyError: {}".format(e))
-			print (WebRequest.text)
-			iErrCode = "Unknown"
-			iErrText = "Unexpected error"
+APIResponse = MakeAPICall(strURL,strHeader,strUserName,strPWD)
+if isinstance(APIResponse,str):
+	print(APIResponse)
+if isinstance(APIResponse,dict):
+	if "SCAN_LIST" in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]:
+		print ("Here are the scans since {}".format(strLastNight))
+		for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
+			print ("Title: {} Ref: {}".format(scan["TITLE"],scan["REF"]))
 	else:
-		print (WebRequest.text)
-else:
-	print ("Response not a dictionary")
-
-if iErrCode != "" or WebRequest.status_code !=200:
-	print ("There was a problem with your request. HTTP error {} code {} {}".format(WebRequest.status_code,iErrCode,iErrText))
-
-# print ("Dict Response: \n {}".format(dictResponse))
-# print ("Root Node: {}".format(root.tag))
-# for node in root.iter():
-#     print ("{} : {}".format(node.tag, node.text))
-if root.tag == "SIMPLE_RETURN" and WebRequest.status_code !=200:
-	print ("Error {} Code {} : {}".format(WebRequest.status_code, root[0][1].text,root[0][2].text))
-else:
-	print (WebRequest.text)
+		print ("There are no scans since {}".format(strLastNight))
