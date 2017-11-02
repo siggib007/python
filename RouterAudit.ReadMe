@@ -1,0 +1,99 @@
+Router Audit
+Author: Siggi Bjarnason
+
+Introduction/Summary:
+This is script that will execute a command defined in variable strCommand, on every router listed in a provided spreadsheet.
+The output of that command will be saved to per router file in a folder name, specified by variable strOutFolderName, in the same folder as the spreadsheet.
+That ouput will also be passed to function AnalyzeResults for parsing. The parsed results will be stored in a seperate sheet in the spreadsheet.
+The name of the sheet with the results is defined by variable strResultSheetName, the header row for that sheet gets created by function ResultHeaders.
+No changes or custimization should be needed past the function AnalyzeResults.
+
+If you need to feed a variable into the command, put {0} for the first variable {1} for the second, etc.
+For example:
+strCommand = "show run {0} access-list {1}"
+where {0} represent the IP version (ipv4/ipv6) and {1} reprsents the ACL name that will be fed in through the Excel file.
+
+Following packages need to be installed as administrator
+pip install pypiwin32
+pip install paramiko
+
+
+For specific examples let's look at this example:
+
+strResultSheetName = "MyOutput3"
+strCommand = "show run ipv6 access-list"
+iMaxError = 4
+
+def ResultHeaders():
+	wsResult.Cells(1,1).Value  = "primaryIPAddress"
+	wsResult.Cells(1,2).Value  = "hostName"
+	wsResult.Cells(1,3).Value  = "ABFACLName"
+	wsResult.Cells(1,4).Value  = "CNO1"
+	wsResult.Cells(1,5).Value  = "CNO2"
+	wsResult.Cells(1,6).Value  = "CNO3"
+	wsResult.Cells(1,7).Value  = "CNO4"
+	wsResult.Cells(1,8).Value  = "CNO5"
+	wsResult.Cells(1,9).Value  = "PDNS"
+	wsResult.Cells(1,10).Value = "SDNS"
+	wsResult.Cells(1,11).Value = "NextHopIP"
+	wsResult.Cells(1,12).Value = "NextHopIP2"
+
+def AnalyzeResults(strOutputList):
+	global iOutLineNum
+	bFoundABFACL = False
+	bInACL = False
+	try:
+		wsResult.Cells(iOutLineNum,1).Value = socket.gethostbyname(strHostname)
+	except OSError as err:
+		print ("Socket Exception: {0}".format(err))
+		wsResult.Cells(iOutLineNum,1).Value  = "Socket Exception: {0}".format(err)
+	except Exception as err:
+		print ("Generic Exception: {0}".format(err))
+		wsResult.Cells(iOutLineNum,1).Value  = "Generic Exception: {0}".format(err)
+
+	wsResult.Cells(iOutLineNum,2).Value = strHostname
+	print ("There are {} number of lines in the output".format(len(strOutputList)))
+	for strLine in strOutputList:
+		if "Exception:" in strLine:
+			wsResult.Cells(iOutLineNum,3).Value = strLine
+			bFoundABFACL = True
+			print ("Found an exception message, aborting analysis")
+			break
+
+		strLineTokens = strLine.split(" ")
+		if len(strLineTokens) > 1:
+			if strLineTokens[2][:11]== "ABF-NAT-PAT":
+				if bFoundABFACL:
+					iOutLineNum += 1
+					wsResult.Cells(iOutLineNum,1).Value = socket.gethostbyname(strHostname)
+					wsResult.Cells(iOutLineNum,2).Value = strHostname
+				#end if bFoundABFACL
+				bFoundABFACL = True
+				bInACL = True
+				wsResult.Cells(iOutLineNum,3).Value = strLineTokens[2]
+			elif strLineTokens[1] == "access-list":
+				bInACL = False
+			if bInACL:
+				if len(strLineTokens) > 5:
+					if strLineTokens[1] == "70":
+						wsResult.Cells(iOutLineNum,4).Value = strLineTokens[6]
+					if strLineTokens[1] == "80":
+						wsResult.Cells(iOutLineNum,5).Value = strLineTokens[6]
+					if strLineTokens[1] == "90":
+						wsResult.Cells(iOutLineNum,6).Value = strLineTokens[6]
+					if strLineTokens[1] == "100":
+						wsResult.Cells(iOutLineNum,7).Value = strLineTokens[6]
+					if strLineTokens[1] == "110":
+						wsResult.Cells(iOutLineNum,8).Value = strLineTokens[6]
+				if len(strLineTokens) > 8:
+					if strLineTokens[1] == "140":
+						wsResult.Cells(iOutLineNum,9).Value = strLineTokens[5]
+						wsResult.Cells(iOutLineNum,12).Value = strLineTokens[10]
+					if strLineTokens[1] == "130":
+						# print (strLine)
+						wsResult.Cells(iOutLineNum,10).Value = strLineTokens[5]
+						wsResult.Cells(iOutLineNum,11).Value = strLineTokens[10]
+	if bFoundABFACL == False:
+		wsResult.Cells(iOutLineNum,3).Value = "Not found"
+	iOutLineNum += 1
+# end function AnalyzeResults

@@ -11,6 +11,9 @@ APIRequestHeader=VMAS
 ShowNumDays=1
 ShowStartTime=22:00
 
+FilterByUser=tmbeuxxxx
+SecondsBeetweenChecks=60
+
 #Qualys portal login authentication.
-QUserID=
-QUserPWD=
+QUserID=JoJoJo
+QUserPWD=IamAdork
