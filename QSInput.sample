@@ -7,12 +7,16 @@ APIRequestHeader=VMAS
 
 # This is used by list Scans API, to limit the number of scans
 # to only those scans started in the last x days
-# ShowNumDays=1 and ShowStartTime=22:00 means only show scans started after 10pm last night
 ShowNumDays=1
 ShowStartTime=22:00
 
+#Various config items
 FilterByUser=tmbeuxxxx
 SecondsBeetweenChecks=60
+ReportSaveLocation=c:\temp
+
+#Valid formats are: pdf, html (a zip file), mht, xml, csv, or docx
+ReportFormat=csv
 
 #Qualys portal login authentication.
 QUserID=JoJoJo

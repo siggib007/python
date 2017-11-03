@@ -21,6 +21,19 @@ import xmltodict
 import urllib.parse as urlparse
 # End imports
 
+def isInt (CheckValue):
+	# function to safely check if a value can be interpreded as an int
+	if isinstance(CheckValue,int):
+		return True
+	elif isinstance(CheckValue,str):
+		if CheckValue.isnumeric():
+			return True
+		else:
+			return False
+	else:
+		return False
+
+
 print ("This is a Qualys Scan Report generator. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 now = time.asctime()
 print ("The time now is {}".format(now))
@@ -53,7 +66,11 @@ for strLine in strLines:
 		if strConfParts[0] == "APIRequestHeader":
 			strHeadReq = strConfParts[1]
 		if strConfParts[0] == "ShowNumDays":
-			iNumDays = int(strConfParts[1])
+			if isInt(strConfParts[1]):
+				iNumDays = int(strConfParts[1])
+			else:
+				print ("Invalid value: {}".format(strLine))
+				sys.exit(5)
 		if strConfParts[0] == "ShowStartTime":
 			strTimeLastNight = str(strConfParts[1])
 		if strConfParts[0] == "QUserID":
@@ -63,7 +80,15 @@ for strLine in strLines:
 		if strConfParts[0] == "FilterByUser":
 			strFilterUser = strConfParts[1]
 		if strConfParts[0] == "SecondsBeetweenChecks":
-			iSecSleep = int(strConfParts[1])
+			if isInt(strConfParts[1]):
+				iSecSleep = int(strConfParts[1])
+			else:
+				print ("Invalid value: {}".format(strLine))
+				sys.exit(5)
+		if strConfParts[0] == "ReportSaveLocation":
+			strSaveLoc = strConfParts[1]
+		if strConfParts[0] == "ReportFormat":
+			strReportFormat = strConfParts[1].lower()
 
 
 def MakeAPICall (strURL, strHeader, strUserName,strPWD, strMethod):
@@ -79,12 +104,10 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD, strMethod):
 	except Exception as err:
 		print ("Issue with API call. {}".format(err))
 		sys.exit(7)
-	# end try
 
 	if isinstance(WebRequest,requests.models.Response)==False:
 		print ("response is unknown type")
 		sys.exit(5)
-	# end if
 
 	dictResponse = xmltodict.parse(WebRequest.text)
 	if isinstance(dictResponse,dict):
@@ -108,14 +131,16 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD, strMethod):
 		return dictResponse
 
 def LaunchReport (strTitle,strScanRef):
-	strNow = strLastNight = time.strftime("%m/%d/%Y %H:%M")
+	strNow = time.strftime("%m/%d/%Y %H:%M")
 	strAPIFunction = "api/2.0/fo/report/?"
 	dictParams.clear()
 	dictParams["action"] = "launch"
 	dictParams["template_id"] = 895325
 	dictParams["report_title"] = strTitle + " " + strNow
-	dictParams["output_format"] = "csv"
+	dictParams["output_format"] = strReportFormat
 	dictParams["report_refs"] = strScanRef
+	if strReportFormat.lower()=="csv":
+		dictParams["hide_header"] = 1
 	strListScans = urlparse.urlencode(dictParams)
 
 	strURL = strBaseURL + strAPIFunction + strListScans
@@ -124,14 +149,17 @@ def LaunchReport (strTitle,strScanRef):
 	if isinstance(APIResponse,str):
 		print(APIResponse)
 		return "Errror: {}".format(APIResponse)
-	if isinstance(APIResponse,dict):
+	elif isinstance(APIResponse,dict):
 		if "ITEM_LIST" in APIResponse["SIMPLE_RETURN"]["RESPONSE"]:
 			print ("{} for {}".format(APIResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"],strTitle))
-			# print ("report ID: {}".format(APIResponse["SIMPLE_RETURN"]["RESPONSE"]["ITEM_LIST"]["ITEM"]["VALUE"]))
 			return APIResponse["SIMPLE_RETURN"]["RESPONSE"]["ITEM_LIST"]["ITEM"]["VALUE"]
 		else:
-			# print (APIResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"])
-			return "Errror: {}".format(APIResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"])
+			if "TEXT" in APIResponse["SIMPLE_RETURN"]["RESPONSE"]:
+				return "Errror: {}".format(APIResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"])
+			else:
+				return "Received empty or unknown dict: {}".format(APIResponse)
+	else:
+		return "received unknown object: {}".format(APIResponse)
 
 def GetReportStatus (strReportID):
 	dictResponse ={}
@@ -141,6 +169,7 @@ def GetReportStatus (strReportID):
 	strListScans = urlparse.urlencode(dictParams)
 	strAPIFunction = "api/2.0/fo/report/?"
 	strURL = strBaseURL + strAPIFunction + strListScans
+	lstKey = ['SIZE', 'TITLE', 'OUTPUT_FORMAT','STATUS']
 
 	APIResponse = MakeAPICall(strURL,strHeader,strUserName,strPWD,"Get")
 	if isinstance(APIResponse,str):
@@ -149,16 +178,51 @@ def GetReportStatus (strReportID):
 	if isinstance(APIResponse,dict):
 		if "REPORT_LIST" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]:
 			if "REPORT" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]:
-				if "SIZE" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]:
+				if set(lstKey).issubset(APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]):
 					dictResponse["size"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["SIZE"]
-				if "STATUS" in APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]:
+					dictResponse["title"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["TITLE"]
+					dictResponse["format"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["OUTPUT_FORMAT"]
 					dictResponse["state"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["STATUS"]["STATE"]
 					print ("Current state of report ID {} is {}".format(strReportID,dictResponse["state"]))
 					if dictResponse["state"] != "Finished":
 						dictResponse["msg"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["STATUS"]["MESSAGE"]
 						dictResponse["perc"]=APIResponse["REPORT_LIST_OUTPUT"]["RESPONSE"]["REPORT_LIST"]["REPORT"]["STATUS"]["PERCENT"]
 						print ("{} {}% complete".format(dictResponse["msg"],dictResponse["perc"]))
+				else:
+					print ("Missing one these keys in APIResponse:{}\n  Here is what I have for APIResponse:\n{}".format(", ".join(lstKey),APIResponse))
+			else:
+				print ("Missing REPORT key in REPORT_LIST. Here is what I have for APIResponse:\n{}".format(APIResponse))
+		else:
+			print ("Missing REPORT_LIST key in RESPONSE. Here is what I have for APIResponse:\n{}".format(APIResponse))
+	else:
+		print ("Response is neither a dictionary nor a string, here is what it looks like: {}".format(APIResponse))
 	return dictResponse
+
+def DownloadReport (strReportID,dictReport):
+	lstKey = ['size', 'title', 'format']
+	if isinstance(dictReport,dict):
+		if set(lstKey).issubset(dictReport):
+			print ("Downloading {} formated report titled '{}' id {} size of {} ".format(dictReport["format"],dictReport["title"],strReportID,dictReport["size"]))
+
+	strAPIFunction = "api/2.0/fo/report/?"
+	dictParams.clear()
+	dictParams["action"] = "fetch"
+	dictParams["id"] = strReportID
+	strListScans = urlparse.urlencode(dictParams)
+
+	strURL = strBaseURL + strAPIFunction + strListScans
+
+	try:
+		WebRequest = requests.get(strURL, headers=strHeader, auth=(strUserName, strPWD))
+	except Exception as err:
+		print ("Issue with API call. {}".format(err))
+		sys.exit(7)
+
+	if isinstance(WebRequest,requests.models.Response)==False:
+		print ("response is unknown type")
+		sys.exit(5)
+
+	return WebRequest.text
 
 print ("calculating stuff ...")
 strHeader={'X-Requested-With': strHeadReq}
@@ -183,7 +247,7 @@ dictParams["launched_after_datetime"] = strQualysTime
 strListScans = urlparse.urlencode(dictParams)
 
 strURL = strBaseURL + strAPIFunction + strListScans
-
+print ("Fetching a list of scans since {}".format(strLastNight))
 APIResponse = MakeAPICall(strURL,strHeader,strUserName,strPWD,"Get")
 if isinstance(APIResponse,str):
 	print(APIResponse)
@@ -195,27 +259,32 @@ if isinstance(APIResponse,dict):
 			if strSearchCrit in scan["TITLE"]:
 				print ("  matches {}".format(strSearchCrit))
 				strReportID=LaunchReport(scan["TITLE"],scan["REF"])
-				listReportIDs.append(strReportID)
-				print ("Report ID: {}".format(strReportID))
+				if isInt(strReportID):
+					listReportIDs.append(strReportID)
+					print ("Report ID: {}".format(strReportID))
+				else:
+					print (strReportID)
 			else:
 				print ("  does not match {}".format(strSearchCrit))
 	else:
 		print ("There are no scans since {}".format(strLastNight))
 
-# print ("Giving the reports {} seconds to generate.".format(iSecSleep))
-# time.sleep(iSecSleep)
+print ("Giving the reports {} seconds to generate.".format(iSecSleep))
+time.sleep(iSecSleep)
 print ("Now checking the status of those reports...")
 dictTemp = {}
 bFinished = False
 while not bFinished:
+	print ("starting to check report completion and download completed reports")
 	bFinished = True
 	for strReportID in listReportIDs:
-		print ("Checking status on report ID {}".format(strReportID))
 		if strReportID in dictTemp:
 			if "state" in dictTemp[strReportID]:
-				if dictTemp[strReportID]["state"] == "Running" :
+				if dictTemp[strReportID]["state"] != "Finished" :
+					print ("Checking status on report ID {}".format(strReportID))
 					dictTemp[strReportID] = GetReportStatus(strReportID)
 		else:
+			print ("Checking status on report ID {}".format(strReportID))
 			dictTemp[strReportID] = GetReportStatus(strReportID)
 		if isinstance(dictTemp[strReportID],str):
 			strError = dictTemp[strReportID]
@@ -232,13 +301,53 @@ while not bFinished:
 				if dictTemp[strReportID]["state"] == "Running":
 					bFinished = False
 				if dictTemp[strReportID]["state"] == "Finished" and "report" not in dictTemp[strReportID] :
-					print ("pretending to download completed report ID {}".format(strReportID))
-					dictTemp[strReportID]["report"] = "fake report"
+					dictTemp[strReportID]["report"] = DownloadReport(strReportID,dictTemp[strReportID])
 			else:
 				bFinished = False
+
 	if isinstance(dictTemp,str):
 		print ("exiting due to error when checking on report")
 		break
 	if not bFinished:
 		print ("Waiting for all reports to complete, checking again in {} seconds".format(iSecSleep))
 		time.sleep(iSecSleep)
+
+strFileDT = time.strftime("%m-%d-%Y-%H-%M")
+if strSaveLoc[-1:] != "\\":
+	strSaveLoc += "\\"
+strOutFile = "{}Qualys Report {} {}".format(strSaveLoc,strSearchCrit,strFileDT)
+strTemp = ""
+for strReportID in dictTemp:
+	if "report" in dictTemp[strReportID]:
+		if dictTemp[strReportID]["format"].lower() == "csv":
+			strTemp += dictTemp[strReportID]["report"].strip()
+		else:
+			print ("Not a CSV file saving each report seperately")
+			strReportTitle = dictTemp[strReportID]["title"]
+			strReportTitle = strReportTitle.replace("\\","-")
+			strReportTitle = strReportTitle.replace("/","-")
+			strReportTitle = strReportTitle.replace(":","-")
+			strReportTitle = strReportTitle.replace("#","-")
+			strOutFile = "{}Qualys Report {} {}.{}".format(strSaveLoc,strReportTitle,strFileDT,dictTemp[strReportID]["format"])
+			objFileOut = open(strOutFile,"w")
+			objFileOut.write (strTemp)
+			objFileOut.close()
+
+
+if dictTemp[strReportID]["format"].lower() == "csv":
+	iLocN = strTemp.find("\n")
+	iLocR = strTemp.find("\r")
+	if iLocR < iLocN:
+		strHead = strTemp[:iLocR]
+	else:
+		strHead = strTemp[:iLocN]
+	strTemp = strTemp.replace(strHead,"")
+	strTemp = strHead + strTemp
+	strTemp = strTemp.replace("\r","")
+	strOutFile += ".csv"
+	objFileOut = open(strOutFile,"w")
+	objFileOut.write (strTemp)
+	objFileOut.close()
+	print ("Report saved to: {}".format(strOutFile))
+
+print ("Mission completed!")
