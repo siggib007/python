@@ -90,6 +90,9 @@ for strLine in strLines:
 		if strConfParts[0] == "ReportFormat":
 			strReportFormat = strConfParts[1].lower()
 
+if not os.path.isdir(strSaveLoc):
+	print ("{} doesn't exists, creating it".format(strSaveLoc))
+	os.makedirs(strSaveLoc)
 
 def MakeAPICall (strURL, strHeader, strUserName,strPWD, strMethod):
 
