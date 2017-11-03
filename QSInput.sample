@@ -1,5 +1,5 @@
 # This is a configuration file for Qualys API scripts
-# Created 11/1/2017 by Siggii Bjarnason
+# Created 11/1/2017 by Siggi Bjarnason
 
 # Base API URL and other base API requirements
 APIBaseURL=https://qualysapi.qg2.apps.qualys.com/
@@ -7,6 +7,7 @@ APIRequestHeader=VMAS
 
 # This is used by list Scans API, to limit the number of scans
 # to only those scans started in the last x days
+# ShowNumDays=1 and ShowStartTime=22:00 means only show scans started after 10pm last night
 ShowNumDays=1
 ShowStartTime=22:00
 
@@ -14,6 +15,7 @@ ShowStartTime=22:00
 FilterByUser=tmbeuxxxx
 SecondsBeetweenChecks=60
 ReportSaveLocation=c:\temp
+TemplateID=895325
 
 #Valid formats are: pdf, html (a zip file), mht, xml, csv, or docx
 ReportFormat=csv

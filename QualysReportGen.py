@@ -89,6 +89,8 @@ for strLine in strLines:
 			strSaveLoc = strConfParts[1]
 		if strConfParts[0] == "ReportFormat":
 			strReportFormat = strConfParts[1].lower()
+		if strConfParts[0] == "TemplateID":
+			strTemplateID = strConfParts[1]
 
 if not os.path.isdir(strSaveLoc):
 	print ("{} doesn't exists, creating it".format(strSaveLoc))
@@ -138,7 +140,7 @@ def LaunchReport (strTitle,strScanRef):
 	strAPIFunction = "api/2.0/fo/report/?"
 	dictParams.clear()
 	dictParams["action"] = "launch"
-	dictParams["template_id"] = 895325
+	dictParams["template_id"] = strTemplateID
 	dictParams["report_title"] = strTitle + " " + strNow
 	dictParams["output_format"] = strReportFormat
 	dictParams["report_refs"] = strScanRef
@@ -259,7 +261,7 @@ if isinstance(APIResponse,dict):
 		print ("Here are the scans since {}".format(strLastNight))
 		for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
 			print ("Title: {} Ref: {}".format(scan["TITLE"],scan["REF"]))
-			if strSearchCrit in scan["TITLE"]:
+			if strSearchCrit.lower() in scan["TITLE"].lower():
 				print ("  matches {}".format(strSearchCrit))
 				strReportID=LaunchReport(scan["TITLE"],scan["REF"])
 				if isInt(strReportID):
@@ -272,72 +274,76 @@ if isinstance(APIResponse,dict):
 	else:
 		print ("There are no scans since {}".format(strLastNight))
 
-print ("Giving the reports {} seconds to generate.".format(iSecSleep))
-time.sleep(iSecSleep)
-print ("Now checking the status of those reports...")
-dictTemp = {}
-bFinished = False
-while not bFinished:
-	print ("starting to check report completion and download completed reports")
-	bFinished = True
-	for strReportID in listReportIDs:
-		if strReportID in dictTemp:
-			if "state" in dictTemp[strReportID]:
-				if dictTemp[strReportID]["state"] != "Finished" :
-					print ("Checking status on report ID {}".format(strReportID))
-					dictTemp[strReportID] = GetReportStatus(strReportID)
-		else:
-			print ("Checking status on report ID {}".format(strReportID))
-			dictTemp[strReportID] = GetReportStatus(strReportID)
-		if isinstance(dictTemp[strReportID],str):
-			strError = dictTemp[strReportID]
-			dictTemp[strReportID]={"state":"Error","msg":strError}
-			print("{} \n exiting !!!".format(dictTemp[strReportID]))
-			break
-		if isinstance(dictTemp[strReportID],dict):
-			if not dictTemp[strReportID]:
-				print ("Received an empty reponse when checking on report {}".format(strReportID))
-				dictTemp[strReportID]["state"]="Error"
-				dictTemp[strReportID]["msg"]="Empty response from report list"
-				bFinished = False
-			if "state" in dictTemp[strReportID]:
-				if dictTemp[strReportID]["state"] == "Running":
-					bFinished = False
-				if dictTemp[strReportID]["state"] == "Finished" and "report" not in dictTemp[strReportID] :
-					dictTemp[strReportID]["report"] = DownloadReport(strReportID,dictTemp[strReportID])
+bCSVFile = False
+if len(listReportIDs) > 0:
+	print ("Giving the reports {} seconds to generate.".format(iSecSleep))
+	time.sleep(iSecSleep)
+	print ("Now checking the status of those reports...")
+	dictTemp = {}
+	bFinished = False
+	while not bFinished:
+		print ("starting to check report completion and download completed reports")
+		bFinished = True
+		for strReportID in listReportIDs:
+			if strReportID in dictTemp:
+				if "state" in dictTemp[strReportID]:
+					if dictTemp[strReportID]["state"] != "Finished" :
+						print ("Checking status on report ID {}".format(strReportID))
+						dictTemp[strReportID] = GetReportStatus(strReportID)
 			else:
-				bFinished = False
+				print ("Checking status on report ID {}".format(strReportID))
+				dictTemp[strReportID] = GetReportStatus(strReportID)
+			if isinstance(dictTemp[strReportID],str):
+				strError = dictTemp[strReportID]
+				dictTemp[strReportID]={"state":"Error","msg":strError}
+				print("{} \n exiting !!!".format(dictTemp[strReportID]))
+				break
+			if isinstance(dictTemp[strReportID],dict):
+				if not dictTemp[strReportID]:
+					print ("Received an empty reponse when checking on report {}".format(strReportID))
+					dictTemp[strReportID]["state"]="Error"
+					dictTemp[strReportID]["msg"]="Empty response from report list"
+					bFinished = False
+				if "state" in dictTemp[strReportID]:
+					if dictTemp[strReportID]["state"] == "Running":
+						bFinished = False
+					if dictTemp[strReportID]["state"] == "Finished" and "report" not in dictTemp[strReportID] :
+						dictTemp[strReportID]["report"] = DownloadReport(strReportID,dictTemp[strReportID])
+				else:
+					bFinished = False
 
-	if isinstance(dictTemp,str):
-		print ("exiting due to error when checking on report")
-		break
-	if not bFinished:
-		print ("Waiting for all reports to complete, checking again in {} seconds".format(iSecSleep))
-		time.sleep(iSecSleep)
+		if isinstance(dictTemp,str):
+			print ("exiting due to error when checking on report")
+			break
+		if not bFinished:
+			print ("Waiting for all reports to complete, checking again in {} seconds".format(iSecSleep))
+			time.sleep(iSecSleep)
 
-strFileDT = time.strftime("%m-%d-%Y-%H-%M")
-if strSaveLoc[-1:] != "\\":
-	strSaveLoc += "\\"
-strOutFile = "{}Qualys Report {} {}".format(strSaveLoc,strSearchCrit,strFileDT)
-strTemp = ""
-for strReportID in dictTemp:
-	if "report" in dictTemp[strReportID]:
-		if dictTemp[strReportID]["format"].lower() == "csv":
-			strTemp += dictTemp[strReportID]["report"].strip()
-		else:
-			print ("Not a CSV file saving each report seperately")
-			strReportTitle = dictTemp[strReportID]["title"]
-			strReportTitle = strReportTitle.replace("\\","-")
-			strReportTitle = strReportTitle.replace("/","-")
-			strReportTitle = strReportTitle.replace(":","-")
-			strReportTitle = strReportTitle.replace("#","-")
-			strOutFile = "{}Qualys Report {} {}.{}".format(strSaveLoc,strReportTitle,strFileDT,dictTemp[strReportID]["format"])
-			objFileOut = open(strOutFile,"w")
-			objFileOut.write (strTemp)
-			objFileOut.close()
+	strFileDT = time.strftime("%m-%d-%Y-%H-%M")
+	if strSaveLoc[-1:] != "\\":
+		strSaveLoc += "\\"
+	strOutFile = "{}Qualys Report {} {}".format(strSaveLoc,strSearchCrit,strFileDT)
+	strTemp = ""
+	for strReportID in dictTemp:
+		if "report" in dictTemp[strReportID]:
+			if dictTemp[strReportID]["format"].lower() == "csv":
+				strTemp += dictTemp[strReportID]["report"].strip()
+				bCSVFile = True
+			else:
+				bCSVFile = False
+				strReportTitle = dictTemp[strReportID]["title"]
+				strReportTitle = strReportTitle.replace("\\","-")
+				strReportTitle = strReportTitle.replace("/","-")
+				strReportTitle = strReportTitle.replace(":","-")
+				strReportTitle = strReportTitle.replace("#","-")
+				strOutFile = "{}Qualys Report {}.{}".format(strSaveLoc,strReportTitle,dictTemp[strReportID]["format"])
+				print ("Saving {} report to {}".format(dictTemp[strReportID]["format"],strOutFile))
+				objFileOut = open(strOutFile,"w")
+				objFileOut.write (dictTemp[strReportID]["report"].strip())
+				objFileOut.close()
 
 
-if dictTemp[strReportID]["format"].lower() == "csv":
+if bCSVFile:
 	iLocN = strTemp.find("\n")
 	iLocR = strTemp.find("\r")
 	if iLocR < iLocN:
