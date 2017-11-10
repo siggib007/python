@@ -1,3 +1,4 @@
+#pip install pymysql
 import pymysql
 import sys
 
@@ -15,19 +16,19 @@ except pymysql.err.ProgrammingError as err:
    sys.exit(5)
 
 # prepare a cursor object using cursor() method
-cursor = db.cursor()
+dbCursor = db.cursor()
 
 strSQL = "select * from esme.atrou051vipdest limit 5,10;"
 print ("executing: {}".format(strSQL))
 try:
    # Execute the SQL command
-   cursor.execute(strSQL)
+   dbCursor.execute(strSQL)
    # Count rows
-   iRowCount = cursor.rowcount
+   iRowCount = dbCursor.rowcount
    print ("There are {} rows in the response.".format(iRowCount))
    # Fetch all the rows in a list of lists.
-   results = cursor.fetchall()
-   for row in results:
+   dbResults = dbCursor.fetchall()
+   for row in dbResults:
       # Now print fetched result
       print ("{0} {1} {2} {3} {4} {5} ".format(row[0],row[1],row[2],row[3],row[4],row[5]))
 except pymysql.err.InternalError as err:
