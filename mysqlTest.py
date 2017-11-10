@@ -1,10 +1,13 @@
 #pip install pymysql
 import pymysql
 import sys
-
+strServer = "localhost"
+strUser = "test"
+strPWD = "Nt3OPbI4x7WN77ZJcUg5SI58HgXpIp"
+strInitialDB = "sys"
 try:
 # Open database connection
-	db = pymysql.connect("localhost","test","Nt3OPbI4x7WN77ZJcUg5SI58HgXpIp","sys" )
+	db = pymysql.connect(strServer,strUser,strPWD,strInitialDB)
 except pymysql.err.InternalError as err:
    print ("Error: unable to connect: {}".format(err))
    sys.exit(5)
@@ -30,7 +33,7 @@ try:
    dbResults = dbCursor.fetchall()
    for row in dbResults:
       # Now print fetched result
-      print ("{0} {1} {2} {3} {4} {5} ".format(row[0],row[1],row[2],row[3],row[4],row[5]))
+      print (" ".join(row))
 except pymysql.err.InternalError as err:
    print ("Internal Error: unable to fetch data: {}".format(err))
 except pymysql.err.ProgrammingError as err:
