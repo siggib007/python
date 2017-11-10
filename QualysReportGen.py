@@ -108,6 +108,7 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD, strMethod):
 			WebRequest = requests.post(strURL, headers=strHeader, auth=(strUserName, strPWD))
 	except Exception as err:
 		print ("Issue with API call. {}".format(err))
+		raise
 		sys.exit(7)
 
 	if isinstance(WebRequest,requests.models.Response)==False:
@@ -221,6 +222,7 @@ def DownloadReport (strReportID,dictReport):
 		WebRequest = requests.get(strURL, headers=strHeader, auth=(strUserName, strPWD))
 	except Exception as err:
 		print ("Issue with API call. {}".format(err))
+		raise
 		sys.exit(7)
 
 	if isinstance(WebRequest,requests.models.Response)==False:
