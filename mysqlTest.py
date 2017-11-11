@@ -48,7 +48,7 @@ def SQLQuery (strSQL,db):
 			db.rollback()
 		return "Programing Error: unable to execute: {}".format(err)
 
-strSQL = "select * from esme.atrou051vipdest limit 5,10;"
+strSQL = "select count(*) from esme.atrou051vipdest;"
 # strSQL = "delete from esme.atrou051vipdest where tVirtual like '%smscc%'"
 
 print ("Executing: {}".format(strSQL))
@@ -58,8 +58,11 @@ if isinstance(lstReturn,str):
 	print (lstReturn)
 else:
 	print ("Rows affected: {}".format(lstReturn[0]))
-	for row in lstReturn[1] :
-		print (" ".join(row))
+	if lstReturn[0] == 1:
+		print ("{}".format(lstReturn[1][0][0]))
+	else:
+		for row in lstReturn[1] :
+			print (" ".join(row))
 
 # disconnect from server
 db.close()

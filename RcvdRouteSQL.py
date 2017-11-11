@@ -54,28 +54,6 @@ dictBaseCmd = {
 		}
 	}
 
-def ResultHeaders():
-	try:
-		wsResult.Cells(1,1).Value   = "Router"
-		wsResult.Cells(1,2).Value   = "Version"
-		wsResult.Cells(1,3).Value   = "Neighbor"
-		wsResult.Cells(1,4).Value   = "Remote AS"
-		wsResult.Cells(1,5).Value   = "VRF"
-		wsResult.Cells(1,6).Value   = "Recv count"
-		wsResult.Cells(1,7).Value   = "Adv count"
-		wsResult.Cells(1,8).Value   = "Description"
-		wsDetails.Cells(1,1).Value  = "Router"
-		wsDetails.Cells(1,2).Value  = "Neighbor"
-		wsDetails.Cells(1,3).Value  = "VRF"
-		wsDetails.Cells(1,4).Value  = "Adv Prefix"
-		wsDetails.Cells(1,5).Value  = "Description"
-		wsPrefixes.Cells(1,1).Value = "Prefix"
-		wsPrefixes.Cells(1,2).Value = "VRFs"
-		wsPrefixes.Cells(1,3).Value = "Peer Count"
-		wsPrefixes.Cells(1,4).Value = "Router-VRF-PeerIP"
-	except Exception as err:
-		LogEntry ("Generic Exception: {0}".format(err))
-
 def CollectVRFs():
 	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["shVRF"])
 	strOutputList = strOut.splitlines()
@@ -84,7 +62,6 @@ def CollectVRFs():
 	LogEntry ("There are {} lines in the show vrf output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			wsResult.Cells(iOutLineNum,3).Value = strLine
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
@@ -115,12 +92,6 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 	LogEntry ("There are {} lines in the show bgp IPv4 summary output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			try:
-				iOutLineNum += 1
-				wsResult.Cells(iOutLineNum,3).Value = strLine
-			except Exception as err:
-				LogEntry ("Generic Exception: {0}".format(err))
-
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
@@ -518,14 +489,58 @@ for strLine in strLines:
 		if strConfParts[0] == "SSHLogFolder":
 			strSaveLoc = strConfParts[1]
 		if strConfParts[0] == "CollectIPv4":
-			bCollectv4 = strConfParts[1]
+			bCollectv4 = bool(strConfParts[1].lower()=="yes")
 		if strConfParts[0] == "CollectIPv6":
-			bCollectv6 = strConfParts[1].lower()
+			bCollectv6 = bool(strConfParts[1].lower()=="yes")
 
+if not bCollectv6 and not bCollectv4:
+	print ("neither IPv4 nor IPv6 is set to collect so nothing to do. Exiting!!")
+	sys.exit(8)
 
 if not os.path.isdir(strSaveLoc):
 	print ("{} doesn't exists, creating it".format(strSaveLoc))
 	os.makedirs(strSaveLoc)
+
+def SQLConn (strServer,strUser,strPWD,strInitialDB):
+	try:
+		# Open database connection
+		return pymysql.connect(strServer,strUser,strPWD,strInitialDB)
+	except pymysql.err.InternalError as err:
+		print ("Error: unable to connect: {}".format(err))
+		sys.exit(5)
+	except pymysql.err.OperationalError as err:
+		print ("Operational Error: unable to connect: {}".format(err))
+		sys.exit(5)
+	except pymysql.err.ProgrammingError as err:
+		print ("Programing Error: unable to connect: {}".format(err))
+		sys.exit(5)
+
+def SQLQuery (strSQL,db):
+	try:
+		# prepare a cursor object using cursor() method
+		dbCursor = db.cursor()
+		# Execute the SQL command
+		dbCursor.execute(strSQL)
+		# Count rows
+		iRowCount = dbCursor.rowcount
+		if strSQL[:6].lower() == "select":
+			dbResults = dbCursor.fetchall()
+		else:
+			db.commit()
+			dbResults = []
+		return [iRowCount,dbResults]
+	except pymysql.err.InternalError as err:
+		if strSQL[:6].lower() != "select":
+			db.rollback()
+		return "Internal Error: unable to execute: {}".format(err)
+	except pymysql.err.ProgrammingError as err:
+		if strSQL[:6].lower() != "select":
+			db.rollback()
+		return "Programing Error: unable to execute: {}".format(err)
+	except pymysql.err.OperationalError as err:
+		if strSQL[:6].lower() != "select":
+			db.rollback()
+		return "Programing Error: unable to execute: {}".format(err)
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -615,9 +630,7 @@ def ValidateRetry(strHostname,strCmd):
 # end function ValidateRetry
 
 def LogEntry(strMsg):
-	strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
-	objLogOut.write("{0} : {1}\n".format(strTimeStamp,strMsg))
-	print (strMsg)
+	SQLQuery("insert into networks.tbllogs (vcRouterName,vcLogEntry,iSessionID) VALUES('{}','{}}',{});".format(strHostname,strMsg,iSessID),dbConn)
 
 def StatusUpdate():
 	tElapse = time.time()
@@ -742,162 +755,23 @@ DefUserName = getpass.getuser()
 print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
 now = time.asctime()
 print ("The time now is {}".format(now))
-print ("This script will read a source excel sheet and log into each router listed in the identified column,\n"
-		"starting with row 2, execute defined command and write results across multiple tabs")
+print ("This script will read a router list from a database and log into each router listed in the identified column,\n")
 for strOS in dictBaseCmd:
 	for attr in lstRequiredElements:
 		if attr not in dictBaseCmd[strOS]:
 			print ("{} is missing definition for {}.\n *** Each OS version requires definitions for the following:\n{}".format(strOS,attr,lstRequiredElements))
 			sys.exit(5)
 
-getInput ("Press enter to bring up a file open dialog so you may choose the source Excel file")
+strSQL = "select count(*) from networks.tblrouterlist;"
+dbConn = SQLConn (strServer,strUser,strPWD,strInitialDB)
+lstReturn = SQLQuery (strSQL,dbConn)
+iDevCount =lstReturn[1][0][0]
 
-root = tk.Tk()
-root.withdraw()
-strWBin = filedialog.askopenfilename(title = "Select spreadsheet",filetypes = (("Excel files","*.xlsx"),("Text Files","*.txt"),("All Files","*.*")))
-if strWBin =="":
-	print ("You cancelled so I'm exiting")
-	sys.exit(2)
-#end if no file
-strWBin = strWBin.replace("/","\\")
-print ("You selected: " + strWBin)
-print ("File extention is:{}".format(strWBin[-4:]))
-if strWBin[-4:] != "xlsx" :
-	print ("I was expecting an excel input file with xlsx extension. Don't know what do to except exit")
-	sys.exit(2)
-#end if xlsx
-iLoc = strWBin.rfind("\\")
-strPath = strWBin[:iLoc]
-iLoc = strWBin.rfind(".")
-strLogFile = strWBin[:iLoc]+".log"
-objLogOut = open(strLogFile,"w",1)
-LogEntry("Started logging to {}".format(strLogFile))
-strOutPath = strPath+"\\"+strOutFolderName+"\\"
-if not os.path.exists (strOutPath) :
-	os.makedirs(strOutPath)
-	print ("\nPath '{0}' for output files didn't exists, so I create it!\n".format(strOutPath))
-print ("Opening that spreadsheet, please stand by ...")
-app = win32.gencache.EnsureDispatch('Excel.Application')
-app.Visible = True
-wbin = app.Workbooks.Open (strWBin,0,False)
-print ("I will be gathering all BGP peers and what is being received over them:\n")
-print ("Here is a list of sheets in this spreadsheet:")
-iSheetCount = wbin.Worksheets.Count
-for i in range(1,iSheetCount+1):
-	strTemp = wbin.Worksheets(i).Name
-	dictSheets[strTemp]=i
-	if strTemp == strSummarySheet :
-		iResultNum = i
-		continue
-	if strTemp == strDetailSheet :
-		iResult2Num = i
-		continue
-	if strTemp == strPrefixeSheet :
-		iResult3Num = i
-		continue
-	print ("{0}) {1}".format(i,strTemp))
-# end for loop
-i += 1
-print ("{}) So sorry, wrong file, please exist".format(i))
-strSelect = getInput("Which of the above choices is the input sheet: ")
-try:
-    iSelect = int(strSelect)
-except ValueError:
-    print("Invalid choice: '{}'".format(strSelect))
-    iSelect = i
-if iSelect < 1 or iSelect > i :
-	print("Invalid choice: {}".format(iSelect))
-	iSelect = i
-if iSelect == iResultNum or iSelect == iResult2Num or iSelect == iResult3Num:
-	print("Sorry that is the results sheet, not the input sheet.")
-	iSelect = i
-if iSelect == i :
-	sys.exit(1)
-wsInput = wbin.Worksheets(iSelect)
-print ("Input sheet '{}' activated".format(wsInput.Name))
+print ("There are {} devices listed in the router list table".format(iDevCount))
 
-print ("Here is a preview of the data in that sheet")
-iCol = 1
-while wsInput.Cells(1,iCol).Value != "" and wsInput.Cells(1,iCol).Value != None :
-	print ("{0}) {1}".format(iCol,wsInput.Cells(1,iCol).Value))
-	print ("     {0}".format(wsInput.Cells(2,iCol).Value))
-	print ("     {0}".format(wsInput.Cells(3,iCol).Value))
-	iCol += 1
-print ("{}) So sorry, wrong file, please exist".format(iCol))
-strSelect = getInput("Please select the column with the list of router: ")
-try:
-    iInputColumn = int(strSelect)
-except ValueError:
-    print("Invalid choice: '{}'".format(strSelect))
-    iInputColumn = iCol
-if iInputColumn < 1 or iInputColumn > iCol :
-	print("Invalid choice: {}".format(iInputColumn))
-	iInputColumn = iCol
-if iInputColumn == iCol :
-	sys.exit(1)
-# wbin.Worksheets(1).Activate
-if strSummarySheet in dictSheets:
-	strSelect = getInput("Summary sheet '{}' exists, is it OK to overwrite (y/n): ".format(strSummarySheet))
-	strSelect = strSelect.lower()
-	if strSelect == "":
-		strSelect = "y"
-		print ("Blank input assuming yes")
-	if strSelect[0] == "y":
-		wsResult = wbin.Worksheets(strSummarySheet)
-		wsResult.Range(wsResult.Columns(1),wsResult.Columns(15)).Clear()
-	else:
-		print ("No problem at all, exiting so you can rename, etc.")
-		sys.exit(1)
-else:
-	print ("Summary sheet not found, creating one")
-	wbin.Sheets.Add(After=wsInput)
-	wsResult = wbin.ActiveSheet
-	wsResult.Name = strSummarySheet
-
-if strDetailSheet in dictSheets:
-	strSelect = getInput("Detail sheet '{}' exists, is it OK to overwrite (y/n): ".format(strDetailSheet))
-	strSelect = strSelect.lower()
-	if strSelect == "":
-		strSelect = "y"
-		print ("Blank input assuming yes")
-	if strSelect[0] == "y":
-		wsDetails = wbin.Worksheets(strDetailSheet)
-		wsDetails.Range(wsDetails.Columns(1),wsDetails.Columns(15)).Clear()
-	else:
-		print ("No problem at all, exiting so you can rename, etc.")
-		sys.exit(1)
-else:
-	print ("Detail sheet not found, creating one")
-	wbin.Sheets.Add(After=wsResult)
-	wsDetails = wbin.ActiveSheet
-	wsDetails.Name = strDetailSheet
-
-if strPrefixeSheet in dictSheets:
-	strSelect = getInput("Prefix sheet '{}' exists, is it OK to overwrite (y/n): ".format(strPrefixeSheet))
-	strSelect = strSelect.lower()
-	if strSelect == "":
-		strSelect = "y"
-		print ("Blank input assuming yes")
-	if strSelect[0] == "y":
-		wsPrefixes = wbin.Worksheets(strPrefixeSheet)
-		wsPrefixes.Range(wsPrefixes.Columns(1),wsPrefixes.Columns(555)).Clear()
-	else:
-		print ("No problem at all, exiting so you can rename, etc.")
-		sys.exit(1)
-else:
-	print ("Prefix sheet not found, creating one")
-	wbin.Sheets.Add(After=wsDetails)
-	wsPrefixes = wbin.ActiveSheet
-	wsPrefixes.Name = strPrefixeSheet
-
-iInputLineNum = 2
-while wsInput.Cells(iInputLineNum,iInputColumn).Value != "" and wsInput.Cells(iInputLineNum,iInputColumn).Value != None :
-	iInputLineNum += 1
-iDevCount = iInputLineNum-2
-wsResult.Select()
-LogEntry("BGP Summary tab activated")
-
-print ("There are {} devices listed in sheet '{}' column {}".format(iDevCount,wsInput.Name,iInputColumn))
+strSQL = "SELECT ifnull(max(iSessionID),0) FROM networks.tbllogs;"
+lstReturn = SQLQuery (strSQL,dbConn)
+iSessID =lstReturn[1][0][0]
 
 strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
 if strUserName == "":
@@ -908,8 +782,6 @@ strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserN
 if strPWD == "":
 	print ("empty password, exiting")
 	sys.exit(5)
-
-ResultHeaders()
 
 iInputLineNum = 2
 iOutLineNum = 1
