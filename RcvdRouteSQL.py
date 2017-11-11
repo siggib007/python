@@ -111,16 +111,9 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 						strCount = str(strLineTokens[9])
 						strPeerIP = strLineTokens[0]
 						if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" :
-							try:
-								iOutLineNum += 1
-								wsResult.Cells(iOutLineNum,1).Value = strHostname
-								wsResult.Cells(iOutLineNum,2).Value = strHostVer
-								wsResult.Cells(iOutLineNum,3).Value = strPeerIP
-								wsResult.Cells(iOutLineNum,4).Value = strLineTokens[2]
-								wsResult.Cells(iOutLineNum,5).Value = strVRF
-								wsResult.Cells(iOutLineNum,6).Value = strLineTokens[9]
-							except Exception as err:
-								LogEntry ("Generic Exception: {0}".format(err))
+							strSQL = ("INSERT INTO networks.tblneighbors (iRouterID,vcNeighborIP,iRemoteAS,vcVRF,iRcvdCount)"
+								" VALUES ({0},{1},{2},{3},{4},{5},{6});".format(iHostID,strPeerIP,iRemoteAS,strVRF,strCount))
+							lstReturn = SQLQuery (strSQL,dbConn)
 							dictIPv4Peers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
 					else:
 						try:
@@ -133,18 +126,6 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 					bNeighborSection = True
 			else:
 				bNeighborSection = False
-		if strHostVer == "IOS":
-			try:
-				iOutLineNum += 1
-				wsResult.Cells(iOutLineNum,1).Value = strHostname
-				wsResult.Cells(iOutLineNum,2).Value = strHostVer
-				wsResult.Cells(iOutLineNum,5).Value = strVRF
-				wsResult.Cells(iOutLineNum,3).Value = "IPv4 Parsing not implemented yet"
-			except Exception as err:
-				LogEntry ("Generic Exception: {0}".format(err))
-
-			LogEntry("AnalyzeIPv4Results not implemented yet for {}".format(strHostVer))
-			break
 
 	return dictIPv4Peers
 
@@ -192,33 +173,14 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 							iRemoteAS = strLineTokens[2]
 							strCount = str(strLineTokens[9])
 						if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" and strPeerIP != "":
-							try:
-								iOutLineNum += 1
-								wsResult.Cells(iOutLineNum,1).Value = strHostname
-								wsResult.Cells(iOutLineNum,2).Value = strHostVer
-								wsResult.Cells(iOutLineNum,3).Value = strPeerIP
-								wsResult.Cells(iOutLineNum,4).Value = iRemoteAS
-								wsResult.Cells(iOutLineNum,5).Value = strVRF
-								wsResult.Cells(iOutLineNum,6).Value = strCount
-							except Exception as err:
-								LogEntry ("Generic Exception: {0}".format(err))
+							strSQL = ("INSERT INTO networks.tblneighbors (iRouterID,vcNeighborIP,iRemoteAS,vcVRF,iRcvdCount)"
+								" VALUES ({0},{1},{2},{3},{4},{5},{6});".format(iHostID,strPeerIP,iRemoteAS,strVRF,strCount))
+							lstReturn = SQLQuery (strSQL,dbConn)
 							dictPeers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
 				if strLineTokens[0]== "Neighbor":
 					bNeighborSection = True
 			else:
 				bNeighborSection = False
-		if strHostVer == "IOS":
-			iOutLineNum += 1
-			try:
-				iOutLineNum += 1
-				wsResult.Cells(iOutLineNum,1).Value = strHostname
-				wsResult.Cells(iOutLineNum,2).Value = strHostVer
-				wsResult.Cells(iOutLineNum,5).Value = strVRF
-				wsResult.Cells(iOutLineNum,3).Value = "IPv6 Parsing not implemented yet"
-				LogEntry("AnalyzeIPv6Results not implemented yet for {}".format(strHostVer))
-				break
-			except Exception as err:
-				LogEntry ("Generic Exception: {0}".format(err))
 
 	return dictPeers
 # end function AnalyzeIPv6Results
@@ -229,11 +191,15 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	bInSection = False
 	iStartLine = iOut2Line
 
+	strSQL = "select iNeighborID from networks.tblneighbors where vcNeighborIP = {}".format(strPeerIP)
+	lstReturn = SQLQuery (strSQL,dbConn)
+	iNeighborID = lstReturn[1][0][0]
+	strSQL = "update networks.tblneighbors set vcDescription = '{}' where iNeighborID = {}".format(strDescr,iNeighborID)
+	lstReturn = SQLQuery (strSQL,dbConn)
+
 	LogEntry ("Analyzing received IPv4 routes. There are {} lines in the output".format(len(strOutList)))
 	if len(strOutList) > 0:
 		if "Exception:" in strOutList[0]:
-			iOut2Line += 1
-			wsResult.Cells(iOut2Line,3).Value = strOutList[0]
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			return
@@ -250,16 +216,9 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
 					strRcvdPrefix = strLineTokens[1]
-					try:
-						iOut2Line += 1
-						wsDetails.Cells(iOut2Line,1).Value = strHostname
-						wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-						wsDetails.Cells(iOut2Line,3).Value = strVRF
-						wsDetails.Cells(iOut2Line,4).Value = strRcvdPrefix
-						wsDetails.Cells(iOut2Line,5).Value = strDescr
-					except Exception as err:
-						LogEntry ("Generic Exception: {0}".format(err))
-
+					strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver);"
+						" VALUES ({0},{1});".format(iNeighborID,strRcvdPrefix,"IPv4"))
+					lstReturn = SQLQuery (strSQL,dbConn)
 					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 					if strRcvdPrefix in dictPrefixes:
 						dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
@@ -278,15 +237,9 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Total" and strLineTokens[0] != "Network" and strLineTokens[1].count(".") == 3 :
 					strRcvdPrefix = strLineTokens[1]
-					try:
-						iOut2Line += 1
-						wsDetails.Cells(iOut2Line,1).Value = strHostname
-						wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-						wsDetails.Cells(iOut2Line,3).Value = strVRF
-						wsDetails.Cells(iOut2Line,4).Value = strRcvdPrefix
-						wsDetails.Cells(iOut2Line,5).Value = strDescr
-					except Exception as err:
-						LogEntry ("Generic Exception: {0}".format(err))
+					strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver);"
+						" VALUES ({0},{1});".format(iNeighborID,strRcvdPrefix,"IPv4"))
+					lstReturn = SQLQuery (strSQL,dbConn)
 
 					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 					if strRcvdPrefix in dictPrefixes:
@@ -297,11 +250,6 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
 				if strLineTokens[0] == "Network":
 					bInSection = True
-				if strLineTokens[0] == "Total":
-					try:
-						wsResult.Cells(iLineNum,7).Value = strLineTokens[4]
-					except Exception as err:
-						LogEntry ("Generic Exception: {0}".format(err))
 	print ("Completed {:.1%}".format(1))
 # end function AnalyzeIPv4Routes
 
@@ -311,6 +259,11 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	iPrefixCount = 0
 	strNextHop = ""
 	iStartLine = iOut2Line
+	strSQL = "select iNeighborID from networks.tblneighbors where vcNeighborIP = {}".format(strPeerIP)
+	lstReturn = SQLQuery (strSQL,dbConn)
+	iNeighborID = lstReturn[1][0][0]
+	strSQL = "update networks.tblneighbors set vcDescription = '{}' where iNeighborID = {}".format(strDescr,iNeighborID)
+	lstReturn = SQLQuery (strSQL,dbConn)
 
 	LogEntry ("Analyzing received IPv6 routes. There are {} lines in the output".format(len(strOutList)))
 	if len(strOutList) > 0:
@@ -342,15 +295,9 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 					if strNextHop != "" and strNextHop != strLineTokens[0]:
 						strRcvdPrefix = strLineTokens[0]
 						iPrefixCount += 1
-						try:
-							iOut2Line += 1
-							wsDetails.Cells(iOut2Line,1).Value = strHostname
-							wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-							wsDetails.Cells(iOut2Line,3).Value = strVRF
-							wsDetails.Cells(iOut2Line,4).Value = strRcvdPrefix
-							wsDetails.Cells(iOut2Line,5).Value = strDescr
-						except Exception as err:
-							LogEntry ("Generic Exception: {0}".format(err))
+						strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver);"
+							" VALUES ({0},{1});".format(iNeighborID,strRcvdPrefix,"IPv6"))
+						lstReturn = SQLQuery (strSQL,dbConn)
 
 						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 						if strRcvdPrefix in dictPrefixes:
@@ -377,15 +324,9 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 					if strNextHop != "" and strNextHop != strLineTokens[1]:
 						strRcvdPrefix = strLineTokens[1]
 						iPrefixCount += 1
-						try:
-							iOut2Line += 1
-							wsDetails.Cells(iOut2Line,1).Value = strHostname
-							wsDetails.Cells(iOut2Line,2).Value = strPeerIP
-							wsDetails.Cells(iOut2Line,3).Value = strVRF
-							wsDetails.Cells(iOut2Line,4).Value = strRcvdPrefix
-							wsDetails.Cells(iOut2Line,5).Value = strDescr
-						except Exception as err:
-							LogEntry ("Generic Exception: {0}".format(err))
+						strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver);"
+							" VALUES ({0},{1});".format(iNeighborID,strRcvdPrefix,"IPv6"))
+						lstReturn = SQLQuery (strSQL,dbConn)
 
 						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 						if strRcvdPrefix in dictPrefixes:
@@ -415,12 +356,6 @@ def ParseDescr(strOutList,iLineNum):
 				break
 		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE":
 			if "Description" in strLine:
-				# print ("Descr line: {}".format(strLine))
-				try:
-					wsResult.Cells(iLineNum,8).Value = strLine[14:]
-				except Exception as err:
-					LogEntry ("Generic Exception: {0}".format(err))
-
 				return strLine[14:]
 #end function ParseDescr
 
@@ -488,6 +423,10 @@ for strLine in strLines:
 			strPWD = strConfParts[1]
 		if strConfParts[0] == "SSHLogFolder":
 			strSaveLoc = strConfParts[1]
+		if strConfParts[0] == "BatchSize":
+			iBatchSize = strConfParts[1]
+		if strConfParts[0] == "NumWeeksBreak":
+			iNumWeeks = strConfParts[1]
 		if strConfParts[0] == "CollectIPv4":
 			bCollectv4 = bool(strConfParts[1].lower()=="yes")
 		if strConfParts[0] == "CollectIPv6":
@@ -631,6 +570,7 @@ def ValidateRetry(strHostname,strCmd):
 
 def LogEntry(strMsg):
 	SQLQuery("insert into networks.tbllogs (vcRouterName,vcLogEntry,iSessionID) VALUES('{}','{}}',{});".format(strHostname,strMsg,iSessID),dbConn)
+	print (strMsg)
 
 def StatusUpdate():
 	tElapse = time.time()
@@ -663,8 +603,6 @@ def StatusUpdate():
 def OSDetect():
 	strHostVer = "Unknown"
 	strOut = ValidateRetry(strHostname,"show version")
-	# if "Exception" in strOut:
-	# 	return "Connection failed"
 	for strOS in dictBaseCmd:
 		if dictBaseCmd[strOS]["Match"] in strOut:
 			strHostVer = strOS
@@ -755,23 +693,25 @@ DefUserName = getpass.getuser()
 print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
 now = time.asctime()
 print ("The time now is {}".format(now))
-print ("This script will read a router list from a database and log into each router listed in the identified column,\n")
+print ("This script will read a router list from a database and log into each router listed in the router list table,\n")
 for strOS in dictBaseCmd:
 	for attr in lstRequiredElements:
 		if attr not in dictBaseCmd[strOS]:
 			print ("{} is missing definition for {}.\n *** Each OS version requires definitions for the following:\n{}".format(strOS,attr,lstRequiredElements))
 			sys.exit(5)
 
-strSQL = "select count(*) from networks.tblrouterlist;"
+print ("Grabbing next {} devices".format(iBatchSize))
+strSQL = ("SELECT iRouterID,vcHostName FROM networks.tblrouterlist"
+	" where dtUpdateCompleted < now() - interval {} week or dtUpdateCompleted is null"
+	" order by dtUpdateCompleted limit {};".format(iNumWeeks, iBatchSize))
 dbConn = SQLConn (strServer,strUser,strPWD,strInitialDB)
 lstReturn = SQLQuery (strSQL,dbConn)
-iDevCount =lstReturn[1][0][0]
+iDevCount =lstReturn[0]
 
-print ("There are {} devices listed in the router list table".format(iDevCount))
 
 strSQL = "SELECT ifnull(max(iSessionID),0) FROM networks.tbllogs;"
 lstReturn = SQLQuery (strSQL,dbConn)
-iSessID =lstReturn[1][0][0]
+iSessID =lstReturn[1][0][0]+1
 
 strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
 if strUserName == "":
@@ -786,136 +726,45 @@ if strPWD == "":
 iInputLineNum = 2
 iOutLineNum = 1
 iOut2Line = 1
-strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
+strHostname = ""
 FailedDevs = []
 lstFailedDevsName = []
 bDevOK = True
 bFailedDev = False
 
 
-while strHostname != "" and strHostname != None :
+for dbRow in lstReturn[1]
 	iErrCount = 0
 	iAuthFail = 0
+	strHostname = dbRow[1]
+	iHostID = dbRow[0]
+	strSQL = "delete from networks.tblneighbors where iRouterID = {};".format(iHostID)
+	lstReturn = SQLQuery (strSQL,dbConn)
+	# strSQL = "delete from networks.tblsubnets where iRouterID = {};".format(iHostID)
+	# lstReturn = SQLQuery (strSQL,dbConn)
 	strHostname = strHostname.upper()
 	LogEntry ("Processing {} ...".format(strHostname))
-	iPercentComplete = (iInputLineNum - 2)/iDevCount
 
-	LogEntry ("Device {0} out of {1}. Completed {2:.1%} {3}".format(iInputLineNum - 1,iDevCount,iPercentComplete,StatusUpdate()))
 	strHostVer = OSDetect()
-
 	LogEntry ("Found IOS version to be {}".format(strHostVer))
 	dictDevices[strHostname] = strHostVer
+	strSQL = "update networks.tblrouterlist set dtUpdateStarted = now(), dtUpdateCompleted=null, vcOS = '{}', iSessionID={} where iRouterID = {};".format(strHostVer,iSessID,iHostID)
+	lstReturn = SQLQuery (strSQL,dbConn)
 	if strHostVer == "Unknown":
 		LogEntry("Can't process unknown platform")
-		if bDevOK:
-			try:
-				iOutLineNum += 1
-				wsResult.Cells(iOutLineNum,1).Value = strHostname
-				wsResult.Cells(iOutLineNum,2).Value = strHostVer
-			except Exception as err:
-				LogEntry ("Generic Exception: {0}".format(err))
-		iInputLineNum += 1
-		strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
 		continue
 
 	if bDevOK:
 		lstVRFs = CollectVRFs()
+	if bCollectv4 and bDevOK:
 		IPv4Peers()
-		# IPv6Peers()
-
-	iInputLineNum += 1
-	strHostname = wsInput.Cells(iInputLineNum,iInputColumn).Value
-# End while hostname
-LogEntry ("{} out of {} Completed. Completed {:.1%}".format(iDevCount,iDevCount,1))
-
-if len(FailedDevs) == 0:
-	LogEntry ("All devices are successful")
-	bFailedDev = False
-else:
-	bFailedDev = True
-	if len(FailedDevs) == 1:
-		strdev = "device"
-	else:
-		strdev = "devices"
-	LogEntry ("Failed to complete {} {}, {}, due to errors.".format(len(FailedDevs),strdev,",".join(lstFailedDevsName)))
-	LogEntry ("Retrying them one more time")
-	for iRetryLine in FailedDevs:
-		iErrCount = 0
-		iAuthFail = 0
-		strHostname = wsInput.Cells(iRetryLine,iInputColumn).Value
-		LogEntry ("Retrying {} ...".format(strHostname))
-		strHostVer = OSDetect()
-		LogEntry ("Found IOS version to be {}".format(strHostVer))
-		dictDevices[strHostname] = strHostVer
-		if bDevOK:
-			lstFailedDevsName.remove(strHostname)
-		if strHostVer != "Unknown" :
-			lstVRFs = CollectVRFs()
-			IPv4Peers()
-			# IPv6Peers()
-		else:
-			if not bDevOK:
-				strHostVer = "Failed to connect"
-			try:
-				iOutLineNum += 1
-				wsResult.Cells(iOutLineNum,1).Value = strHostname
-				wsResult.Cells(iOutLineNum,2).Value = strHostVer
-				if bDevOK:
-					LogEntry("Can't processess unknown platform")
-				else:
-					LogEntry("Failed to connect on retry")
-			except Exception as err:
-				LogEntry ("Generic Exception: {0}".format(err))
+	if bCollectv6 and bDevOK:
+		IPv6Peers()
+	if bDevOK:
+		strSQL = "update networks.tblrouterlist set dtLastSuccess = now(), dtUpdateCompleted=now() where iRouterID = {};".format(strHostVer,iSessID,iHostID)
+		lstReturn = SQLQuery (strSQL,dbConn)
 
 LogEntry ("Done processing...")
-while wsResult.Cells(1,iResultColNum).Value != "" and wsResult.Cells(1,iResultColNum).Value != None :
-	iResultColNum += 1
-while wsDetails.Cells(1,iDetailsColNum).Value != "" and wsDetails.Cells(1,iDetailsColNum).Value != None :
-	iDetailsColNum += 1
-
-iResultColNum -= 1
-iDetailsColNum -= 1
-
-iOut3Line  = 2
-iPrefixCount = len(dictPrefixes)
-LogEntry ("Starting on 'By Prefix' tab...")
-try:
-	for strPrefix in dictPrefixes:
-		iColNumber = 4
-		wsPrefixes.Cells(iOut3Line,1).Value = strPrefix
-		wsPrefixes.Cells(iOut3Line,2).Value = ";".join(dictPrefixes[strPrefix]["VRF"])
-		wsPrefixes.Cells(iOut3Line,3).Value = len(dictPrefixes[strPrefix]["Peer"])
-		for strRouter in dictPrefixes[strPrefix]["Peer"]:
-			wsPrefixes.Cells(iOut3Line,iColNumber).Value = strRouter
-			iColNumber += 1
-		if iColNumber > iPrefixColNum:
-			iPrefixColNum = iColNumber
-		iOut3Line += 1
-		if iOut3Line%500 == 0:
-			print ("Completed {} lines, {:.1%} complete".format(iOut3Line,iOut3Line/iPrefixCount))
-except Exception as err:
-	LogEntry ("Generic Exception: {0}".format(err))
-
-LogEntry ("Prefix tab completed. Formating ...")
-iColNumber = 4
-while iColNumber < iPrefixColNum:
-	wsPrefixes.Cells(1,iColNumber).Value = "Router-VRF-PeerIP #{}".format(iColNumber-3)
-	LogEntry("Prefix tab: added header Router-VRF-PeerIP #{} to column {}".format(iColNumber-3,iColNumber))
-	iColNumber += 1
-
-iPrefixColNum -= 1
-
-
-wsResult.ListObjects.Add(xlSrcRange, wsResult.Range(wsResult.Cells(1,1),wsResult.Cells(iOutLineNum,iResultColNum)),"",xlYes,"","TableStyleLight1").Name = wsResult.Name
-wsDetails.ListObjects.Add(xlSrcRange, wsDetails.Range(wsDetails.Cells(1,1),wsDetails.Cells(iOut2Line,iDetailsColNum)),"",xlYes,"","TableStyleLight1").Name = wsDetails.Name
-wsPrefixes.ListObjects.Add(xlSrcRange, wsPrefixes.Range(wsPrefixes.Cells(1,1),wsPrefixes.Cells(iOut3Line,iPrefixColNum)),"",xlYes,"","TableStyleLight1").Name = wsPrefixes.Name
-try:
-	wsResult.Range(wsResult.Cells(1,1),wsResult.Cells(iOutLineNum,iResultColNum)).EntireColumn.AutoFit()
-	wsDetails.Range(wsDetails.Cells(1,1),wsDetails.Cells(iOut2Line,iDetailsColNum)).EntireColumn.AutoFit()
-	wsPrefixes.Range(wsPrefixes.Cells(1,1),wsPrefixes.Cells(iOut3Line,iPrefixColNum)).EntireColumn.AutoFit()
-	wbin.Save()
-except Exception as err:
-	LogEntry ("Generic Exception: {0}".format(err))
 
 now = time.asctime()
 tStop = time.time()
@@ -933,6 +782,4 @@ if len(lstFailedDevsName) > 0:
 
 LogEntry ("Completed at {}".format(now))
 LogEntry ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
-objLogOut.close
-print ("Log file {} closed".format(strLogFile))
 
