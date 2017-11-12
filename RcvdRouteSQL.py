@@ -708,12 +708,14 @@ lstRouters = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstRouters):
 	print ("Unexpected: {}".format(lstRouters))
 	sys.exit(8)
+else:
+	print ("Fetched {} rows".format(lstRouters[0]))
 
 
 strSQL = "SELECT ifnull(max(iSessionID),0) FROM networks.tbllogs;"
 lstReturn = SQLQuery (strSQL,dbConn)
-if not ValidReturn(lstRouters):
-	print ("Unexpected: {}".format(lstRouters))
+if not ValidReturn(lstReturn):
+	print ("Unexpected: {}".format(lstReturn))
 	sys.exit(8)
 else:
 	iSessID =lstReturn[1][0][0]+1
