@@ -67,11 +67,17 @@ def ValidReturn(lsttest):
 strDescr = "My test descr"
 iNeighborID = 8
 strRcvdPrefix = "172.29.162.24/29"
+strHostname = "TestRouter"
+iSessID = 1
+strSaveLoc = "c:\\RouteAuditOut\\"
+strMsg = "Will save output log's to {}".format(strSaveLoc)
+strMsg = strMsg.replace("\\","\\\\")
 # strSQL = "select * from esme.atrou051vipdest limit 25;"
 #strSQL = "delete from esme.atrou051vipdest where Virtual like '%smscd%'"
 # strSQL = "update networks.tblneighbors set vcDescription = '{}' where iNeighborID = {}".format(strDescr,iNeighborID)
-strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
-						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
+# strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
+# 						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
+strSQL = "insert into networks.tbllogs (vcRouterName,vcLogEntry,iSessionID) VALUES('{}','{}',{});".format(strHostname,strMsg.replace("'","\\'") ,iSessID)
 
 print ("Executing: {}".format(strSQL))
 db = SQLConn (strServer,strUser,strPWD,strInitialDB)

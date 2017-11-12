@@ -17,6 +17,7 @@ pip install pymysql
 
 iMaxError = 6 # How many times can we experience an error on a single device before marking the device failed and moving on, 0 based
 iMaxAuthFail = 2 # How many auth failures can happen in a row. Zero based.
+iMaxDevAuthFail = 4 # If running non interactively after how many devive experiencing auth failure does the script bail
 dictBaseCmd = {
 		"IOS-XR":{
 			"Match":"IOS XR",
@@ -60,7 +61,6 @@ def CollectVRFs():
 	LogEntry ("There are {} lines in the show vrf output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
 		if len(strLine) > 0:
@@ -89,7 +89,6 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 	LogEntry ("There are {} lines in the show bgp IPv4 summary output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
 		if len(strLine) > 0:
@@ -135,7 +134,6 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 	LogEntry ("There are {} lines in the show bgp IPv6 summary output".format(len(strOutputList)))
 	for strLine in strOutputList:
 		if "Exception:" in strLine:
-			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
 		if len(strLine) > 0:
@@ -203,7 +201,6 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	LogEntry ("Analyzing received IPv4 routes. There are {} lines in the output".format(len(strOutList)))
 	if len(strOutList) > 0:
 		if "Exception:" in strOutList[0]:
-			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			return
 	for strLine in strOutList:
@@ -277,7 +274,6 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	LogEntry ("Analyzing received IPv6 routes. There are {} lines in the output".format(len(strOutList)))
 	if len(strOutList) > 0:
 		if "Exception:" in strOutList[0]:
-			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			return
 	for strLine in strOutList:
@@ -346,7 +342,6 @@ def ParseDescr(strOutList,iLineNum):
 	LogEntry ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
-			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
 		if len(strLine) > 0:
@@ -462,9 +457,9 @@ def GetResults(strHostname,strCmd):
 	except OSError as err:
 		LogEntry ("Socket Exception: {0}".format(err))
 		strOut = "Socket Exception: {0}".format(err)
-	# except Exception as err:
-	# 	LogEntry ("Generic Exception: {0}".format(err))
-	# 	strOut = "Generic Exception: {0}".format(err)
+	except Exception as err:
+		LogEntry ("Generic Exception: {0}".format(err))
+		sys.exit(9)
 	return strOut
 #end function GetResults
 
@@ -476,6 +471,9 @@ def ValidateRetry(strHostname,strCmd):
 	global strUserName
 	global bDevOK
 
+	if not bDevOK:
+		return "Exception: Bad device"
+
 	strOut = GetResults(strHostname,strCmd)
 	while "Exception" in strOut and iErrCount < iMaxError:
 		if "SSH Exception:" in strOut or "Socket Exception:" in strOut:
@@ -483,20 +481,25 @@ def ValidateRetry(strHostname,strCmd):
 			LogEntry ("Trying again in 5 sec")
 			time.sleep(5)
 		elif "Auth Exception" in strOut:
-			# playsound(r'c:\windows\media\tada.wav')
-			# strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
-			# if strUserName == "":
-			# 	strUserName = DefUserName
-			# end if username is empty
-			# strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
-			# if strPWD == "":
-			# 	print ("empty password, next device")
-			# 	iErrCount = iMaxError
-			# 	break
-			# iAuthFail += 1
-			# if iAuthFail == iMaxAuthFail:
-			iErrCount = iMaxError
-			break
+			iDevAuthFail += 1
+			if bInteractive:
+				playsound(r'c:\windows\media\tada.wav')
+				strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
+				if strUserName == "":
+					strUserName = DefUserName
+				end if username is empty
+				strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
+				if strPWD == "":
+					print ("empty password, next device")
+					iErrCount = iMaxError
+					break
+				iAuthFail += 1
+				if iAuthFail == iMaxAuthFail:
+					iErrCount = iMaxError
+					break
+			else:
+				iErrCount = iMaxError
+				break
 		else:
 			LogEntry("Unknown exception {}\n Next Device!".format(strOut))
 			iErrCount = iMaxError
@@ -514,12 +517,15 @@ def ValidateRetry(strHostname,strCmd):
 # end function ValidateRetry
 
 def LogEntry(strMsg):
-	lstReturn=SQLQuery("insert into networks.tbllogs (vcRouterName,vcLogEntry,iSessionID) VALUES('{}','{}',{});".format(strHostname,strMsg.replace("'","") ,iSessID),dbConn)
+	if bInteractive:
+		print (strMsg)
+	strMsg = strMsg.replace("\\","\\\\")
+	strMsg = strMsg.replace("'","\\'")
+	lstReturn=SQLQuery("insert into networks.tbllogs (vcRouterName,vcLogEntry,iSessionID) VALUES('{}','{}',{});".format(strHostname,strMsg,iSessID),dbConn)
 	if not ValidReturn(lstReturn):
 		print ("Unexpected: {}".format(lstReturn))
 	elif lstReturn[0] != 1:
 		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-	print (strMsg)
 
 def OSDetect():
 	strHostVer = "Unknown"
@@ -604,14 +610,15 @@ lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Adver
 
 strHostname = ""
 strLine = "  "
-bDevOK = True
+iDevAuthFail = 0
 
 tStart=time.time()
-DefUserName = getpass.getuser()
-print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
-now = time.asctime()
-print ("The time now is {}".format(now))
-print ("This script will read a router list from a database and log into each router listed in the router list table,\n")
+if bInteractive:
+	DefUserName = getpass.getuser()
+	print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
+	now = time.asctime()
+	print ("The time now is {}".format(now))
+	print ("This script will read a router list from a database and log into each router listed in the router list table,\n")
 
 if os.path.isfile("Routes.txt"):
 	print ("Configuration File exists")
@@ -646,16 +653,33 @@ for strLine in strLines:
 			bCollectv4 = bool(strConfParts[1].lower()=="yes")
 		if strConfParts[0] == "CollectIPv6":
 			bCollectv6 = bool(strConfParts[1].lower()=="yes")
+		if strConfParts[0] == "RouterUser":
+			strUserName = strConfParts[1]
+		if strConfParts[0] == "RouterPWD":
+			strPWD = strConfParts[1]
+		if strConfParts[0] == "RunInteractive":
+			bInteractive = bool(strConfParts[1].lower()=="yes")
 
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
+strSQL = "SELECT ifnull(max(iSessionID),0) FROM networks.tbllogs;"
+lstReturn = SQLQuery (strSQL,dbConn)
+if not ValidReturn(lstReturn):
+	LogEntry ("Unexpected: {}".format(lstReturn))
+	sys.exit(8)
+else:
+	iSessID =lstReturn[1][0][0]+1
 
 for strOS in dictBaseCmd:
 	for attr in lstRequiredElements:
 		if attr not in dictBaseCmd[strOS]:
 			LogEntry ("{} is missing definition for {}.\n *** Each OS version requires definitions for the following:\n{}".format(strOS,attr,lstRequiredElements))
 			sys.exit(5)
+LogEntry ("Starting session {}".format(iSessID))
+if not bCollectv6 and not bCollectv4:
+	LogEntry ("neither IPv4 nor IPv6 is set to collect so nothing to do. Exiting!!")
+	sys.exit(8)
 
-LogEntry ("Grabbing next {} devices".format(iBatchSize))
+LogEntry ("Batch size is {} devices".format(iBatchSize))
 strSQL = ("SELECT iRouterID,vcHostName FROM networks.tblrouterlist"
 	" where dtUpdateCompleted < now() - interval {} week or dtUpdateCompleted is null"
 	" order by dtUpdateCompleted limit {};".format(iNumWeeks, iBatchSize))
@@ -666,19 +690,6 @@ if not ValidReturn(lstRouters):
 else:
 	LogEntry ("Fetched {} rows".format(lstRouters[0]))
 
-
-strSQL = "SELECT ifnull(max(iSessionID),0) FROM networks.tbllogs;"
-lstReturn = SQLQuery (strSQL,dbConn)
-if not ValidReturn(lstReturn):
-	LogEntry ("Unexpected: {}".format(lstReturn))
-	sys.exit(8)
-else:
-	iSessID =lstReturn[1][0][0]+1
-
-if not bCollectv6 and not bCollectv4:
-	LogEntry ("neither IPv4 nor IPv6 is set to collect so nothing to do. Exiting!!")
-	sys.exit(8)
-
 if strSaveLoc[-1:] != "\\":
 	strSaveLoc += "\\"
 
@@ -688,18 +699,22 @@ if not os.path.isdir(strSaveLoc):
 else:
 	LogEntry ("Will save output logs to {}".format(strSaveLoc))
 
-LogEntry ("Starting session {}, prompting for router login".format(iSessID))
-strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
-if strUserName == "":
-	strUserName = DefUserName
-# end if username is empty
+if bInteractive:
+	LogEntry ("Running Interactively, prompting for router login credentials")
+	strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
+	if strUserName == "":
+		strUserName = DefUserName
+	# end if username is empty
 
-strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
-if strPWD == "":
-	LogEntry ("empty password, exiting")
-	sys.exit(5)
+	strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
+	if strPWD == "":
+		LogEntry ("empty password, exiting")
+		sys.exit(5)
+else:
+	LogEntry("Running non-interactive")
 
 for dbRow in lstRouters[1]:
+	bDevOK = True
 	iErrCount = 0
 	iAuthFail = 0
 	strHostname = dbRow[1]
@@ -758,6 +773,8 @@ if len(lstFailedDevsName) > 0:
 	else:
 		strdev = "devices"
 	LogEntry ("Failed to complete {} {}, {}, due to errors.".format(len(lstFailedDevsName),strdev,",".join(lstFailedDevsName)))
+else:
+	LogEntry ("All devices in the batch completed successfully")
 
 LogEntry ("Completed at {}".format(now))
 LogEntry ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
