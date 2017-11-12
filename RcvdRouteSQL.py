@@ -17,7 +17,7 @@ pip install pymysql
 
 iMaxError = 6 # How many times can we experience an error on a single device before marking the device failed and moving on, 0 based
 iMaxAuthFail = 2 # How many auth failures can happen in a row. Zero based.
-iMaxDevAuthFail = 4 # If running non interactively after how many devive experiencing auth failure does the script bail
+iMaxDevAuthFail = 2 # If running non interactively after how many devive experiencing auth failure does the script bail, zero based
 dictBaseCmd = {
 		"IOS-XR":{
 			"Match":"IOS XR",
@@ -470,6 +470,7 @@ def ValidateRetry(strHostname,strCmd):
 	global strPWD
 	global strUserName
 	global bDevOK
+	global iDevAuthFail
 
 	if not bDevOK:
 		return "Exception: Bad device"
@@ -487,7 +488,6 @@ def ValidateRetry(strHostname,strCmd):
 				strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
 				if strUserName == "":
 					strUserName = DefUserName
-				end if username is empty
 				strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
 				if strPWD == "":
 					print ("empty password, next device")
@@ -611,14 +611,9 @@ lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Adver
 strHostname = ""
 strLine = "  "
 iDevAuthFail = 0
+bAbort = False
 
 tStart=time.time()
-if bInteractive:
-	DefUserName = getpass.getuser()
-	print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
-	now = time.asctime()
-	print ("The time now is {}".format(now))
-	print ("This script will read a router list from a database and log into each router listed in the router list table,\n")
 
 if os.path.isfile("Routes.txt"):
 	print ("Configuration File exists")
@@ -660,6 +655,13 @@ for strLine in strLines:
 		if strConfParts[0] == "RunInteractive":
 			bInteractive = bool(strConfParts[1].lower()=="yes")
 
+if bInteractive:
+	DefUserName = getpass.getuser()
+	print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
+	now = time.asctime()
+	print ("The time now is {}".format(now))
+	print ("This script will read a router list from a database and log into each router listed in the router list table,\n")
+
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 strSQL = "SELECT ifnull(max(iSessionID),0) FROM networks.tbllogs;"
 lstReturn = SQLQuery (strSQL,dbConn)
@@ -675,6 +677,9 @@ for strOS in dictBaseCmd:
 			LogEntry ("{} is missing definition for {}.\n *** Each OS version requires definitions for the following:\n{}".format(strOS,attr,lstRequiredElements))
 			sys.exit(5)
 LogEntry ("Starting session {}".format(iSessID))
+if not bInteractive:
+	print ("Starting session {}".format(iSessID))
+
 if not bCollectv6 and not bCollectv4:
 	LogEntry ("neither IPv4 nor IPv6 is set to collect so nothing to do. Exiting!!")
 	sys.exit(8)
@@ -714,6 +719,10 @@ else:
 	LogEntry("Running non-interactive")
 
 for dbRow in lstRouters[1]:
+	if iDevAuthFail > iMaxDevAuthFail and not bInteractive:
+		LogEntry("Too many auth failures in non interactive mode, aborting.")
+		bAbort = True
+		break
 	bDevOK = True
 	iErrCount = 0
 	iAuthFail = 0
@@ -723,6 +732,7 @@ for dbRow in lstRouters[1]:
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		LogEntry ("Unexpected: {}".format(lstReturn))
+		bAbort = True
 		break
 	else:
 		LogEntry ("Deleted {} neighbors".format(lstReturn[0]))
@@ -737,6 +747,7 @@ for dbRow in lstRouters[1]:
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		LogEntry ("Unexpected: {}".format(lstReturn))
+		bAbort = True
 		break
 	elif lstReturn[0] != 1:
 		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
@@ -767,15 +778,22 @@ iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
 
-if len(lstFailedDevsName) > 0:
-	if len(lstFailedDevsName) == 1:
-		strdev = "device"
+if not bAbort:
+	if len(lstFailedDevsName) > 0:
+		if len(lstFailedDevsName) == 1:
+			strdev = "device"
+		else:
+			strdev = "devices"
+		LogEntry ("Failed to complete {} {}, {}, due to errors.".format(len(lstFailedDevsName),strdev,",".join(lstFailedDevsName)))
 	else:
-		strdev = "devices"
-	LogEntry ("Failed to complete {} {}, {}, due to errors.".format(len(lstFailedDevsName),strdev,",".join(lstFailedDevsName)))
-else:
-	LogEntry ("All devices in the batch completed successfully")
+		LogEntry ("All devices in the batch completed successfully")
 
 LogEntry ("Completed at {}".format(now))
 LogEntry ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
+if not bInteractive:
+	if bAbort:
+		print ("Aborted abnormally at {}".format(now))
+	else:
+		print ("Completed at {}".format(now))
+	print ("Took {0:.2f} seconds to complete, which is {1} hours, {2} minutes and {3:.2f} seconds.".format(iElapseSec,int(iHours),int(iMin),iSec))
 

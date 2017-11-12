@@ -1,0 +1,15 @@
+# This is a configuration file for network route collection scripts
+# Created 11/10/2017 by Siggi Bjarnason
+
+Server=localhost
+Database=Networks
+dbUser=ScriptUser
+dbPWD=SuperSecretDabasePassword
+CollectIPv4=Yes
+CollectIPv6=No
+SSHLogFolder=c:\RouteAuditOut
+BatchSize=200
+NumWeeksBreak=2
+RouterUser=ServiceAccount
+RouterPWD=SuperSecret very long Service account password
+RunInteractive=Yes
