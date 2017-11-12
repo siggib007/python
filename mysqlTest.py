@@ -33,7 +33,7 @@ def SQLQuery (strSQL,db):
 			dbResults = dbCursor.fetchall()
 		else:
 			db.commit()
-			dbResults = []
+			dbResults = ()
 		return [iRowCount,dbResults]
 	except pymysql.err.InternalError as err:
 		if strSQL[:6].lower() != "select":
@@ -48,21 +48,36 @@ def SQLQuery (strSQL,db):
 			db.rollback()
 		return "Programing Error: unable to execute: {}".format(err)
 
-strSQL = "select count(*) from esme.atrou051vipdest;"
-# strSQL = "delete from esme.atrou051vipdest where tVirtual like '%smscc%'"
+def ValidReturn(lsttest):
+	if isinstance(lsttest,list):
+		if len(lsttest) == 2:
+			if isinstance(lsttest[0],int) and isinstance(lsttest[1],tuple):
+				return True
+			else:
+				return False
+		else:
+			return False
+	else:
+		return False
+
+strDescr = "My test descr"
+iNeighborID = 8
+# strSQL = "select * from esme.atrou051vipdest limit 25;"
+#strSQL = "delete from esme.atrou051vipdest where Virtual like '%smscd%'"
+strSQL = "update networks.tblneighbors set vcDescription = '{}' where iNeighborID = {}".format(strDescr,iNeighborID)
 
 print ("Executing: {}".format(strSQL))
 db = SQLConn (strServer,strUser,strPWD,strInitialDB)
 lstReturn = SQLQuery (strSQL,db)
-if isinstance(lstReturn,str):
-	print (lstReturn)
-else:
+if ValidReturn(lstReturn):
 	print ("Rows affected: {}".format(lstReturn[0]))
 	if lstReturn[0] == 1:
 		print ("{}".format(lstReturn[1][0][0]))
 	else:
 		for row in lstReturn[1] :
-			print (" ".join(row))
+			print (" ".join(map(str,row)))
+else:
+	print ("Unexpected: {}".format(lstReturn))
 
 # disconnect from server
 db.close()
