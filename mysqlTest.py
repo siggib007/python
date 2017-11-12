@@ -47,6 +47,10 @@ def SQLQuery (strSQL,db):
 		if strSQL[:6].lower() != "select":
 			db.rollback()
 		return "Programing Error: unable to execute: {}".format(err)
+	except pymysql.err.IntegrityError as err:
+		if strSQL[:6].lower() != "select":
+			db.rollback()
+		return "Integrity Error: unable to execute: {}".format(err)
 
 def ValidReturn(lsttest):
 	if isinstance(lsttest,list):
@@ -62,20 +66,20 @@ def ValidReturn(lsttest):
 
 strDescr = "My test descr"
 iNeighborID = 8
+strRcvdPrefix = "172.29.162.24/29"
 # strSQL = "select * from esme.atrou051vipdest limit 25;"
 #strSQL = "delete from esme.atrou051vipdest where Virtual like '%smscd%'"
-strSQL = "update networks.tblneighbors set vcDescription = '{}' where iNeighborID = {}".format(strDescr,iNeighborID)
+# strSQL = "update networks.tblneighbors set vcDescription = '{}' where iNeighborID = {}".format(strDescr,iNeighborID)
+strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
+						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
 
 print ("Executing: {}".format(strSQL))
 db = SQLConn (strServer,strUser,strPWD,strInitialDB)
 lstReturn = SQLQuery (strSQL,db)
 if ValidReturn(lstReturn):
 	print ("Rows affected: {}".format(lstReturn[0]))
-	if lstReturn[0] == 1:
-		print ("{}".format(lstReturn[1][0][0]))
-	else:
-		for row in lstReturn[1] :
-			print (" ".join(map(str,row)))
+	for row in lstReturn[1] :
+		print (" ".join(map(str,row)))
 else:
 	print ("Unexpected: {}".format(lstReturn))
 

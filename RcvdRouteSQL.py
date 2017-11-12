@@ -227,7 +227,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
 					strRcvdPrefix = strLineTokens[1]
-					strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver);"
+					strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
 						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
 					lstReturn = SQLQuery (strSQL,dbConn)
 					if not ValidReturn(lstReturn):
@@ -243,17 +243,12 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
 				if strLineTokens[0] == "Network":
 					bInSection = True
-				if strLineTokens[0] == "Processed":
-					try:
-						wsResult.Cells(iLineNum,7).Value = strLineTokens[1]
-					except Exception as err:
-						LogEntry ("Generic Exception: {0}".format(err))
 		if strHostVer == "IOS-XE":
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Total" and strLineTokens[0] != "Network" and strLineTokens[1].count(".") == 3 :
 					strRcvdPrefix = strLineTokens[1]
-					strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver);"
-						" VALUES ({0},'{1}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
+					strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
+						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
 					lstReturn = SQLQuery (strSQL,dbConn)
 					if not ValidReturn(lstReturn):
 						print ("Unexpected: {}".format(lstReturn))
@@ -296,8 +291,6 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 	LogEntry ("Analyzing received IPv6 routes. There are {} lines in the output".format(len(strOutList)))
 	if len(strOutList) > 0:
 		if "Exception:" in strOutList[0]:
-			iOut2Line += 1
-			wsResult.Cells(iOut2Line,3).Value = strOutList[0]
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			return
@@ -323,7 +316,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 					if strNextHop != "" and strNextHop != strLineTokens[0]:
 						strRcvdPrefix = strLineTokens[0]
 						iPrefixCount += 1
-						strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver);"
+						strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
 							" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv6"))
 						lstReturn = SQLQuery (strSQL,dbConn)
 						if not ValidReturn(lstReturn):
@@ -337,11 +330,6 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 								dictPrefixes[strRcvdPrefix]["VRF"].append(strVRF)
 						else:
 							dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
-				if strLineTokens[0] == "Processed":
-					try:
-						wsResult.Cells(iLineNum,7).Value = strLineTokens[1]
-					except Exception as err:
-						LogEntry ("Generic Exception: {0}".format(err))
 		if strHostVer == "IOS-XE":
 			if len(strLineTokens) > 1:
 				if strLineTokens[1].find(":") == 4:
@@ -355,8 +343,8 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 					if strNextHop != "" and strNextHop != strLineTokens[1]:
 						strRcvdPrefix = strLineTokens[1]
 						iPrefixCount += 1
-						strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver);"
-							" VALUES ({0},{1});".format(iNeighborID,strRcvdPrefix,"IPv6"))
+						strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
+							" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv6"))
 						lstReturn = SQLQuery (strSQL,dbConn)
 						if not ValidReturn(lstReturn):
 							print ("Unexpected: {}".format(lstReturn))
@@ -369,18 +357,12 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 								dictPrefixes[strRcvdPrefix]["VRF"].append(strVRF)
 						else:
 							dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}# end function AnalyzeIPv6Routes
-				if strLineTokens[0] == "Total":
-					try:
-						wsResult.Cells(iLineNum,7).Value = strLineTokens[4]
-					except Exception as err:
-						LogEntry ("Generic Exception: {0}".format(err))
 	print ("Completed {:.1%}".format(1))
 
 def ParseDescr(strOutList,iLineNum):
 	LogEntry ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
-			wsResult.Cells(iLineNum,7).Value = strLine
 			bFoundABFACL = True
 			LogEntry ("Found an exception message, aborting analysis")
 			break
@@ -520,6 +502,10 @@ def SQLQuery (strSQL,db):
 		if strSQL[:6].lower() != "select":
 			db.rollback()
 		return "Programing Error: unable to execute: {}".format(err)
+	except pymysql.err.IntegrityError as err:
+		if strSQL[:6].lower() != "select":
+			db.rollback()
+		return "Integrity Error: unable to execute: {}".format(err)
 
 def ValidReturn(lsttest):
 	if isinstance(lsttest,list):
@@ -761,6 +747,7 @@ for dbRow in lstRouters[1]:
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		print ("Unexpected: {}".format(lstReturn))
+		break
 	else:
 		print ("Deleted {} neighbors".format(lstReturn[0]))
 
@@ -776,6 +763,7 @@ for dbRow in lstRouters[1]:
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		print ("Unexpected: {}".format(lstReturn))
+		break
 	elif lstReturn[0] != 1:
 		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
@@ -789,10 +777,11 @@ for dbRow in lstRouters[1]:
 	if bCollectv6 and bDevOK:
 		IPv6Peers()
 	if bDevOK:
-		strSQL = "update networks.tblrouterlist set dtLastSuccess = now(), dtUpdateCompleted=now() where iRouterID = {};".format(strHostVer,iSessID,iHostID)
+		strSQL = "update networks.tblrouterlist set dtLastSuccess = now(), dtUpdateCompleted=now() where iRouterID = {};".format(iHostID)
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
 			print ("Unexpected: {}".format(lstReturn))
+			break
 		elif lstReturn[0] != 1:
 			print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
