@@ -15,9 +15,6 @@ pip install pymysql
 
 '''
 
-strSummarySheet = "BGP Summary"
-strDetailSheet  = "By Router"
-strPrefixeSheet = "By Prefix"
 iMaxError = 6 # How many times can we experience an error on a single device before marking the device failed and moving on, 0 based
 iMaxAuthFail = 2 # How many auth failures can happen in a row. Zero based.
 dictBaseCmd = {
@@ -86,7 +83,6 @@ def CollectVRFs():
 	return lstVRFs
 
 def AnalyzeIPv4Results(strOutputList, strVRF):
-	global iOutLineNum
 	dictIPv4Peers = {}
 	bNeighborSection = False
 
@@ -114,14 +110,13 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 						if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" :
 							strSQL = ("INSERT INTO networks.tblneighbors (iRouterID,vcNeighborIP,iRemoteAS,vcVRF,iRcvdCount)"
 								" VALUES ({0},'{1}',{2},'{3}',{4});".format(iHostID,strPeerIP,iRemoteAS,strVRF,strCount))
-							# print (strSQL)
 							lstReturn = SQLQuery (strSQL,dbConn)
 							if not ValidReturn(lstReturn):
-								print ("Unexpected: {}".format(lstReturn))
+								LogEntry ("Unexpected: {}".format(lstReturn))
 							elif lstReturn[0] != 1:
-								print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+								LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
-							dictIPv4Peers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
+							dictIPv4Peers[strPeerIP] = {"VRF":strVRF}
 
 				if strLineTokens[0]== "Neighbor":
 					bNeighborSection = True
@@ -133,7 +128,6 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 # end function AnalyzeIPv4Results
 
 def AnalyzeIPv6Results(strOutputList, strVRF):
-	global iOutLineNum
 	dictPeers = {}
 	bNeighborSection = False
 	strPeerIP = ""
@@ -173,10 +167,10 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 								" VALUES ({0},'{1}',{2},'{3}',{4});".format(iHostID,strPeerIP,iRemoteAS,strVRF,strCount))
 							lstReturn = SQLQuery (strSQL,dbConn)
 							if not ValidReturn(lstReturn):
-								print ("Unexpected: {}".format(lstReturn))
+								LogEntry ("Unexpected: {}".format(lstReturn))
 							elif lstReturn[0] != 1:
-								print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-							dictPeers[strPeerIP] = {"VRF":strVRF,"LineID":iOutLineNum}
+								LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+							dictPeers[strPeerIP] = {"VRF":strVRF}
 				if strLineTokens[0]== "Neighbor":
 					bNeighborSection = True
 			else:
@@ -186,27 +180,25 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 # end function AnalyzeIPv6Results
 
 def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum):
-	global iOut2Line
 	global dictPrefixes
 	bInSection = False
-	iStartLine = iOut2Line
 
 	strSQL = "select iNeighborID from networks.tblneighbors where vcNeighborIP = '{}'".format(strPeerIP)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
-		print ("Unexpected: {}".format(lstReturn))
+		LogEntry ("Unexpected: {}".format(lstReturn))
 		return lstReturn
 	elif lstReturn[0] != 1:
-		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 		# return lstReturn
 	else:
 		iNeighborID = lstReturn[1][0][0]
 	strSQL = "update networks.tblneighbors set vcDescription = '{}' where iNeighborID = {}".format(strDescr,iNeighborID)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
-		print ("Unexpected: {}".format(lstReturn))
+		LogEntry ("Unexpected: {}".format(lstReturn))
 	elif lstReturn[0] != 1:
-		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
 	LogEntry ("Analyzing received IPv4 routes. There are {} lines in the output".format(len(strOutList)))
 	if len(strOutList) > 0:
@@ -220,9 +212,6 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 				LogEntry ("Error: {}".format(strLine))
 				break
 		strLineTokens = strLine.split()
-		iCurLine = iOut2Line - iStartLine + 1
-		if iCurLine%500 == 0:
-			print ("Completed  {:.1%}".format(iCurLine/len(strOutList)))
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
@@ -231,9 +220,9 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
 					lstReturn = SQLQuery (strSQL,dbConn)
 					if not ValidReturn(lstReturn):
-						print ("Unexpected: {}".format(lstReturn))
+						LogEntry ("Unexpected: {}".format(lstReturn))
 					elif lstReturn[0] != 1:
-						print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+						LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 					if strRcvdPrefix in dictPrefixes:
 						dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
@@ -251,9 +240,9 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
 					lstReturn = SQLQuery (strSQL,dbConn)
 					if not ValidReturn(lstReturn):
-						print ("Unexpected: {}".format(lstReturn))
+						LogEntry ("Unexpected: {}".format(lstReturn))
 					elif lstReturn[0] != 1:
-						print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+						LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 					if strRcvdPrefix in dictPrefixes:
 						dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
@@ -263,30 +252,27 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 						dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
 				if strLineTokens[0] == "Network":
 					bInSection = True
-	print ("Completed {:.1%}".format(1))
 # end function AnalyzeIPv4Routes
 
 def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum):
-	global iOut2Line
 	global dictPrefixes
 	iPrefixCount = 0
 	strNextHop = ""
-	iStartLine = iOut2Line
 	strSQL = "select iNeighborID from networks.tblneighbors where vcNeighborIP = '{}'".format(strPeerIP)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
-		print ("Unexpected: {}".format(lstReturn))
+		LogEntry ("Unexpected: {}".format(lstReturn))
 		return lstReturn
 	elif lstReturn[0] != 1:
-		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 	else:
 		iNeighborID = lstReturn[1][0][0]
 	strSQL = "update networks.tblneighbors set vcDescription = '{}' where iNeighborID = {}".format(strDescr,iNeighborID)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
-		print ("Unexpected: {}".format(lstReturn))
+		LogEntry ("Unexpected: {}".format(lstReturn))
 	elif lstReturn[0] != 1:
-		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
 	LogEntry ("Analyzing received IPv6 routes. There are {} lines in the output".format(len(strOutList)))
 	if len(strOutList) > 0:
@@ -300,9 +286,7 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 				LogEntry ("Error: {}".format(strLine))
 				break
 		strLineTokens = strLine.split()
-		iCurLine = iOut2Line - iStartLine + 1
-		if iCurLine%500 == 0:
-			print ("Completed  {:.1%}".format(iCurLine/len(strOutList)))
+
 		if strHostVer == "IOS-XR":
 			if len(strLineTokens) > 0:
 				if strLineTokens[0].find(":") == 4 and "/" in strLineTokens[0] :
@@ -320,9 +304,9 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 							" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv6"))
 						lstReturn = SQLQuery (strSQL,dbConn)
 						if not ValidReturn(lstReturn):
-							print ("Unexpected: {}".format(lstReturn))
+							LogEntry ("Unexpected: {}".format(lstReturn))
 						elif lstReturn[0] != 1:
-							print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+							LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 						if strRcvdPrefix in dictPrefixes:
 							dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
@@ -347,9 +331,9 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 							" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv6"))
 						lstReturn = SQLQuery (strSQL,dbConn)
 						if not ValidReturn(lstReturn):
-							print ("Unexpected: {}".format(lstReturn))
+							LogEntry ("Unexpected: {}".format(lstReturn))
 						elif lstReturn[0] != 1:
-							print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+							LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
 						if strRcvdPrefix in dictPrefixes:
 							dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
@@ -357,7 +341,6 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 								dictPrefixes[strRcvdPrefix]["VRF"].append(strVRF)
 						else:
 							dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}# end function AnalyzeIPv6Routes
-	print ("Completed {:.1%}".format(1))
 
 def ParseDescr(strOutList,iLineNum):
 	LogEntry ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
@@ -386,81 +369,6 @@ import paramiko #pip install paramiko
 import socket
 import os
 import pymysql
-
-xlSrcExternal = 0 #External data source
-xlSrcModel = 4 #PowerPivot Model
-xlSrcQuery = 3 #Query
-xlSrcRange = 1 #Range
-xlSrcXml = 2 #XML
-xlGuess = 0 # Excel determines whether there is a header, and where it is, if there is one.
-xlNo = 2 # Default. The entire range should be sorted.
-xlYes = 1 # The entire range should not be sorted.
-
-dictSheets={}
-dictDevices={}
-dictPrefixes={}
-
-lstVRFs=[]
-lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Advertise","IPv4-VRF-Advertise","IPv4-GT-Description","IPv4-VRF-Description",
-				     "shVRF","IPv6-GT-Summary","IPv6-VRF-Summary","IPv6-GT-Advertise","IPv6-VRF-Advertise","IPv6-GT-Description","IPv6-VRF-Description"]
-
-iResultNum = 0
-iResult2Num = 0
-iResult3Num = 0
-iResultColNum = 1
-iDetailsColNum = 1
-iPrefixColNum = 1
-tStart=time.time()
-iInputColumn = 1
-strOutFolderName = strSummarySheet
-
-if os.path.isfile("Routes.txt"):
-	print ("Configuration File exists")
-else:
-	print ("Can't find configuration file Routes.txt, make sure it is the same directory as this script")
-	sys.exit(4)
-
-strLine = "  "
-print ("Reading in configuration")
-objINIFile = open("Routes.txt","r")
-strLines = objINIFile.readlines()
-objINIFile.close()
-
-for strLine in strLines:
-	strLine = strLine.strip()
-	if "=" in strLine:
-		strConfParts = strLine.split("=")
-		if strConfParts[0] == "Server":
-			strServer = strConfParts[1]
-		if strConfParts[0] == "Database":
-			strInitialDB = strConfParts[1]
-		if strConfParts[0] == "dbUser":
-			strDBUser = strConfParts[1]
-		if strConfParts[0] == "dbPWD":
-			strDBPWD = strConfParts[1]
-		if strConfParts[0] == "SSHLogFolder":
-			strSaveLoc = strConfParts[1]
-		if strConfParts[0] == "BatchSize":
-			iBatchSize = strConfParts[1]
-		if strConfParts[0] == "NumWeeksBreak":
-			iNumWeeks = strConfParts[1]
-		if strConfParts[0] == "CollectIPv4":
-			bCollectv4 = bool(strConfParts[1].lower()=="yes")
-		if strConfParts[0] == "CollectIPv6":
-			bCollectv6 = bool(strConfParts[1].lower()=="yes")
-
-if not bCollectv6 and not bCollectv4:
-	print ("neither IPv4 nor IPv6 is set to collect so nothing to do. Exiting!!")
-	sys.exit(8)
-
-if strSaveLoc[-1:] != "\\":
-	strSaveLoc += "\\"
-
-if not os.path.isdir(strSaveLoc):
-	print ("{} doesn't exists, creating it".format(strSaveLoc))
-	os.makedirs(strSaveLoc)
-else:
-	print ("Will save output logs to {}".format(strSaveLoc))
 
 def SQLConn (strServer,strDBUser,strDBPWD,strInitialDB):
 	try:
@@ -562,7 +470,6 @@ def GetResults(strHostname,strCmd):
 
 def ValidateRetry(strHostname,strCmd):
 	global iErrCount
-	global FailedDevs
 	global lstFailedDevsName
 	global iAuthFail
 	global strPWD
@@ -576,19 +483,20 @@ def ValidateRetry(strHostname,strCmd):
 			LogEntry ("Trying again in 5 sec")
 			time.sleep(5)
 		elif "Auth Exception" in strOut:
-			playsound(r'c:\windows\media\tada.wav')
-			strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
-			if strUserName == "":
-				strUserName = DefUserName
+			# playsound(r'c:\windows\media\tada.wav')
+			# strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
+			# if strUserName == "":
+			# 	strUserName = DefUserName
 			# end if username is empty
-			strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
-			if strPWD == "":
-				print ("empty password, next device")
-				iErrCount = iMaxError
-				break
-			iAuthFail += 1
-			if iAuthFail == iMaxAuthFail:
-				iErrCount = iMaxError
+			# strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
+			# if strPWD == "":
+			# 	print ("empty password, next device")
+			# 	iErrCount = iMaxError
+			# 	break
+			# iAuthFail += 1
+			# if iAuthFail == iMaxAuthFail:
+			iErrCount = iMaxError
+			break
 		else:
 			LogEntry("Unknown exception {}\n Next Device!".format(strOut))
 			iErrCount = iMaxError
@@ -597,9 +505,7 @@ def ValidateRetry(strHostname,strCmd):
 
 
 	if "Exception" in strOut:
-		if not bFailedDev:
-			FailedDevs.append(iInputLineNum)
-			lstFailedDevsName.append(strHostname)
+		lstFailedDevsName.append(strHostname)
 		bDevOK = False
 		LogEntry ("Exceeded Max Retry's, next device!")
 	else:
@@ -613,7 +519,6 @@ def LogEntry(strMsg):
 		print ("Unexpected: {}".format(lstReturn))
 	elif lstReturn[0] != 1:
 		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-
 	print (strMsg)
 
 def OSDetect():
@@ -688,38 +593,102 @@ def IPv6Peers():
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
 			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 
+#Start main script
+dictDevices={}
+dictPrefixes={}
+
+lstVRFs=[]
+lstFailedDevsName = []
+lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Advertise","IPv4-VRF-Advertise","IPv4-GT-Description","IPv4-VRF-Description",
+				     "shVRF","IPv6-GT-Summary","IPv6-VRF-Summary","IPv6-GT-Advertise","IPv6-VRF-Advertise","IPv6-GT-Description","IPv6-VRF-Description"]
+
+strHostname = ""
+strLine = "  "
+bDevOK = True
+
+tStart=time.time()
 DefUserName = getpass.getuser()
 print ("This is a router audit script. Your default username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
 now = time.asctime()
 print ("The time now is {}".format(now))
 print ("This script will read a router list from a database and log into each router listed in the router list table,\n")
+
+if os.path.isfile("Routes.txt"):
+	print ("Configuration File exists")
+else:
+	print ("Can't find configuration file Routes.txt, make sure it is the same directory as this script")
+	sys.exit(4)
+
+print ("Reading in configuration")
+objINIFile = open("Routes.txt","r")
+strLines = objINIFile.readlines()
+objINIFile.close()
+
+for strLine in strLines:
+	strLine = strLine.strip()
+	if "=" in strLine:
+		strConfParts = strLine.split("=")
+		if strConfParts[0] == "Server":
+			strServer = strConfParts[1]
+		if strConfParts[0] == "Database":
+			strInitialDB = strConfParts[1]
+		if strConfParts[0] == "dbUser":
+			strDBUser = strConfParts[1]
+		if strConfParts[0] == "dbPWD":
+			strDBPWD = strConfParts[1]
+		if strConfParts[0] == "SSHLogFolder":
+			strSaveLoc = strConfParts[1]
+		if strConfParts[0] == "BatchSize":
+			iBatchSize = strConfParts[1]
+		if strConfParts[0] == "NumWeeksBreak":
+			iNumWeeks = strConfParts[1]
+		if strConfParts[0] == "CollectIPv4":
+			bCollectv4 = bool(strConfParts[1].lower()=="yes")
+		if strConfParts[0] == "CollectIPv6":
+			bCollectv6 = bool(strConfParts[1].lower()=="yes")
+
+dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
+
 for strOS in dictBaseCmd:
 	for attr in lstRequiredElements:
 		if attr not in dictBaseCmd[strOS]:
-			print ("{} is missing definition for {}.\n *** Each OS version requires definitions for the following:\n{}".format(strOS,attr,lstRequiredElements))
+			LogEntry ("{} is missing definition for {}.\n *** Each OS version requires definitions for the following:\n{}".format(strOS,attr,lstRequiredElements))
 			sys.exit(5)
 
-print ("Grabbing next {} devices".format(iBatchSize))
+LogEntry ("Grabbing next {} devices".format(iBatchSize))
 strSQL = ("SELECT iRouterID,vcHostName FROM networks.tblrouterlist"
 	" where dtUpdateCompleted < now() - interval {} week or dtUpdateCompleted is null"
 	" order by dtUpdateCompleted limit {};".format(iNumWeeks, iBatchSize))
-dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 lstRouters = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstRouters):
-	print ("Unexpected: {}".format(lstRouters))
+	LogEntry ("Unexpected: {}".format(lstRouters))
 	sys.exit(8)
 else:
-	print ("Fetched {} rows".format(lstRouters[0]))
+	LogEntry ("Fetched {} rows".format(lstRouters[0]))
 
 
 strSQL = "SELECT ifnull(max(iSessionID),0) FROM networks.tbllogs;"
 lstReturn = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstReturn):
-	print ("Unexpected: {}".format(lstReturn))
+	LogEntry ("Unexpected: {}".format(lstReturn))
 	sys.exit(8)
 else:
 	iSessID =lstReturn[1][0][0]+1
 
+if not bCollectv6 and not bCollectv4:
+	LogEntry ("neither IPv4 nor IPv6 is set to collect so nothing to do. Exiting!!")
+	sys.exit(8)
+
+if strSaveLoc[-1:] != "\\":
+	strSaveLoc += "\\"
+
+if not os.path.isdir(strSaveLoc):
+	LogEntry ("{} doesn't exists, creating it".format(strSaveLoc))
+	os.makedirs(strSaveLoc)
+else:
+	LogEntry ("Will save output logs to {}".format(strSaveLoc))
+
+LogEntry ("Starting session {}, prompting for router login".format(iSessID))
 strUserName = getInput("Please provide username for use when login into the routers, enter to use {}: ".format(DefUserName))
 if strUserName == "":
 	strUserName = DefUserName
@@ -727,18 +696,8 @@ if strUserName == "":
 
 strPWD = getpass.getpass(prompt="what is the password for {0}: ".format(strUserName))
 if strPWD == "":
-	print ("empty password, exiting")
+	LogEntry ("empty password, exiting")
 	sys.exit(5)
-
-iInputLineNum = 2
-iOutLineNum = 1
-iOut2Line = 1
-strHostname = ""
-FailedDevs = []
-lstFailedDevsName = []
-bDevOK = True
-bFailedDev = False
-
 
 for dbRow in lstRouters[1]:
 	iErrCount = 0
@@ -748,26 +707,24 @@ for dbRow in lstRouters[1]:
 	strSQL = "delete from networks.tblneighbors where iRouterID = {};".format(iHostID)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
-		print ("Unexpected: {}".format(lstReturn))
+		LogEntry ("Unexpected: {}".format(lstReturn))
 		break
 	else:
-		print ("Deleted {} neighbors".format(lstReturn[0]))
+		LogEntry ("Deleted {} neighbors".format(lstReturn[0]))
 
-	# strSQL = "delete from networks.tblsubnets where iRouterID = {};".format(iHostID)
-	# lstReturn = SQLQuery (strSQL,dbConn)
 	strHostname = strHostname.upper()
 	LogEntry ("Processing {} ...".format(strHostname))
 
 	strHostVer = OSDetect()
-	LogEntry ("Found IOS version to be {}".format(strHostVer))
+	LogEntry ("Found Router OS version to be {}".format(strHostVer))
 	dictDevices[strHostname] = strHostVer
 	strSQL = "update networks.tblrouterlist set dtUpdateStarted = now(), dtUpdateCompleted=null, vcOS = '{}', iSessionID={} where iRouterID = {};".format(strHostVer,iSessID,iHostID)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
-		print ("Unexpected: {}".format(lstReturn))
+		LogEntry ("Unexpected: {}".format(lstReturn))
 		break
 	elif lstReturn[0] != 1:
-		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
 	if strHostVer == "Unknown":
 		LogEntry("Can't process unknown platform")
@@ -782,10 +739,10 @@ for dbRow in lstRouters[1]:
 		strSQL = "update networks.tblrouterlist set dtLastSuccess = now(), dtUpdateCompleted=now() where iRouterID = {};".format(iHostID)
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
-			print ("Unexpected: {}".format(lstReturn))
+			LogEntry ("Unexpected: {}".format(lstReturn))
 			break
 		elif lstReturn[0] != 1:
-			print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+			LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
 LogEntry ("Done processing...")
 
@@ -794,8 +751,7 @@ tStop = time.time()
 iElapseSec = tStop - tStart
 iMin, iSec = divmod(iElapseSec, 60)
 iHours, iMin = divmod(iMin, 60)
-if bFailedDev and len(lstFailedDevsName) == 0:
-	LogEntry ("All devices successful after final retries")
+
 if len(lstFailedDevsName) > 0:
 	if len(lstFailedDevsName) == 1:
 		strdev = "device"
