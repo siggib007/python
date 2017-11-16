@@ -23,14 +23,14 @@ dictBaseCmd = {
 			"Match":"IOS XR",
 			"IPv4-GT-Summary":"show bgp ipv4 unicast summary",
 			"IPv4-VRF-Summary":"show bgp vrf {} ipv4 unicast summary",
-			"IPv4-GT-Advertise":"show bgp ipv4 unicast neighbors {} routes",
-			"IPv4-VRF-Advertise":"show bgp vrf {} ipv4 unicast neighbors {} routes",
+			"IPv4-GT-Receive":"show bgp ipv4 unicast neighbors {} routes",
+			"IPv4-VRF-Receive":"show bgp vrf {} ipv4 unicast neighbors {} routes",
 			"IPv4-GT-Description":"show bgp ipv4 unicast neighbors {} | include Description:",
 			"IPv4-VRF-Description":"show bgp vrf {} ipv4 unicast neighbors {} | include Description:",
 			"IPv6-GT-Summary":"show bgp ipv6 unicast summary",
 			"IPv6-VRF-Summary":"show bgp vrf {} ipv6 unicast summary",
-			"IPv6-GT-Advertise":"show bgp ipv6 unicast neighbors {} routes",
-			"IPv6-VRF-Advertise":"show bgp vrf {} ipv6 unicast neighbors {} routes",
+			"IPv6-GT-Receive":"show bgp ipv6 unicast neighbors {} routes",
+			"IPv6-VRF-Receive":"show bgp vrf {} ipv6 unicast neighbors {} routes",
 			"IPv6-GT-Description":"show bgp ipv6 unicast neighbors {} | include Description:",
 			"IPv6-VRF-Description":"show bgp vrf {} ipv6 unicast neighbors {} | include Description:",
 			"shVRF":"show vrf all"
@@ -39,16 +39,48 @@ dictBaseCmd = {
 			"Match":"IOS XE",
 			"IPv4-GT-Summary":"show bgp ipv4 unicast summary",
 			"IPv4-VRF-Summary":"show bgp vrf {} vpnv4 unicast summary",
-			"IPv4-GT-Advertise":"show bgp ipv4 unicast neighbors {} routes",
-			"IPv4-VRF-Advertise":"show bgp vrf {} vpnv4 unicast neighbors {} routes",
+			"IPv4-GT-Receive":"show bgp ipv4 unicast neighbors {} routes",
+			"IPv4-VRF-Receive":"show bgp vrf {} vpnv4 unicast neighbors {} routes",
 			"IPv4-GT-Description":"show bgp ipv4 unicast neighbors {} | include Description:",
 			"IPv4-VRF-Description":"show bgp vrf {} vpnv4 unicast neighbors {} | include Description:",
 			"IPv6-GT-Summary":"show bgp ipv6 unicast summary",
 			"IPv6-VRF-Summary":"show bgp vrf {} vpnv6 unicast summary",
-			"IPv6-GT-Advertise":"show bgp ipv6 unicast neighbors {} routes",
-			"IPv6-VRF-Advertise":"show bgp vrf {} vpnv4 unicast neighbors {} routes",
+			"IPv6-GT-Receive":"show bgp ipv6 unicast neighbors {} routes",
+			"IPv6-VRF-Receive":"show bgp vrf {} vpnv4 unicast neighbors {} routes",
 			"IPv6-GT-Description":"show bgp ipv6 unicast neighbors {} | include Description:",
 			"IPv6-VRF-Description":"show bgp vrf {} vpnv4 unicast neighbors {} | include Description:",
+			"shVRF":"show vrf brief"
+		},
+		"Nexus":{
+			"Match":"NX-OS",
+			"IPv4-GT-Summary":"show ip bgp summary",
+			"IPv4-VRF-Summary":"show ip bgp vrf {} summary",
+			"IPv4-GT-Receive":"show ip bgp neighbors {} routes",
+			"IPv4-VRF-Receive":"show ip bgp vrf {} neighbors {} routes",
+			"IPv4-GT-Description":"show ip bgp neighbors {} | include Description:",
+			"IPv4-VRF-Description":"show ip bgp vrf {} neighbors {} | include Description:",
+			"IPv6-GT-Summary":"show ipv6 bgp summary",
+			"IPv6-VRF-Summary":"show ipv6 bgp vrf {} summary",
+			"IPv6-GT-Receive":"show ipv6 bgp neighbors {} routes",
+			"IPv6-VRF-Receive":"show ipv6 bgp vrf CORESEC neighbors {} routes ",
+			"IPv6-GT-Description":"show ipv6 bgp neighbors {} | include Description:",
+			"IPv6-VRF-Description":"show ipv6 bgp vrf CORESEC neighbors {} | include Description:",
+			"shVRF":"show vrf all"
+		},
+		"IOS":{
+			"Match":" IOS ",
+			"IPv4-GT-Summary":"show ip bgp summary",
+			"IPv4-VRF-Summary":"show ip bgp vpnv4 vrf {} summary",
+			"IPv4-GT-Receive":"show ip bgp neighbors {} routes",
+			"IPv4-VRF-Receive":"show ip bgp vpnv4 vrf {} neighbors {} routes",
+			"IPv4-GT-Description":"show ip bgp neighbors {} | include Description:",
+			"IPv4-VRF-Description":"show ip bgp vpnv4 vrf {} neighbors {} | include Description:",
+			"IPv6-GT-Summary":"show bgp ipv6 unicast summary",
+			"IPv6-VRF-Summary":"show ip bgp vpnv6 unicast vrf {} summary",
+			"IPv6-GT-Receive":"show ip bgp ipv6 unicast neighbors {} routes",
+			"IPv6-VRF-Receive":"show ip bgp vpnv6 unicast vrf {} neighbors {} routes",
+			"IPv6-GT-Description":"show ip bgp ipv6 unicast neighbors {} | include Description:",
+			"IPv6-VRF-Description":"show ip bgp vpnv6 unicast vrf {} neighbors {} | include Description:",
 			"shVRF":"show vrf brief"
 		}
 	}
@@ -79,6 +111,16 @@ def CollectVRFs():
 						lstVRFs.append(strLineTokens[0])
 					if strLineTokens[0]== "Name" and strLineTokens[1]== "Default" and strLineTokens[2]== "RD":
 						bInSection = True
+				if strHostVer == "IOS":
+					if bInSection and len(strLineTokens) > 2 :
+						lstVRFs.append(strLineTokens[0])
+					if strLineTokens[0]== "Name" and strLineTokens[1]== "Default" and strLineTokens[2]== "RD":
+						bInSection = True
+				if strHostVer == "Nexus":
+					if bInSection and strLineTokens[0] != "default" and strLineTokens[0] != "management" :
+						lstVRFs.append(strLineTokens[0])
+					if strLineTokens[0]== "VRF-Name" and strLineTokens[1]== "VRF-ID" and strLineTokens[2]== "State":
+						bInSection = True
 	LogEntry ("VRF's Collected: {}".format(lstVRFs))
 	return lstVRFs
 
@@ -96,7 +138,7 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 				LogEntry ("Error: {}".format(strLine))
 				break
 		strLineTokens = strLine.split()
-		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE":
+		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE" or strHostVer == "IOS" or strHostVer == "Nexus":
 			if "local AS number " in strLine:
 				iLoc = strLine.find("number ")+7
 				iLocalAS = strLine[iLoc:]
@@ -106,7 +148,7 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 						iRemoteAS = strLineTokens[2]
 						strCount = str(strLineTokens[9])
 						strPeerIP = strLineTokens[0]
-						if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" :
+						if iRemoteAS != iLocalAS and isInt(strCount) and iRemoteAS !=65137:
 							strSQL = ("INSERT INTO networks.tblneighbors (iRouterID,vcNeighborIP,iRemoteAS,vcVRF,iRcvdCount)"
 								" VALUES ({0},'{1}',{2},'{3}',{4});".format(iHostID,strPeerIP,iRemoteAS,strVRF,strCount))
 							lstReturn = SQLQuery (strSQL,dbConn)
@@ -142,7 +184,7 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 				break
 
 		strLineTokens = strLine.split()
-		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE":
+		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE" or strHostVer == "IOS" or strHostVer == "Nexus":
 			if "local AS number " in strLine:
 				iLoc = strLine.find("number ")+7
 				iLocalAS = strLine[iLoc:]
@@ -160,7 +202,7 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 						else:
 							iRemoteAS = strLineTokens[2]
 							strCount = str(strLineTokens[9])
-						if iRemoteAS != iLocalAS and strCount != "Idle" and strCount != "Active" and strPeerIP != "":
+						if iRemoteAS != iLocalAS and isInt(strCount) and iRemoteAS !=65137:
 							strSQL = ("INSERT INTO networks.tblneighbors (iRouterID,vcNeighborIP,iRemoteAS,vcVRF,iRcvdCount)"
 								" VALUES ({0},'{1}',{2},'{3}',{4});".format(iHostID,strPeerIP,iRemoteAS,strVRF,strCount))
 							lstReturn = SQLQuery (strSQL,dbConn)
@@ -177,9 +219,10 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 	return dictPeers
 # end function AnalyzeIPv6Results
 
-def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum):
-	global dictPrefixes
+def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	bInSection = False
+	iNeighborID = 0
+	strRcvdPrefix = ""
 
 	strSQL = "select iNeighborID from networks.tblneighbors where vcNeighborIP = '{}'".format(strPeerIP)
 	lstReturn = SQLQuery (strSQL,dbConn)
@@ -208,51 +251,51 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 			if strLine[0] == "%":
 				LogEntry ("Error: {}".format(strLine))
 				break
-		strLineTokens = strLine.split()
 		if strHostVer == "IOS-XR":
+			strLineTokens = strLine.split()
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Route"  and strLineTokens[0] != "Processed":
 					strRcvdPrefix = strLineTokens[1]
-					strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
-						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
-					lstReturn = SQLQuery (strSQL,dbConn)
-					if not ValidReturn(lstReturn):
-						LogEntry ("Unexpected: {}".format(lstReturn))
-					elif lstReturn[0] != 1:
-						LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
-					if strRcvdPrefix in dictPrefixes:
-						dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
-						if strVRF not in dictPrefixes[strRcvdPrefix]["VRF"]:
-							dictPrefixes[strRcvdPrefix]["VRF"].append(strVRF)
-					else:
-						dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
 				if strLineTokens[0] == "Network":
 					bInSection = True
-		if strHostVer == "IOS-XE":
+		if strHostVer == "IOS-XE" or strHostVer == "IOS":
+			strLineTokens = strLine.split()
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Total" and strLineTokens[0] != "Network" and strLineTokens[1].count(".") == 3 :
 					strRcvdPrefix = strLineTokens[1]
-					strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
-						" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv4"))
-					lstReturn = SQLQuery (strSQL,dbConn)
-					if not ValidReturn(lstReturn):
-						LogEntry ("Unexpected: {}".format(lstReturn))
-					elif lstReturn[0] != 1:
-						LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-					strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
-					if strRcvdPrefix in dictPrefixes:
-						dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
-						if strVRF not in dictPrefixes[strRcvdPrefix]["VRF"]:
-							dictPrefixes[strRcvdPrefix]["VRF"].append(strVRF)
-					else:
-						dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
 				if strLineTokens[0] == "Network":
 					bInSection = True
+		if strHostVer == "IOS-XE" or strHostVer == "IOS":
+			strLineTokens = strLine[3:].split()
+			if len(strLineTokens) > 1:
+				if bInSection and strLineTokens[0] != "Total" and strLineTokens[0] != "Network" and strLineTokens[0].count(".") == 3 :
+					strRcvdPrefix = strLineTokens[0]
+				if strLineTokens[0] == "Network":
+					bInSection = True
+		if iNeighborID > 0 and strRcvdPrefix !="":
+			dictIPInfo = IPCalc (strRcvdPrefix)
+			if "iDecSubID" in dictIPInfo:
+				iDecSubID = dictIPInfo['iDecSubID']
+			else:
+				iDecSubID = -10
+			if "iDecBroad" in dictIPInfo:
+				iDecBroad = dictIPInfo['iDecBroad']
+			else:
+				iDecBroad = -10
+			if "IPError" in dictIPInfo:
+				LogEntry (dictIPInfo['IPError'])
+			if iDecSubID > 0:
+				strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver,iSubnetStart,iSubnetEnd)"
+				" VALUES ({0},'{1}','{2}',{3},{4});".format(iNeighborID,strRcvdPrefix,"IPv4",iDecSubID,iDecBroad))
+			lstReturn = SQLQuery (strSQL,dbConn)
+			if not ValidReturn(lstReturn):
+				LogEntry ("Unexpected: {}".format(lstReturn))
+			elif lstReturn[0] != 1:
+				LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+
 # end function AnalyzeIPv4Routes
 
-def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum):
-	global dictPrefixes
+def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 	iPrefixCount = 0
 	strNextHop = ""
 	strSQL = "select iNeighborID from networks.tblneighbors where vcNeighborIP = '{}'".format(strPeerIP)
@@ -281,9 +324,9 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 			if strLine[0] == "%":
 				LogEntry ("Error: {}".format(strLine))
 				break
-		strLineTokens = strLine.split()
 
 		if strHostVer == "IOS-XR":
+			strLineTokens = strLine.split()
 			if len(strLineTokens) > 0:
 				if strLineTokens[0].find(":") == 4 and "/" in strLineTokens[0] :
 					if iPrefixCount == 0:
@@ -303,14 +346,9 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 							LogEntry ("Unexpected: {}".format(lstReturn))
 						elif lstReturn[0] != 1:
 							LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
-						if strRcvdPrefix in dictPrefixes:
-							dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
-							if strVRF not in dictPrefixes[strRcvdPrefix]["VRF"]:
-								dictPrefixes[strRcvdPrefix]["VRF"].append(strVRF)
-						else:
-							dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}
-		if strHostVer == "IOS-XE":
+
+		if strHostVer == "IOS-XE" or strHostVer == "IOS":
+			strLineTokens = strLine.split()
 			if len(strLineTokens) > 1:
 				if strLineTokens[1].find(":") == 4:
 					if iPrefixCount == 0:
@@ -330,15 +368,30 @@ def AnalyzeIPv6Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr,iLineNum)
 							LogEntry ("Unexpected: {}".format(lstReturn))
 						elif lstReturn[0] != 1:
 							LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-						strRouterVRFPeer = strHostname + "-" + strVRF + "-" + strPeerIP
-						if strRcvdPrefix in dictPrefixes:
-							dictPrefixes[strRcvdPrefix]["Peer"].append(strRouterVRFPeer)
-							if strVRF not in dictPrefixes[strRcvdPrefix]["VRF"]:
-								dictPrefixes[strRcvdPrefix]["VRF"].append(strVRF)
-						else:
-							dictPrefixes[strRcvdPrefix]={"VRF":[strVRF],"Peer":[strRouterVRFPeer]}# end function AnalyzeIPv6Routes
+		if strHostVer == "Nexus":
+			strLineTokens = strLine[3:].split()
+			if len(strLineTokens) > 0:
+				if strLineTokens[0].find(":") == 4 and "/" in strLineTokens[0] :
+					if iPrefixCount == 0:
+						if len(strLineTokens) > 1:
+							strNextHop = strLineTokens[1]
+						strRcvdPrefix = strLineTokens[0]
+						iPrefixCount += 1
+					if iPrefixCount == 1 and strNextHop == "":
+						strNextHop = strLineTokens[0]
+					if strNextHop != "" and strNextHop != strLineTokens[0]:
+						strRcvdPrefix = strLineTokens[0]
+						iPrefixCount += 1
+						strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver)"
+							" VALUES ({0},'{1}','{2}');".format(iNeighborID,strRcvdPrefix,"IPv6"))
+						lstReturn = SQLQuery (strSQL,dbConn)
+						if not ValidReturn(lstReturn):
+							LogEntry ("Unexpected: {}".format(lstReturn))
+						elif lstReturn[0] != 1:
+							LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+# end function AnalyzeIPv6Routes
 
-def ParseDescr(strOutList,iLineNum):
+def ParseDescr(strOutList):
 	LogEntry ("Grabbing peer description. There are {} lines in the output".format(len(strOutList)))
 	for strLine in strOutList:
 		if "Exception:" in strLine:
@@ -348,15 +401,12 @@ def ParseDescr(strOutList,iLineNum):
 			if strLine[0] == "%":
 				LogEntry ("Error: {}".format(strLine))
 				break
-		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE":
+		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE" or strHostVer == "IOS" or strHostVer == "Nexus":
 			if "Description" in strLine:
 				return strLine[14:]
 #end function ParseDescr
 
-import tkinter as tk
-from tkinter import filedialog, messagebox
 from playsound import playsound, PlaysoundException
-import win32com.client as win32 #pip install pypiwin32
 import getpass
 import time
 import sys
@@ -557,17 +607,16 @@ def IPv4Peers():
 		iCurPeer += 1
 		LogEntry ("IPv4 Peer {} out of {}".format(iCurPeer,len(dictIPv4Peers)))
 		strVRF = dictIPv4Peers[strPeerIP]["VRF"]
-		iLineNum = dictIPv4Peers[strPeerIP]["LineID"]
 		if strVRF == "Global Table":
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Description"].format(strPeerIP))
-			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Advertise"].format(strPeerIP))
-			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
+			strDescr = ParseDescr(strOut.splitlines())
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Receive"].format(strPeerIP))
+			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
 		else:
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Description"].format(strVRF,strPeerIP))
-			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Advertise"].format(strVRF,strPeerIP))
-			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
+			strDescr = ParseDescr(strOut.splitlines())
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Receive"].format(strVRF,strPeerIP))
+			AnalyzeIPv4Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
 
 def IPv6Peers():
 	dictIPv6Peers={}
@@ -587,26 +636,134 @@ def IPv6Peers():
 		if strPeerIP == "":
 			continue
 		strVRF = dictIPv6Peers[strPeerIP]["VRF"]
-		iLineNum = dictIPv6Peers[strPeerIP]["LineID"]
 		if strVRF == "Global Table":
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Description"].format(strPeerIP))
-			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Advertise"].format(strPeerIP))
-			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
+			strDescr = ParseDescr(strOut.splitlines())
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-GT-Receive"].format(strPeerIP))
+			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
 		else:
 			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Description"].format(strVRF,strPeerIP))
-			strDescr = ParseDescr(strOut.splitlines(), iLineNum)
-			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Advertise"].format(strVRF,strPeerIP))
-			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr,iLineNum)
+			strDescr = ParseDescr(strOut.splitlines())
+			strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv6-VRF-Receive"].format(strVRF,strPeerIP))
+			AnalyzeIPv6Routes(strOut.splitlines(),strVRF,strPeerIP,strHostname,strDescr)
+
+def isInt (CheckValue):
+	# function to safely check if a value can be interpreded as an int
+	if isinstance(CheckValue,int):
+		return True
+	elif isinstance(CheckValue,str):
+		if CheckValue.isnumeric():
+			return True
+		else:
+			return False
+	else:
+		return False
+
+def DotDecGen (iDecValue):
+	if iDecValue < 1 or iDecValue > 4294967295:
+		return "Invalid"
+	# end if
+
+	# Convert decimal to hex
+	HexValue = hex(iDecValue)
+
+	#Ensure the results is 8 hex digits long.
+	#IP's lower than 16.0.0.0 have trailing 0's that get trimmed off by hex function
+	HexValue = "0"*8+HexValue[2:]
+	HexValue = "0x"+HexValue[-8:]
+	# Convert Hex to dot dec
+	strTemp = str(int(HexValue[2:4],16)) + "." + str(int(HexValue[4:6],16)) + "."
+	strTemp = strTemp + str(int(HexValue[6:8],16)) + "." + str(int(HexValue[8:10],16))
+	return strTemp
+# End Function
+
+def DotDec2Int (strValue):
+	strHex = ""
+	if ValidateIP(strValue) == False:
+		return 0
+	# end if
+
+	Quads = strValue.split(".")
+	for Q in Quads:
+		QuadHex = hex(int(Q))
+		strwp = "00"+ QuadHex[2:]
+		strHex = strHex + strwp[-2:]
+	# next
+
+	return int(strHex,16)
+# end function
+
+# Function ValidateIP
+# Takes in a string and validates that it follows standard IP address format
+# Should be four parts with period deliniation
+# Each nubmer should be a number from 0 to 255.
+def ValidateIP(strToCheck):
+	Quads = strToCheck.split(".")
+	if len(Quads) != 4:
+		return False
+	# end if
+
+	for Q in Quads:
+		try:
+			iQuad = int(Q)
+		except ValueError:
+			return False
+		# end try
+
+		if iQuad > 255 or iQuad < 0:
+			return False
+		# end if
+
+	return True
+# end function
+
+# Function IPCalc
+# This function takes in a string of IP address and does the actual final colculation
+def IPCalc (strIPAddress):
+	strIPAddress=strIPAddress.strip()
+	strIPAddress=strIPAddress.replace("\t"," ")
+	strIPAddress=strIPAddress.replace("  "," ")
+	strIPAddress=strIPAddress.replace(" /","/")
+	dictIPInfo={}
+	iBitMask=0
+	if "/" in strIPAddress:
+		IPAddrParts = strIPAddress.split("/")
+		strIPAddress=IPAddrParts[0]
+		try:
+			iBitMask=int(IPAddrParts[1])
+		except ValueError:
+			iBitMask=32
+		# end try
+	else:
+		iBitMask = 32
+	# end if
+
+	if ValidateIP(strIPAddress):
+		dictIPInfo['IPAddr'] = strIPAddress
+		dictIPInfo['BitMask'] = str(iBitMask)
+		iHostcount = 2**(32 - iBitMask)
+		dictIPInfo['Hostcount'] = iHostcount
+		iDecIPAddr = DotDec2Int(strIPAddress)
+		iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
+		iDecBroad = iDecSubID + iHostcount - 1
+		dictIPInfo['iDecSubID'] = iDecSubID
+		dictIPInfo['iDecBroad'] = iDecBroad
+		dictIPInfo['Subnet'] = DotDecGen(iDecSubID)
+		dictIPInfo['Broadcast'] = DotDecGen(iDecBroad)
+	else:
+		dictIPInfo['IPError'] = "'" + strIPAddress + "' is not a valid IP!"
+	# End if
+	return dictIPInfo
+# end function
+
 
 #Start main script
 dictDevices={}
-dictPrefixes={}
 
 lstVRFs=[]
 lstFailedDevsName = []
-lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Advertise","IPv4-VRF-Advertise","IPv4-GT-Description","IPv4-VRF-Description",
-				     "shVRF","IPv6-GT-Summary","IPv6-VRF-Summary","IPv6-GT-Advertise","IPv6-VRF-Advertise","IPv6-GT-Description","IPv6-VRF-Description"]
+lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Receive","IPv4-VRF-Receive","IPv4-GT-Description","IPv4-VRF-Description",
+				     "shVRF","IPv6-GT-Summary","IPv6-VRF-Summary","IPv6-GT-Receive","IPv6-VRF-Receive","IPv6-GT-Description","IPv6-VRF-Description"]
 
 strHostname = ""
 strLine = "  "
@@ -694,6 +851,10 @@ if not ValidReturn(lstRouters):
 	sys.exit(8)
 else:
 	LogEntry ("Fetched {} rows".format(lstRouters[0]))
+
+if lstRouters[0] == 0:
+	LogEntry ("Nothing to do, exiting")
+	sys.exit(9)
 
 if strSaveLoc[-1:] != "\\":
 	strSaveLoc += "\\"
