@@ -183,19 +183,20 @@ def FindMask(iDecSubID,iDecBroad):
 
 # 'BOT', 'Global Table', '178265940', '3634081679', '54', '10.160.31.84/32'
 
-iDecSubID = 178265940
-iDecBroad = 3634081679
+# iDecSubID = 178265940
+# iDecBroad = 3634081679
 
 # dictIPInfo = IPCalc ("10.15.18.55/22")
 # iDecBroad = dictIPInfo['iDecBroad']
 # print (dictIPInfo)
-print ("Converted to {}".format(FindMask(iDecSubID,iDecBroad)))
-sys.exit(8)
+# print ("Converted to {}".format(FindMask(iDecSubID,iDecBroad)))
+# sys.exit(8)
 
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
-# strSQL = ("select iSubnetID,vcSubnet from networks.tblsubnets where vcIPver = 'ipv4';")
-strSQL = "select iSiteNetID,iSubnetID,iBroadcast from networks.tblsite_networks;"
+strSQL = ("select iSubnetID,vcSubnet from networks.tblsubnets where vcIPver = 'ipv4';")
+# strSQL = "select iSiteNetID,iSubnetID,iBroadcast from networks.tblsite_networks;"
 lstSubnets = SQLQuery (strSQL,dbConn)
+iRowCount = lstSubnets[0]
 if not ValidReturn(lstSubnets):
 	print ("Unexpected: {}".format(lstSubnets))
 	sys.exit(8)
@@ -206,21 +207,21 @@ if lstSubnets[0] == 0:
 	print ("Nothing to do, exiting")
 	sys.exit(9)
 
-for dbRow in lstSubnets[1]:
-	iSiteNetID = dbRow[0]
-	iDecSubID = dbRow[1]
-	iDecBroad = dbRow[2]
-	if iDecSubID > 0:
-		strSubnet = FindMask(iDecSubID,iDecBroad)
-		strSQL = "UPDATE networks.tblsite_networks SET vcSubnet = '{}' WHERE iSiteNetID = {};".format(strSubnet,iSiteNetID)
-		lstReturn = SQLQuery (strSQL,dbConn)
-		if not ValidReturn(lstReturn):
-			print ("Unexpected: {}".format(lstReturn))
-			break
-		elif lstReturn[0] != 1:
-			print ("{} \n Records affected {}, expected 1 record affected".format(strSQL, lstReturn[0]))
-sys.exit(0)
-
+# for dbRow in lstSubnets[1]:
+# 	iSiteNetID = dbRow[0]
+# 	iDecSubID = dbRow[1]
+# 	iDecBroad = dbRow[2]
+# 	if iDecSubID > 0:
+# 		strSubnet = FindMask(iDecSubID,iDecBroad)
+# 		strSQL = "UPDATE networks.tblsite_networks SET vcSubnet = '{}' WHERE iSiteNetID = {};".format(strSubnet,iSiteNetID)
+# 		lstReturn = SQLQuery (strSQL,dbConn)
+# 		if not ValidReturn(lstReturn):
+# 			print ("Unexpected: {}".format(lstReturn))
+# 			break
+# 		elif lstReturn[0] != 1:
+# 			print ("{} \n Records affected {}, expected 1 record affected".format(strSQL, lstReturn[0]))
+# sys.exit(0)
+iRowNum = 1
 for dbRow in lstSubnets[1]:
 	strSubnet = dbRow[1]
 	iSubnetID = dbRow[0]
@@ -233,14 +234,21 @@ for dbRow in lstSubnets[1]:
 		iDecBroad = dictIPInfo['iDecBroad']
 	else:
 		iDecBroad = -10
+	if "Hostcount" in dictIPInfo:
+		iHostcount = dictIPInfo['Hostcount']
+	else:
+		iHostcount = -10
 	if "IPError" in dictIPInfo:
 		print (dictIPInfo['IPError'])
 	if iDecSubID > 0:
-		strSubnet = FindMask(iDecSubID,iDecBroad)
-		strSQL = "UPDATE networks.tblsubnets SET iSubnetStart = {}, iSubnetEnd = {} WHERE iSubnetID = {};".format(iDecSubID,iDecBroad,iSubnetID)
+		# strSubnet = FindMask(iDecSubID,iDecBroad)
+		iRowNum += 1
+		print ("Completed {:.1%}".format(iRowNum/iRowCount),end="\r")
+		# print(".", end="")
+		strSQL = "UPDATE networks.tblsubnets SET iSubnetStart = {0}, iSubnetEnd = {1}, iHostcount = {2} WHERE iSubnetID = {3};".format(iDecSubID,iDecBroad,iHostcount,iSubnetID)
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
 			print ("Unexpected: {}".format(lstReturn))
 			break
-		elif lstReturn[0] != 1:
-			print ("{} \n Records affected {}, expected 1 record affected".format(strSQL, lstReturn[0]))
+		# elif lstReturn[0] != 1:
+			# print ("{} \n Records affected {}, expected 1 record affected".format(strSQL, lstReturn[0]))

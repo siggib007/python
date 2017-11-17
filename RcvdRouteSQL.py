@@ -265,7 +265,7 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 					strRcvdPrefix = strLineTokens[1]
 				if strLineTokens[0] == "Network":
 					bInSection = True
-		if strHostVer == "IOS-XE" or strHostVer == "IOS":
+		if strHostVer == "Nexus":
 			strLineTokens = strLine[3:].split()
 			if len(strLineTokens) > 1:
 				if bInSection and strLineTokens[0] != "Total" and strLineTokens[0] != "Network" and strLineTokens[0].count(".") == 3 :
@@ -799,8 +799,8 @@ for strLine in strLines:
 			strSaveLoc = strConfParts[1]
 		if strConfParts[0] == "BatchSize":
 			iBatchSize = strConfParts[1]
-		if strConfParts[0] == "NumWeeksBreak":
-			iNumWeeks = strConfParts[1]
+		if strConfParts[0] == "NumDaysBreak":
+			iNumDays = strConfParts[1]
 		if strConfParts[0] == "CollectIPv4":
 			bCollectv4 = bool(strConfParts[1].lower()=="yes")
 		if strConfParts[0] == "CollectIPv6":
@@ -843,8 +843,8 @@ if not bCollectv6 and not bCollectv4:
 
 LogEntry ("Batch size is {} devices".format(iBatchSize))
 strSQL = ("SELECT iRouterID,vcHostName FROM networks.tblrouterlist"
-	" where dtUpdateCompleted < now() - interval {} week or dtUpdateCompleted is null"
-	" order by dtUpdateCompleted limit {};".format(iNumWeeks, iBatchSize))
+	" where dtUpdateCompleted < now() - interval {} day or dtUpdateCompleted is null"
+	" order by dtUpdateCompleted limit {};".format(iNumDays, iBatchSize))
 lstRouters = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstRouters):
 	LogEntry ("Unexpected: {}".format(lstRouters))
