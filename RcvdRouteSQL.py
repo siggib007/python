@@ -507,9 +507,9 @@ def GetResults(strHostname,strCmd):
 	except OSError as err:
 		LogEntry ("Socket Exception: {0}".format(err))
 		strOut = "Socket Exception: {0}".format(err)
-	except Exception as err:
-		LogEntry ("Generic Exception: {0}".format(err))
-		sys.exit(9)
+	# except Exception as err:
+	# 	LogEntry ("Generic Exception: {0}".format(err))
+	# 	sys.exit(9)
 	return strOut
 #end function GetResults
 
