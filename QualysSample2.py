@@ -128,7 +128,7 @@ def isInt (CheckValue):
 def DotDec2Int (strValue):
 	strHex = ""
 	if ValidateIP(strValue) == False:
-		return 0
+		return -10
 	# end if
 
 	Quads = strValue.split(".")
@@ -236,6 +236,7 @@ def IPCalc (strIPAddress):
 		iDecIPAddr = DotDec2Int(strIPAddress)
 		iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
 		iDecBroad = iDecSubID + iHostcount - 1
+		dictIPInfo['iDecIPAddr'] = iDecIPAddr
 		dictIPInfo['iDecSubID'] = iDecSubID
 		dictIPInfo['iDecBroad'] = iDecBroad
 		dictIPInfo['Subnet'] = DotDecGen(iDecSubID)
@@ -296,31 +297,44 @@ def CollectApplianceData (dictTemp):
 	lstOut.append(dictTemp["TYPE"])
 	lstOut.append(dictTemp["SERIAL_NUMBER"])
 	strIPAddr1 = dictInt1["IP_ADDRESS"] + "/" + str(ValidMask(dictInt1["NETMASK"]))
-	IPCalc (strIPAddr1)
+	iIPAddr1 = DotDec2Int(dictInt1["IP_ADDRESS"])
 	lstOut.append(strIPAddr1)
+	lstOut.append(str(iIPAddr1))
 	lstOut.append(dictInt1["GATEWAY"])
+	lstOut.append(str(DotDec2Int(dictInt1["GATEWAY"])))
 	lstOut.append(dictInt2["SETTING"])
 	if isinstance(dictInt2["IP_ADDRESS"],str):
 		strIPAddr2 = dictInt2["IP_ADDRESS"] + "/" + str(ValidMask(dictInt2["NETMASK"]))
-		lstOut.append(strIPAddr2)
+		iIPAddr2 = DotDec2Int(dictInt2["IP_ADDRESS"])
+		strGWaddr = dictInt2["GATEWAY"]
+		iIPGW = DotDec2Int(dictInt2["GATEWAY"])
 	else:
-		lstOut.append("")
 		strIPAddr2 = ""
-	lstOut.append(dictInt2["GATEWAY"])
+		iIPAddr2 = ""
+		iIPGW = ""
+		strGWaddr = ""
+	lstOut.append(strIPAddr2)
+	lstOut.append(str(iIPAddr2))
+	lstOut.append(strGWaddr)
+	lstOut.append(str(iIPGW))
 	if isinstance(dictTemp["STATIC_ROUTES"],type(None)):
 		iStaticCount = 0
 	elif isinstance(dictTemp["STATIC_ROUTES"]["ROUTE"],list):
 		iStaticCount = len (dictTemp["STATIC_ROUTES"]["ROUTE"])
 		for dictRoute in dictTemp["STATIC_ROUTES"]["ROUTE"]:
 			strIPRoute = dictRoute["IP_ADDRESS"] + "/" + str(ValidMask(dictRoute["NETMASK"]))
-			lstOut.append("{} -> {}".format(strIPRoute,dictRoute["GATEWAY"]))
+			iIPRoute   = DotDec2Int(dictRoute["IP_ADDRESS"])
+			iGWIP = DotDec2Int(dictRoute["GATEWAY"])
+			lstOut.append("{} ({}) -> {} ({})".format(strIPRoute, iIPRoute, dictRoute["GATEWAY"], iGWIP ))
 	else:
 		iStaticCount = 1
 		dictRoute=dictTemp["STATIC_ROUTES"]["ROUTE"]
 		strIPRoute = dictRoute["IP_ADDRESS"] + "/" + str(ValidMask(dictRoute["NETMASK"]))
-		lstOut.append("{} -> {}".format(strIPRoute,dictRoute["GATEWAY"]))
+		iIPRoute   = DotDec2Int(dictRoute["IP_ADDRESS"])
+		iGWIP = DotDec2Int(dictRoute["GATEWAY"])
+		lstOut.append("{} ({}) -> {} ({})".format(strIPRoute, iIPRoute, dictRoute["GATEWAY"], iGWIP ))
 
-	print ("{}, {} {} GW {},{} {} {} GW {}, Static Routes: {}".format(dictTemp["NAME"], dictInt1["INTERFACE"],strIPAddr1,dictInt1["GATEWAY"],
+	print ("{} {},{} {} GW {},{} {} {} GW {}, Static Routes: {}".format(dictTemp["NAME"], dictTemp["STATUS"], dictInt1["INTERFACE"],strIPAddr1,dictInt1["GATEWAY"],
 		dictInt2["INTERFACE"],dictInt2["SETTING"],strIPAddr2,dictInt2["GATEWAY"],iStaticCount))
 	return ",".join(lstOut)
 
@@ -335,7 +349,7 @@ if isinstance(APIResponse,str):
 elif isinstance(APIResponse,dict):
 	if "APPLIANCE_LIST" in APIResponse["APPLIANCE_LIST_OUTPUT"]["RESPONSE"]:
 		objFileOut = open("c:/temp/QualysAppliance.csv" ,"w")
-		objFileOut.write ("Name,ID,UUID,Status,Model,Type,Serial Number,Int1 IP,Int1 GW,Int2 Status,Int2 IP,Int2 GW,Static Routes -> next hop\n")
+		objFileOut.write ("Name,ID,UUID,Status,Model,Type,Serial Number,Int1 IP,iIP1,Int1 GW,iGWIP1,Int2 Status,Int2 IP,iIP2,Int2 GW,iGWIP2,Static Routes -> next hop\n")
 		if isinstance(APIResponse["APPLIANCE_LIST_OUTPUT"]["RESPONSE"]["APPLIANCE_LIST"]["APPLIANCE"],list):
 			print ("Number of appliances: {}".format(len(APIResponse["APPLIANCE_LIST_OUTPUT"]["RESPONSE"]["APPLIANCE_LIST"]["APPLIANCE"])))
 			for dictTemp in APIResponse["APPLIANCE_LIST_OUTPUT"]["RESPONSE"]["APPLIANCE_LIST"]["APPLIANCE"]:
