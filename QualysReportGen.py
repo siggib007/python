@@ -261,7 +261,23 @@ if isinstance(APIResponse,str):
 if isinstance(APIResponse,dict):
 	if "SCAN_LIST" in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]:
 		print ("Here are the scans since {}".format(strLastNight))
-		for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
+		if isinstance(APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"],list):
+			print ("There were {} scans completed.".format(len(APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"])))
+			for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
+				print ("Title: {} Ref: {}".format(scan["TITLE"],scan["REF"]))
+				if strSearchCrit.lower() in scan["TITLE"].lower():
+					print ("  matches {}".format(strSearchCrit))
+					strReportID=LaunchReport(scan["TITLE"],scan["REF"])
+					if isInt(strReportID):
+						listReportIDs.append(strReportID)
+						print ("Report ID: {}".format(strReportID))
+					else:
+						print (strReportID)
+				else:
+					print ("  does not match {}".format(strSearchCrit))
+		else:
+			print ("There was only a single scan completed.")
+			scan = APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]
 			print ("Title: {} Ref: {}".format(scan["TITLE"],scan["REF"]))
 			if strSearchCrit.lower() in scan["TITLE"].lower():
 				print ("  matches {}".format(strSearchCrit))
