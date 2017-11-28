@@ -680,10 +680,10 @@ def OSDetect():
 	strHostVer = "Unknown"
 	strOut = ValidateRetry(strHostname,"show version")
 	for strOS in dictBaseCmd:
-		if dictBaseCmd[strOS]["Match"] in strOut:
-			strHostVer = strOS
 		if strOS == "IOS":
 			continue
+		if dictBaseCmd[strOS]["Match"] in strOut:
+			strHostVer = strOS
 	if strHostVer == "Unknown" :
 		if "IOS" in dictBaseCmd:
 			if dictBaseCmd["IOS"]["Match"] in strOut:
