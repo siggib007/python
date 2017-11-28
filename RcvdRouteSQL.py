@@ -1,7 +1,7 @@
 '''
 Router Audit
 Author Siggi Bjarnason Copyright 2017
-Website http://www.ipcalc.us/ and http://www.icecomputing.com
+Website http://www.icecomputing.com
 
 Description:
 This is script that will discover all the BGP peers on a particular Cisco Router running
@@ -33,6 +33,10 @@ dictBaseCmd = {
 			"IPv6-VRF-Receive":"show bgp vrf {} ipv6 unicast neighbors {} routes",
 			"IPv6-GT-Description":"show bgp ipv6 unicast neighbors {} | include Description:",
 			"IPv6-VRF-Description":"show bgp vrf {} ipv6 unicast neighbors {} | include Description:",
+			"IPv4-GT-Direct":"show route ipv4 connected",
+			"IPv4-VRF-Direct":"show route vrf {} ipv4 connected",
+			"IPv6-GT-Direct":"show route ipv6 connected",
+			"IPv6-VRF-Direct":"show route vrf {} ipv6 connected",
 			"shVRF":"show vrf all"
 		},
 		"IOS-XE":{
@@ -49,6 +53,10 @@ dictBaseCmd = {
 			"IPv6-VRF-Receive":"show bgp vrf {} vpnv4 unicast neighbors {} routes",
 			"IPv6-GT-Description":"show bgp ipv6 unicast neighbors {} | include Description:",
 			"IPv6-VRF-Description":"show bgp vrf {} vpnv4 unicast neighbors {} | include Description:",
+			"IPv4-GT-Direct":"show ip route connected",
+			"IPv4-VRF-Direct":"show ip route vrf {} connected",
+			"IPv6-GT-Direct":"show ipv6 route connected",
+			"IPv6-VRF-Direct":"show ipv6 route vrf {} connected",
 			"shVRF":"show vrf brief"
 		},
 		"Nexus":{
@@ -65,7 +73,11 @@ dictBaseCmd = {
 			"IPv6-VRF-Receive":"show ipv6 bgp vrf CORESEC neighbors {} routes ",
 			"IPv6-GT-Description":"show ipv6 bgp neighbors {} | include Description:",
 			"IPv6-VRF-Description":"show ipv6 bgp vrf CORESEC neighbors {} | include Description:",
-			"shVRF":"show vrf all"
+			"IPv4-GT-Direct":"show ip route direct",
+			"IPv4-VRF-Direct":"show ip route vrf {} direct",
+			"IPv6-GT-Direct":"show ipv6 route direct",
+			"IPv6-VRF-Direct":"show ipv6 route vrf {} direct",
+			"shVRF":"show vrf all",
 		},
 		"IOS":{
 			"Match":" IOS ",
@@ -81,6 +93,10 @@ dictBaseCmd = {
 			"IPv6-VRF-Receive":"show ip bgp vpnv6 unicast vrf {} neighbors {} routes",
 			"IPv6-GT-Description":"show ip bgp ipv6 unicast neighbors {} | include Description:",
 			"IPv6-VRF-Description":"show ip bgp vpnv6 unicast vrf {} neighbors {} | include Description:",
+			"IPv4-GT-Direct":"show ip route connected",
+			"IPv4-VRF-Direct":"show ip route vrf {} connected",
+			"IPv6-GT-Direct":"show ipv6 route connected",
+			"IPv6-VRF-Direct":"show ipv6 route vrf {} connected",
 			"shVRF":"show vrf brief"
 		}
 	}
@@ -124,9 +140,88 @@ def CollectVRFs():
 	LogEntry ("VRF's Collected: {}".format(lstVRFs))
 	return lstVRFs
 
+def ProcessDirectIPv4 (strOutputList, strVRF):
+	i = 0
+	iNeighborID = 0
+
+	LogEntry ("There are {} lines in the show ip route connected output".format(len(strOutputList)))
+	strSQL = "select iNeighborID from networks.tblneighbors where vcNeighborIP = '{}-{}-directly'".format(strHostname,strVRF)
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		LogEntry ("Unexpected: {}".format(lstReturn))
+		return lstReturn
+	elif lstReturn[0] != 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+	else:
+		iNeighborID = lstReturn[1][0][0]
+
+	for strLine in strOutputList:
+		strSubnet = ""
+		if "Exception:" in strLine:
+			LogEntry ("Found an exception message, aborting analysis")
+			break
+		if len(strLine) > 0:
+			if strLine[0] == "%":
+				LogEntry ("Error: {}".format(strLine))
+				break
+		if strHostVer == "IOS-XR" or strHostVer == "IOS-XE" or strHostVer == "IOS":
+			strLineTokens = strLine.split()
+			if len(strLineTokens) > 5:
+				if strLineTokens[1].count(".") == 3 and "/" in strLineTokens[1] and strLineTokens[3] == "directly" and strLineTokens[0].strip()=="C" :
+					strSubnet = strLineTokens[1].strip()
+		if strHostVer == "Nexus" :
+			strLineTokens = strLine.split(",")
+			if len(strLineTokens) > 1:
+				if strLineTokens[0].count(".") == 3 and "/" in strLineTokens[0] :
+					strSubnet = strLineTokens[0].strip()
+
+		if iNeighborID > 0 and strSubnet !="":
+			dictIPInfo = IPCalc (strSubnet)
+			if "iDecSubID" in dictIPInfo:
+				iDecSubID = dictIPInfo['iDecSubID']
+			else:
+				iDecSubID = -10
+			if "iDecBroad" in dictIPInfo:
+				iDecBroad = dictIPInfo['iDecBroad']
+			else:
+				iDecBroad = -10
+			if "Hostcount" in dictIPInfo:
+				iHostcount = dictIPInfo['Hostcount']
+			else:
+				iHostcount = -10
+			if "IPError" in dictIPInfo:
+				LogEntry (dictIPInfo['IPError'])
+			if iDecSubID > 0 and iHostcount > 4:
+				strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver,iSubnetStart,iSubnetEnd, iHostCount)"
+				" VALUES ({0},'{1}','{2}',{3},{4},{5});".format(iNeighborID,strSubnet,"IPv4",iDecSubID,iDecBroad,iHostcount))
+				lstReturn = SQLQuery (strSQL,dbConn)
+				if not ValidReturn(lstReturn):
+					LogEntry ("Unexpected: {}".format(lstReturn))
+				elif lstReturn[0] != 1:
+					LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+				i += 1
+
+	LogEntry ("Collected {} directly connected routes".format(i))
+	strSQL = "update networks.tblneighbors set iRcvdCount = '{}' where iNeighborID = {}".format(i,iNeighborID)
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		LogEntry ("Unexpected: {}".format(lstReturn))
+	elif lstReturn[0] != 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+
 def AnalyzeIPv4Results(strOutputList, strVRF):
 	dictIPv4Peers = {}
 	bNeighborSection = False
+
+	strSQL = ("INSERT INTO networks.tblneighbors (iRouterID,vcNeighborIP,iRemoteAS,vcVRF,iRcvdCount,vcDescription)"
+		" VALUES ({0},'{1}-{3}-directly',{2},'{3}',{4},'{1} VRF {3} directly connected routes');".format(iHostID,strHostname,0,strVRF,0))
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		LogEntry ("Unexpected: {}".format(lstReturn))
+	elif lstReturn[0] != 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+	else:
+		LogEntry ("Successfully added entry to tblneighbors for direct connected")
 
 	LogEntry ("There are {} lines in the show bgp IPv4 summary output".format(len(strOutputList)))
 	for strLine in strOutputList:
@@ -282,16 +377,20 @@ def AnalyzeIPv4Routes(strOutList,strVRF,strPeerIP,strHostname,strDescr):
 				iDecBroad = dictIPInfo['iDecBroad']
 			else:
 				iDecBroad = -10
+			if "Hostcount" in dictIPInfo:
+				iHostcount = dictIPInfo['Hostcount']
+			else:
+				iHostcount = -10
 			if "IPError" in dictIPInfo:
 				LogEntry (dictIPInfo['IPError'])
-			if iDecSubID > 0:
-				strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver,iSubnetStart,iSubnetEnd)"
-				" VALUES ({0},'{1}','{2}',{3},{4});".format(iNeighborID,strRcvdPrefix,"IPv4",iDecSubID,iDecBroad))
-			lstReturn = SQLQuery (strSQL,dbConn)
-			if not ValidReturn(lstReturn):
-				LogEntry ("Unexpected: {}".format(lstReturn))
-			elif lstReturn[0] != 1:
-				LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+			if iDecSubID > 0 and iHostcount > 4:
+				strSQL = ("INSERT INTO networks.tblsubnets (iNeighborID,vcSubnet,vcIPver,iSubnetStart,iSubnetEnd, iHostCount)"
+					" VALUES ({0},'{1}','{2}',{3},{4},{5});".format(iNeighborID,strRcvdPrefix,"IPv4",iDecSubID,iDecBroad,iHostcount))
+				lstReturn = SQLQuery (strSQL,dbConn)
+				if not ValidReturn(lstReturn):
+					LogEntry ("Unexpected: {}\n{}".format(lstReturn,strSQL))
+				elif lstReturn[0] != 1:
+					LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
 # end function AnalyzeIPv4Routes
 
@@ -596,11 +695,16 @@ def IPv4Peers():
 
 	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Summary"])
 	dictIPv4Peers = AnalyzeIPv4Results(strOut.splitlines(),"Global Table")
+	strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-GT-Direct"].format("Global Table"))
+	ProcessDirectIPv4(strOut.splitlines(),"Global Table")
 
 	for strVRF in lstVRFs:
 		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Summary"].format(strVRF))
 		dictTemp = AnalyzeIPv4Results(strOut.splitlines(),strVRF)
 		dictIPv4Peers.update(dictTemp)
+		strOut = ValidateRetry(strHostname,dictBaseCmd[strHostVer]["IPv4-VRF-Direct"].format(strVRF))
+		ProcessDirectIPv4(strOut.splitlines(),strVRF)
+
 	LogEntry ("Gathering details on {} IPv4 Peers.".format(len(dictIPv4Peers)))
 	iCurPeer = 0
 	for strPeerIP in dictIPv4Peers:
@@ -763,7 +867,8 @@ dictDevices={}
 lstVRFs=[]
 lstFailedDevsName = []
 lstRequiredElements=["Match","IPv4-GT-Summary","IPv4-VRF-Summary","IPv4-GT-Receive","IPv4-VRF-Receive","IPv4-GT-Description","IPv4-VRF-Description",
-				     "shVRF","IPv6-GT-Summary","IPv6-VRF-Summary","IPv6-GT-Receive","IPv6-VRF-Receive","IPv6-GT-Description","IPv6-VRF-Description"]
+				     "shVRF","IPv6-GT-Summary","IPv6-VRF-Summary","IPv6-GT-Receive","IPv6-VRF-Receive","IPv6-GT-Description","IPv6-VRF-Description",
+				     "IPv4-GT-Direct","IPv4-VRF-Direct","IPv6-GT-Direct","IPv6-VRF-Direct"]
 
 strHostname = ""
 strLine = "  "
