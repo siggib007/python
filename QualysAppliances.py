@@ -283,12 +283,23 @@ def CollectApplianceData (dictTemp):
 	dictOut["intGW2"] = str(iIPGW)
 	dictOut["StaticRoute"] = []
 	dictStatic = {}
+	dictOut["ScanInt"] = "indeterment"
 	if isinstance(dictTemp["STATIC_ROUTES"],type(None)):
 		iStaticCount = 0
 	elif isinstance(dictTemp["STATIC_ROUTES"]["ROUTE"],list):
 		iStaticCount = len (dictTemp["STATIC_ROUTES"]["ROUTE"])
 		for dictRoute in dictTemp["STATIC_ROUTES"]["ROUTE"]:
 			dictStatic.clear()
+			if dictRoute["GATEWAY"] == dictOut["GW1"]:
+				if dictOut["ScanInt"] == "Int2":
+					dictOut["ScanInt"] = "Both"
+				if dictOut["ScanInt"] == "indeterment":
+					dictOut["ScanInt"] = "Int1"
+			if dictRoute["GATEWAY"] == dictOut["GW2"]:
+				if dictOut["ScanInt"] == "Int1":
+					dictOut["ScanInt"] = "Both"
+				if dictOut["ScanInt"] == "indeterment":
+					dictOut["ScanInt"] = "Int2"
 			dictStatic["NetBlock"] = dictRoute["IP_ADDRESS"] + "/" + str(ValidMask(dictRoute["NETMASK"]))
 			dictStatic["intSubnetID"] = DotDec2Int(dictRoute["IP_ADDRESS"])
 			dictStatic["NextHop"] = dictRoute["GATEWAY"]
@@ -298,6 +309,16 @@ def CollectApplianceData (dictTemp):
 		iStaticCount = 1
 		dictRoute = dictTemp["STATIC_ROUTES"]["ROUTE"]
 		dictStatic.clear()
+		if dictRoute["GATEWAY"] == dictOut["GW1"]:
+			if dictOut["ScanInt"] == "Int2":
+				dictOut["ScanInt"] = "Both"
+			if dictOut["ScanInt"] == "indeterment":
+				dictOut["ScanInt"] = "Int1"
+		if dictRoute["GATEWAY"] == dictOut["GW2"]:
+			if dictOut["ScanInt"] == "Int1":
+				dictOut["ScanInt"] = "Both"
+			if dictOut["ScanInt"] == "indeterment":
+				dictOut["ScanInt"] = "Int2"
 		dictStatic["NetBlock"] = dictRoute["IP_ADDRESS"] + "/" + str(ValidMask(dictRoute["NETMASK"]))
 		dictStatic["intSubnetID"] = DotDec2Int(dictRoute["IP_ADDRESS"])
 		dictStatic["NextHop"] = dictRoute["GATEWAY"]
@@ -308,7 +329,31 @@ def CollectApplianceData (dictTemp):
 	return dictOut
 
 def UpdateDB (dictAppliance):
-	pass
+	strSQL = "delete from networks.tblappliances where iApplianceID = {};".format(dictAppliance["ID"])
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		LogEntry ("Unexpected: {}".format(lstReturn))
+	elif lstReturn[0] == 0:
+		LogEntry("Adding new appliance")
+	elif lstReturn[0] > 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+	else:
+		LogEntry ("Deleted existing appliance, now reinserted it.")
+
+	strSQL = ("INSERT INTO networks.tblappliances (iApplianceID,vcUUID,vcName,vcState,vcModel,vcType,vcSerialNum,vcIPAddr1,vcGW1,iIPaddr1,iGW1,vcInt2State,vcIPAddr2,vcGW2,iIPAddr2,iGW2,vcScanningInt) "
+				"VALUES({0},'{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}','{11}','{12}','{13}','{14}','{15}','{16}');".format(dictAppliance["ID"],dictAppliance["UUID"],dictAppliance["name"],dictAppliance["state"],
+					dictAppliance["model"],dictAppliance["type"],dictAppliance["SN"],dictAppliance["IPaddr1"],dictAppliance["GW1"],dictAppliance["intIP1"],dictAppliance["intGW1"],
+					dictAppliance["Int2State"],dictAppliance["IPaddr2"],dictAppliance["GW2"],dictAppliance["intIP2"],dictAppliance["intGW2"],dictAppliance["ScanInt"])
+			  )
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		LogEntry ("Unexpected: {}".format(lstReturn))
+	elif lstReturn[0] != 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+	for dictRoute in dictAppliance["StaticRoute"]:
+		strSQL = ("INSERT INTO networks.tblscan_routes (iApplianceID,vcNetBlock,vcNextHop,iNetBlock,iNextHop) "
+					"VALUES ({0},'{1}','{2}',{3},{4}) ".format(dictAppliance["ID"],dictRoute["NetBlock"],dictRoute["NextHop"],dictRoute["intSubnetID"],dictRoute["intGW"]))
+
 
 print ("This is a Qualys Appliance API script. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 
@@ -321,7 +366,7 @@ else:
 
 strLine = "  "
 print ("Reading in configuration")
-objINIFile = open("QSInput.txt","r")
+objINIFile = open("QSAppliance.txt","r")
 strLines = objINIFile.readlines()
 objINIFile.close()
 
@@ -337,6 +382,14 @@ for strLine in strLines:
 			strUserName = strConfParts[1]
 		if strConfParts[0] == "QUserPWD":
 			strPWD = strConfParts[1]
+		if strConfParts[0] == "Server":
+			strServer = strConfParts[1]
+		if strConfParts[0] == "Database":
+			strInitialDB = strConfParts[1]
+		if strConfParts[0] == "dbUser":
+			strDBUser = strConfParts[1]
+		if strConfParts[0] == "dbPWD":
+			strDBPWD = strConfParts[1]
 
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 
