@@ -274,8 +274,8 @@ def CollectApplianceData (dictTemp):
 		iIPGW = DotDec2Int(dictInt2["GATEWAY"])
 	else:
 		strIPAddr2 = ""
-		iIPAddr2 = ""
-		iIPGW = ""
+		iIPAddr2 = 0
+		iIPGW = 0
 		strGWaddr = ""
 	dictOut["IPaddr2"] = strIPAddr2
 	dictOut["intIP2"] = str(iIPAddr2)
@@ -325,7 +325,7 @@ def CollectApplianceData (dictTemp):
 		dictStatic["intGW"] = DotDec2Int(dictRoute["GATEWAY"])
 		dictOut["StaticRoute"].append(dictStatic.copy())
 
-	print ("{} is {} and is a {} device, it has {} static routes.".format(dictOut["name"],dictOut["state"],dictOut["type"],iStaticCount))
+	# print ("{} is {} and is a {} device, it has {} static routes.".format(dictOut["name"],dictOut["state"],dictOut["type"],iStaticCount))
 	return dictOut
 
 def UpdateDB (dictAppliance):
@@ -333,12 +333,12 @@ def UpdateDB (dictAppliance):
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		LogEntry ("Unexpected: {}".format(lstReturn))
-	elif lstReturn[0] == 0:
-		LogEntry("Adding new appliance")
-	elif lstReturn[0] > 1:
+	# elif lstReturn[0] == 0:
+	# 	LogEntry("Adding new appliance")
+	# elif lstReturn[0] > 1:
 		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-	else:
-		LogEntry ("Deleted existing appliance, now reinserted it.")
+	# else:
+	# 	LogEntry ("Deleted existing appliance, now reinserted it.")
 
 	strSQL = ("INSERT INTO networks.tblappliances (iApplianceID,vcUUID,vcName,vcState,vcModel,vcType,vcSerialNum,vcIPAddr1,vcGW1,iIPaddr1,iGW1,vcInt2State,vcIPAddr2,vcGW2,iIPAddr2,iGW2,vcScanningInt) "
 				"VALUES({0},'{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}','{11}','{12}','{13}','{14}','{15}','{16}');".format(dictAppliance["ID"],dictAppliance["UUID"],dictAppliance["name"],dictAppliance["state"],
@@ -354,6 +354,15 @@ def UpdateDB (dictAppliance):
 		strSQL = ("INSERT INTO networks.tblscan_routes (iApplianceID,vcNetBlock,vcNextHop,iNetBlock,iNextHop) "
 					"VALUES ({0},'{1}','{2}',{3},{4}) ".format(dictAppliance["ID"],dictRoute["NetBlock"],dictRoute["NextHop"],dictRoute["intSubnetID"],dictRoute["intGW"]))
 
+def LogEntry(strMsg):
+	print (strMsg)
+	strMsg = strMsg.replace("\\","\\\\")
+	strMsg = strMsg.replace("'","\\'")
+	lstReturn=SQLQuery("insert into networks.tbllogs (vcRouterName,vcLogEntry,iSessionID) VALUES('Appliance Update','{}',-25);".format(strMsg),dbConn)
+	if not ValidReturn(lstReturn):
+		print ("Unexpected: {}".format(lstReturn))
+	elif lstReturn[0] != 1:
+		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
 print ("This is a Qualys Appliance API script. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 
@@ -403,8 +412,6 @@ if isinstance(APIResponse,str):
 	print(APIResponse)
 elif isinstance(APIResponse,dict):
 	if "APPLIANCE_LIST" in APIResponse["APPLIANCE_LIST_OUTPUT"]["RESPONSE"]:
-		objFileOut = open("c:/temp/QualysAppliance.csv" ,"w")
-		objFileOut.write ("Name,ID,UUID,Status,Model,Type,Serial Number,Int1 IP,iIP1,Int1 GW,iGWIP1,Int2 Status,Int2 IP,iIP2,Int2 GW,iGWIP2,Static Routes -> next hop\n")
 		if isinstance(APIResponse["APPLIANCE_LIST_OUTPUT"]["RESPONSE"]["APPLIANCE_LIST"]["APPLIANCE"],list):
 			print ("Number of appliances: {}".format(len(APIResponse["APPLIANCE_LIST_OUTPUT"]["RESPONSE"]["APPLIANCE_LIST"]["APPLIANCE"])))
 			for dictTemp in APIResponse["APPLIANCE_LIST_OUTPUT"]["RESPONSE"]["APPLIANCE_LIST"]["APPLIANCE"]:
