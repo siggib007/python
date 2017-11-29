@@ -332,13 +332,9 @@ def UpdateDB (dictAppliance):
 	strSQL = "delete from networks.tblappliances where iApplianceID = {};".format(dictAppliance["ID"])
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
-		LogEntry ("Unexpected: {}".format(lstReturn))
-	# elif lstReturn[0] == 0:
-	# 	LogEntry("Adding new appliance")
-	# elif lstReturn[0] > 1:
-		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-	# else:
-	# 	LogEntry ("Deleted existing appliance, now reinserted it.")
+		print ("Unexpected: {}".format(lstReturn))
+	elif lstReturn[0] > 1:
+		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
 	strSQL = ("INSERT INTO networks.tblappliances (iApplianceID,vcUUID,vcName,vcState,vcModel,vcType,vcSerialNum,vcIPAddr1,vcGW1,iIPaddr1,iGW1,vcInt2State,vcIPAddr2,vcGW2,iIPAddr2,iGW2,vcScanningInt) "
 				"VALUES({0},'{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}','{11}','{12}','{13}','{14}','{15}','{16}');".format(dictAppliance["ID"],dictAppliance["UUID"],dictAppliance["name"],dictAppliance["state"],
@@ -347,22 +343,17 @@ def UpdateDB (dictAppliance):
 			  )
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
-		LogEntry ("Unexpected: {}".format(lstReturn))
-	elif lstReturn[0] != 1:
-		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-	for dictRoute in dictAppliance["StaticRoute"]:
-		strSQL = ("INSERT INTO networks.tblscan_routes (iApplianceID,vcNetBlock,vcNextHop,iNetBlock,iNextHop) "
-					"VALUES ({0},'{1}','{2}',{3},{4}) ".format(dictAppliance["ID"],dictRoute["NetBlock"],dictRoute["NextHop"],dictRoute["intSubnetID"],dictRoute["intGW"]))
-
-def LogEntry(strMsg):
-	print (strMsg)
-	strMsg = strMsg.replace("\\","\\\\")
-	strMsg = strMsg.replace("'","\\'")
-	lstReturn=SQLQuery("insert into networks.tbllogs (vcRouterName,vcLogEntry,iSessionID) VALUES('Appliance Update','{}',-25);".format(strMsg),dbConn)
-	if not ValidReturn(lstReturn):
 		print ("Unexpected: {}".format(lstReturn))
 	elif lstReturn[0] != 1:
 		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+	for dictRoute in dictAppliance["StaticRoute"]:
+		strSQL = ("INSERT INTO networks.tblscan_routes (iApplianceID,vcNetBlock,vcNextHop,iNetBlock,iNextHop) "
+					"VALUES ({0},'{1}','{2}',{3},{4}) ".format(dictAppliance["ID"],dictRoute["NetBlock"],dictRoute["NextHop"],dictRoute["intSubnetID"],dictRoute["intGW"]))
+		lstReturn = SQLQuery (strSQL,dbConn)
+		if not ValidReturn(lstReturn):
+			print ("Unexpected: {}".format(lstReturn))
+		elif lstReturn[0] != 1:
+			print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
 print ("This is a Qualys Appliance API script. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 
@@ -423,3 +414,5 @@ elif isinstance(APIResponse,dict):
 		print ("There are no appliances")
 else:
 	print ("API Response neither a dictionary nor a string. Here is what I got: {}".format(APIResponse))
+
+print ("Done processing")
