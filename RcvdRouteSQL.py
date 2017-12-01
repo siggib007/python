@@ -958,8 +958,18 @@ else:
 	LogEntry ("Fetched {} rows".format(lstRouters[0]))
 
 if lstRouters[0] == 0:
-	LogEntry ("Nothing to do, exiting")
-	sys.exit(9)
+	strSQL = ("SELECT iRouterID,vcHostName FROM networks.tblrouterlist"
+		" where dtLastSuccess < now() - interval {} day or dtLastSuccess is null"
+		" order by dtLastSuccess limit {};".format(iNumDays, iBatchSize))
+	lstRouters = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstRouters):
+		LogEntry ("Unexpected: {}".format(lstRouters))
+		sys.exit(8)
+	else:
+		LogEntry ("Fetched {} rows".format(lstRouters[0]))
+	if lstRouters[0] == 0:
+		LogEntry ("Nothing to do, exiting")
+		sys.exit(9)
 
 if strSaveLoc[-1:] != "\\":
 	strSaveLoc += "\\"
@@ -994,6 +1004,8 @@ for dbRow in lstRouters[1]:
 	iAuthFail = 0
 	strHostname = dbRow[1]
 	iHostID = dbRow[0]
+	strHostname = strHostname.upper()
+	LogEntry ("Processing {} ...".format(strHostname))
 	strSQL = "delete from networks.tblneighbors where iRouterID = {};".format(iHostID)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
@@ -1003,23 +1015,25 @@ for dbRow in lstRouters[1]:
 	else:
 		LogEntry ("Deleted {} neighbors".format(lstReturn[0]))
 
-	strHostname = strHostname.upper()
-	LogEntry ("Processing {} ...".format(strHostname))
 
 	strHostVer = OSDetect()
-	LogEntry ("Found Router OS version to be {}".format(strHostVer))
-	dictDevices[strHostname] = strHostVer
-	strSQL = "update networks.tblrouterlist set dtUpdateStarted = now(), dtUpdateCompleted=null, vcOS = '{}', iSessionID={} where iRouterID = {};".format(strHostVer,iSessID,iHostID)
-	lstReturn = SQLQuery (strSQL,dbConn)
-	if not ValidReturn(lstReturn):
-		LogEntry ("Unexpected: {}".format(lstReturn))
-		bAbort = True
-		break
-	elif lstReturn[0] != 1:
-		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+	if bDevOK:
+		LogEntry ("Found Router OS version to be {}".format(strHostVer))
+		dictDevices[strHostname] = strHostVer
+		strSQL = "update networks.tblrouterlist set dtUpdateStarted = now(), dtUpdateCompleted=null, vcOS = '{}', iSessionID={} where iRouterID = {};".format(strHostVer,iSessID,iHostID)
+		lstReturn = SQLQuery (strSQL,dbConn)
+		if not ValidReturn(lstReturn):
+			LogEntry ("Unexpected: {}".format(lstReturn))
+			bAbort = True
+			break
+		elif lstReturn[0] != 1:
+			LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+	# else:
+	# 	LogEntry ("Failed to connect to the device, moving on ")
 
 	if strHostVer == "Unknown":
-		LogEntry("Can't process unknown platform")
+		if bDevOK:
+			LogEntry("Can't process unknown platform")
 		continue
 	if bDevOK:
 		lstVRFs = CollectVRFs()
@@ -1029,6 +1043,14 @@ for dbRow in lstRouters[1]:
 		IPv6Peers()
 	if bDevOK:
 		strSQL = "update networks.tblrouterlist set dtLastSuccess = now(), dtUpdateCompleted=now() where iRouterID = {};".format(iHostID)
+		lstReturn = SQLQuery (strSQL,dbConn)
+		if not ValidReturn(lstReturn):
+			LogEntry ("Unexpected: {}".format(lstReturn))
+			break
+		elif lstReturn[0] != 1:
+			LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+	else:
+		strSQL = "update networks.tblrouterlist set dtUpdateCompleted=now() where iRouterID = {};".format(iHostID)
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
 			LogEntry ("Unexpected: {}".format(lstReturn))
