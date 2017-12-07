@@ -1006,21 +1006,28 @@ for dbRow in lstRouters[1]:
 	iHostID = dbRow[0]
 	strHostname = strHostname.upper()
 	LogEntry ("Processing {} ...".format(strHostname))
-	strSQL = "delete from networks.tblneighbors where iRouterID = {};".format(iHostID)
+
+	strSQL = "update networks.tblrouterlist set dtUpdateStarted = now(), iSessionID={} where iRouterID = {};".format(iSessID,iHostID)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		LogEntry ("Unexpected: {}".format(lstReturn))
 		bAbort = True
 		break
-	else:
-		LogEntry ("Deleted {} neighbors".format(lstReturn[0]))
-
-
+	elif lstReturn[0] != 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 	strHostVer = OSDetect()
 	if bDevOK:
 		LogEntry ("Found Router OS version to be {}".format(strHostVer))
+		strSQL = "delete from networks.tblneighbors where iRouterID = {};".format(iHostID)
+		lstReturn = SQLQuery (strSQL,dbConn)
+		if not ValidReturn(lstReturn):
+			LogEntry ("Unexpected: {}".format(lstReturn))
+			bAbort = True
+			break
+		else:
+			LogEntry ("Deleted {} neighbors".format(lstReturn[0]))
 		dictDevices[strHostname] = strHostVer
-		strSQL = "update networks.tblrouterlist set dtUpdateStarted = now(), dtUpdateCompleted=null, vcOS = '{}', iSessionID={} where iRouterID = {};".format(strHostVer,iSessID,iHostID)
+		strSQL = "update networks.tblrouterlist set vcOS = '{}', iSessionID={} where iRouterID = {};".format(strHostVer,iSessID,iHostID)
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
 			LogEntry ("Unexpected: {}".format(lstReturn))
@@ -1028,13 +1035,14 @@ for dbRow in lstRouters[1]:
 			break
 		elif lstReturn[0] != 1:
 			LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-	# else:
-	# 	LogEntry ("Failed to connect to the device, moving on ")
+	else:
+		LogEntry ("Failed to connect to the device, moving on ")
 
 	if strHostVer == "Unknown":
 		if bDevOK:
 			LogEntry("Can't process unknown platform")
-		continue
+			bDevOK = False
+		# continue
 	if bDevOK:
 		lstVRFs = CollectVRFs()
 	if bCollectv4 and bDevOK:
@@ -1072,7 +1080,7 @@ if not bAbort:
 			strdev = "device"
 		else:
 			strdev = "devices"
-		LogEntry ("Failed to complete {} {}, {}, due to errors.".format(len(lstFailedDevsName),strdev,",".join(lstFailedDevsName)))
+		LogEntry ("Failed to complete {} {}, {}.".format(len(lstFailedDevsName),strdev,",".join(lstFailedDevsName)))
 	else:
 		LogEntry ("All devices in the batch completed successfully")
 
