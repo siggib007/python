@@ -42,7 +42,7 @@ def SQLQuery (strSQL,db):
 		dbCursor.execute(strSQL)
 		# Count rows
 		iRowCount = dbCursor.rowcount
-		if strSQL[:6].lower() == "select":
+		if strSQL[:6].lower() == "select" or strSQL[:4].lower() == "call":
 			dbResults = dbCursor.fetchall()
 		else:
 			db.commit()
@@ -266,6 +266,8 @@ def CollectApplianceData (dictTemp):
 	dictOut["intIP1"] = str(iIPAddr1)
 	dictOut["GW1"] = dictInt1["GATEWAY"]
 	dictOut["intGW1"] = str(DotDec2Int(dictInt1["GATEWAY"]))
+	dictOut["DNS1-1"] = dictInt1["DNS"]["PRIMARY"]
+	dictOut["DNS1-2"] = dictInt1["DNS"]["SECONDARY"]
 	dictOut["Int2State"] = dictInt2["SETTING"]
 	if isinstance(dictInt2["IP_ADDRESS"],str):
 		strIPAddr2 = dictInt2["IP_ADDRESS"] + "/" + str(ValidMask(dictInt2["NETMASK"]))
@@ -281,6 +283,9 @@ def CollectApplianceData (dictTemp):
 	dictOut["intIP2"] = str(iIPAddr2)
 	dictOut["GW2"] = strGWaddr
 	dictOut["intGW2"] = str(iIPGW)
+	dictOut["DNS2-1"] = dictInt2["DNS"]["PRIMARY"]
+	dictOut["DNS2-2"] = dictInt2["DNS"]["SECONDARY"]
+	dictOut["ProxyState"] = dictTemp["PROXY_SETTINGS"]["SETTING"]
 	dictOut["StaticRoute"] = []
 	dictStatic = {}
 	dictOut["ScanInt"] = "indeterment"
@@ -324,23 +329,50 @@ def CollectApplianceData (dictTemp):
 		dictStatic["NextHop"] = dictRoute["GATEWAY"]
 		dictStatic["intGW"] = DotDec2Int(dictRoute["GATEWAY"])
 		dictOut["StaticRoute"].append(dictStatic.copy())
-
-	# print ("{} is {} and is a {} device, it has {} static routes.".format(dictOut["name"],dictOut["state"],dictOut["type"],iStaticCount))
 	return dictOut
 
-def UpdateDB (dictAppliance):
-	strSQL = "delete from networks.tblappliances where iApplianceID = {};".format(dictAppliance["ID"])
+def FindNetwork (iIPAddr):
+	strSQL = "call sp_LocateNet({})".format(iIPAddr)
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		print ("Unexpected: {}".format(lstReturn))
-	elif lstReturn[0] > 1:
-		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+		return "error"
+	elif len(lstReturn[1]) > 0:
+		if lstReturn[1][0][2] > 4096:
+			return "indeterment"
+		else:
+			return "{}-{}".format(lstReturn[1][0][1],lstReturn[1][0][0])
+	else:
+		print ("No recordset returned")
+		return "No recordset"
 
-	strSQL = ("INSERT INTO networks.tblappliances (iApplianceID,vcUUID,vcName,vcState,vcModel,vcType,vcSerialNum,vcIPAddr1,vcGW1,iIPaddr1,iGW1,vcInt2State,vcIPAddr2,vcGW2,iIPAddr2,iGW2,vcScanningInt) "
-				"VALUES({0},'{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}','{11}','{12}','{13}','{14}','{15}','{16}');".format(dictAppliance["ID"],dictAppliance["UUID"],dictAppliance["name"],dictAppliance["state"],
-					dictAppliance["model"],dictAppliance["type"],dictAppliance["SN"],dictAppliance["IPaddr1"],dictAppliance["GW1"],dictAppliance["intIP1"],dictAppliance["intGW1"],
-					dictAppliance["Int2State"],dictAppliance["IPaddr2"],dictAppliance["GW2"],dictAppliance["intIP2"],dictAppliance["intGW2"],dictAppliance["ScanInt"])
-			  )
+def UpdateDB (dictAppliance):
+	print ("determining Net1")
+	strNet1 = FindNetwork (dictAppliance["intIP1"])
+	print ("Net 1 found to be {}".format(strNet1))
+	print ("determining Net2")
+	strNet2 = FindNetwork (dictAppliance["intIP2"])
+	print ("Net 2 found to be {}".format(strNet1))
+
+	strSQL = "select * from networks.tblappliances where iApplianceID = {};".format(dictAppliance["ID"])
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		print ("Unexpected: {}".format(lstReturn))
+	elif lstReturn[0] == 0:
+		print ("Adding appliance {} {}".format(dictAppliance["ID"],dictAppliance["name"]))
+		strSQL = ("INSERT INTO networks.tblappliances (iApplianceID,vcUUID,vcName,vcState,vcModel,vcType,vcSerialNum,vcIPAddr1,vcGW1,iIPaddr1,iGW1,vcInt2State,vcIPAddr2,vcGW2,iIPAddr2,iGW2,vcScanningInt,"
+					"vcDNS1-1,vcDNS1-2,vcDNS2-1,vcDNS2-2,vcNet1,vcNet2,vcProxyState) "
+					"VALUES({0},'{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}','{11}','{12}','{13}','{14}','{15}','{16}','{17}','{18}','{19}','{20}','{21}','{22}','{23}');".format(
+						dictAppliance["ID"],dictAppliance["UUID"],dictAppliance["name"],dictAppliance["state"],dictAppliance["model"],dictAppliance["type"],dictAppliance["SN"],dictAppliance["IPaddr1"],
+						dictAppliance["GW1"],dictAppliance["intIP1"],dictAppliance["intGW1"],dictAppliance["Int2State"],dictAppliance["IPaddr2"],dictAppliance["GW2"],dictAppliance["intIP2"],
+						dictAppliance["intGW2"],dictAppliance["ScanInt"],dictAppliance["DNS1-1"],dictAppliance["DNS1-2"],dictAppliance["DNS2-1"],dictAppliance["DNS2-2"],strNet1,strNet2,dictAppliance["ProxyState"])
+				  )
+	elif lstReturn[0] == 1:
+		print ("Appliance {} exists, need to update {}".format(dictAppliance["ID"],dictAppliance["name"]))
+	else:
+		print ("Something is horrible wrong, there are {} appliance with ID of {}".format(lstReturn[0],dictAppliance["ID"]))
+		return "Abort!!!"
+
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		print ("Unexpected: {}".format(lstReturn))

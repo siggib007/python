@@ -18,6 +18,7 @@ pip install pymysql
 iMaxError = 6 # How many times can we experience an error on a single device before marking the device failed and moving on, 0 based
 iMaxAuthFail = 2 # How many auth failures can happen in a row. Zero based.
 iMaxDevAuthFail = 2 # If running non interactively after how many devive experiencing auth failure does the script bail, zero based
+lstExcludeAS = [65137, 3356]
 dictBaseCmd = {
 		"IOS-XR":{
 			"Match":"IOS XR",
@@ -243,7 +244,7 @@ def AnalyzeIPv4Results(strOutputList, strVRF):
 						iRemoteAS = strLineTokens[2]
 						strCount = str(strLineTokens[9])
 						strPeerIP = strLineTokens[0]
-						if iRemoteAS != iLocalAS and isInt(strCount) and iRemoteAS !=65137:
+						if iRemoteAS != iLocalAS and isInt(strCount) and iRemoteAS not in lstExcludeAS:
 							strSQL = ("INSERT INTO networks.tblneighbors (iRouterID,vcNeighborIP,iRemoteAS,vcVRF,iRcvdCount)"
 								" VALUES ({0},'{1}',{2},'{3}',{4});".format(iHostID,strPeerIP,iRemoteAS,strVRF,strCount))
 							lstReturn = SQLQuery (strSQL,dbConn)
@@ -297,7 +298,7 @@ def AnalyzeIPv6Results(strOutputList, strVRF):
 						else:
 							iRemoteAS = strLineTokens[2]
 							strCount = str(strLineTokens[9])
-						if iRemoteAS != iLocalAS and isInt(strCount) and iRemoteAS !=65137:
+						if iRemoteAS != iLocalAS and isInt(strCount) and iRemoteAS not in lstExcludeAS:
 							strSQL = ("INSERT INTO networks.tblneighbors (iRouterID,vcNeighborIP,iRemoteAS,vcVRF,iRcvdCount)"
 								" VALUES ({0},'{1}',{2},'{3}',{4});".format(iHostID,strPeerIP,iRemoteAS,strVRF,strCount))
 							lstReturn = SQLQuery (strSQL,dbConn)
