@@ -358,6 +358,8 @@ def UpdateDB (dictAppliance):
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		print ("Unexpected: {}".format(lstReturn))
+		sys.exit(9)
+		return lstReturn
 	elif lstReturn[0] == 0:
 		print ("Adding appliance {} {}".format(dictAppliance["ID"],dictAppliance["name"]))
 		strSQL = ("INSERT INTO networks.tblappliances (iApplianceID,vcUUID,vcName,vcState,vcModel,vcType,vcSerialNum,vcIPAddr1,vcGW1,iIPaddr1,iGW1,vcInt2State,vcIPAddr2,vcGW2,iIPAddr2,iGW2,vcScanningInt,"
@@ -369,13 +371,23 @@ def UpdateDB (dictAppliance):
 				  )
 	elif lstReturn[0] == 1:
 		print ("Appliance {} exists, need to update {}".format(dictAppliance["ID"],dictAppliance["name"]))
+		strSQL = ("UPDATE networks.tblappliances SET vcUUID = '{}', vcName = '{}', vcState = '{}', vcModel = '{}', vcType = '{}', vcSerialNum = '{}', vcIPAddr1 = '{}', vcGW1 = '{}', iIPaddr1 = '{}', "
+					" iGW1 = '{}', vcInt2State = '{}', vcIPAddr2 = '{}', vcGW2 = '{}', iIPAddr2 = '{}', iGW2 = '{}', vcScanningInt = '{}', vcDNS1-1 = '{}', vcDNS1-2 = '{}', vcNet1 = '{}', vcNet2 = '{}', vcDNS2-1 = '{}', "
+					" vcDNS2-2 = '{}', vcProxyState = '{}' WHERE iApplianceID = '{}';".format(
+						dictAppliance["UUID"],dictAppliance["name"],dictAppliance["state"],dictAppliance["model"],dictAppliance["type"],dictAppliance["SN"],dictAppliance["IPaddr1"],
+						dictAppliance["GW1"],dictAppliance["intIP1"],dictAppliance["intGW1"],dictAppliance["Int2State"],dictAppliance["IPaddr2"],dictAppliance["GW2"],dictAppliance["intIP2"],
+						dictAppliance["intGW2"],dictAppliance["ScanInt"],dictAppliance["DNS1-1"],dictAppliance["DNS1-2"],dictAppliance["DNS2-1"],dictAppliance["DNS2-2"],strNet1,strNet2,
+						dictAppliance["ProxyState"],dictAppliance["ID"]
+						)
+				)
 	else:
 		print ("Something is horrible wrong, there are {} appliance with ID of {}".format(lstReturn[0],dictAppliance["ID"]))
 		return "Abort!!!"
-
 	lstReturn = SQLQuery (strSQL,dbConn)
 	if not ValidReturn(lstReturn):
 		print ("Unexpected: {}".format(lstReturn))
+		sys.exit(9)
+		return lstReturn
 	elif lstReturn[0] != 1:
 		print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 	for dictRoute in dictAppliance["StaticRoute"]:
@@ -384,6 +396,7 @@ def UpdateDB (dictAppliance):
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
 			print ("Unexpected: {}".format(lstReturn))
+			sys.exit(9)
 		elif lstReturn[0] != 1:
 			print ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
