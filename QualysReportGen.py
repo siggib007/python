@@ -21,6 +21,8 @@ import xmltodict
 import urllib.parse as urlparse
 # End imports
 
+strConf_File = "QSInput.txt"
+
 def isInt (CheckValue):
 	# function to safely check if a value can be interpreded as an int
 	if isinstance(CheckValue,int):
@@ -45,7 +47,7 @@ else:
 	print ("Project keyword was not provided and is required to continue. Project keyword can be partial but unique string.\n REQ1234 and 1234 are both acceptable.")
 	strSearchCrit = input("Please provide project keyword: ")
 
-if os.path.isfile("QSInput.txt"):
+if os.path.isfile(strConf_File):
 	print ("Configuration File exists")
 else:
 	print ("Can't find configuration file QSInput.txt, make sure it is the same directory as this script")
@@ -53,7 +55,7 @@ else:
 
 strLine = "  "
 print ("Reading in configuration")
-objINIFile = open("QSInput.txt","r")
+objINIFile = open(strConf_File,"r")
 strLines = objINIFile.readlines()
 objINIFile.close()
 
@@ -115,7 +117,15 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD, strMethod):
 		print ("response is unknown type")
 		sys.exit(5)
 
-	dictResponse = xmltodict.parse(WebRequest.text)
+	if WebRequest.text[:6].lower()=="<html>":
+		print (WebRequest.text)
+		iErrCode = "Unknown"
+		iErrText = "Unexpected error"
+	if iErrCode != "" or WebRequest.status_code !=200:
+		return "There was a problem with your request. HTTP error {} code {} {}".format(WebRequest.status_code,iErrCode,iErrText)
+	else:
+		dictResponse = xmltodict.parse(WebRequest.text)
+
 	if isinstance(dictResponse,dict):
 		if "SIMPLE_RETURN" in dictResponse:
 			try:
@@ -262,11 +272,11 @@ if isinstance(APIResponse,dict):
 	if "SCAN_LIST" in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]:
 		print ("Here are the scans since {}".format(strLastNight))
 		if isinstance(APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"],list):
-			print ("There were {} scans completed.".format(len(APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"])))
+			print ("There were {} scans during that that timeframe.".format(len(APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"])))
 			for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
-				print ("Title: {} Ref: {}".format(scan["TITLE"],scan["REF"]))
-				if strSearchCrit.lower() in scan["TITLE"].lower():
-					print ("  matches {}".format(strSearchCrit))
+				print ("Title: {} Ref: {} Status: {}".format(scan["TITLE"],scan["REF"],scan["STATUS"]["STATE"]))
+				if strSearchCrit.lower() in scan["TITLE"].lower() and scan["STATUS"]["STATE"] == "Finished":
+					print ("   is Finished and matches {}".format(strSearchCrit))
 					strReportID=LaunchReport(scan["TITLE"],scan["REF"])
 					if isInt(strReportID):
 						listReportIDs.append(strReportID)
@@ -274,7 +284,7 @@ if isinstance(APIResponse,dict):
 					else:
 						print (strReportID)
 				else:
-					print ("  does not match {}".format(strSearchCrit))
+					print ("  does not match {} or is not Finished".format(strSearchCrit))
 		else:
 			print ("There was only a single scan completed.")
 			scan = APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]

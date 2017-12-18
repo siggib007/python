@@ -17,17 +17,17 @@ import requests
 import json
 import os
 import string
-import getpass
 import time
 import xmltodict
 # End imports
 
-DefUserName = getpass.getuser()
-print ("This is a Qualys API Sample script. Your windows username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],DefUserName))
+strConf_File = "QSInput.txt"
+
+print ("This is a Qualys API Sample script. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 now = time.asctime()
 print ("The time now is {}".format(now))
 
-if os.path.isfile("QSInput.txt"):
+if os.path.isfile(strConf_File):
 	print ("Configuration File exists")
 else:
 	print ("Can't find configuration file QSInput.txt, make sure it is the same directory as this script")
@@ -35,7 +35,7 @@ else:
 
 strLine = "  "
 print ("Reading in configuration")
-objINIFile = open("QSInput.txt","r")
+objINIFile = open(strConf_File,"r")
 strLines = objINIFile.readlines()
 objINIFile.close()
 
@@ -126,8 +126,17 @@ if isinstance(APIResponse,str):
 	print(APIResponse)
 if isinstance(APIResponse,dict):
 	if "SCAN_LIST" in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]:
-		print ("Here are the scans since {}".format(strLastNight))
-		for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
-			print ("Title: {} Ref: {}".format(scan["TITLE"],scan["REF"]))
+		if isinstance (APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"],list):
+			print ("There are {} scans since {}".format(len(APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]), strLastNight))
+			for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
+				print ("Title: {} Target: {} Ref: {} Status: {}".format(scan["TITLE"],scan["TARGET"],scan["REF"],scan["STATUS"]["STATE"]))
+				if "SUB_STATE" in scan["STATUS"]:
+					print ("     --  Status Details:{}".format(scan["STATUS"]["SUB_STATE"]))
+		else:
+			print ("There is one scan since {}".format(strLastNight))
+			scan = APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]
+			print ("Title: {} Target: {} Ref: {} Status: {}".format(scan["TITLE"],scan["TARGET"],scan["REF"],scan["STATUS"]["STATE"]))
+			if "SUB_STATE" in scan["STATUS"]:
+				print ("     --  Status Details:{}".format(scan["STATUS"]["SUB_STATE"]))
 	else:
 		print ("There are no scans since {}".format(strLastNight))
