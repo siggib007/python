@@ -20,7 +20,7 @@ import xmltodict
 import pymysql
 # End imports
 
-strConf_File = "QSInput.ini"
+strConf_File = "QSAppliance.ini"
 
 
 def SQLConn (strServer,strDBUser,strDBPWD,strInitialDB):
@@ -231,6 +231,7 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD):
 		sys.exit(5)
 	# end if
 
+	print ("Size of response: {}".format(len(WebRequest.text)))
 	dictResponse = xmltodict.parse(WebRequest.text)
 	if isinstance(dictResponse,dict):
 		if "SIMPLE_RETURN" in dictResponse:
@@ -415,7 +416,7 @@ else:
 
 strLine = "  "
 print ("Reading in configuration")
-objINIFile = open("QSAppliance.txt","r")
+objINIFile = open(strConf_File,"r")
 strLines = objINIFile.readlines()
 objINIFile.close()
 
