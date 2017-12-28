@@ -21,7 +21,7 @@ import time
 import xmltodict
 # End imports
 
-strConf_File = "QSInput.txt"
+strConf_File = "QSInput.ini"
 
 print ("This is a Qualys API Sample script. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 now = time.asctime()
@@ -30,7 +30,7 @@ print ("The time now is {}".format(now))
 if os.path.isfile(strConf_File):
 	print ("Configuration File exists")
 else:
-	print ("Can't find configuration file QSInput.txt, make sure it is the same directory as this script")
+	print ("Can't find configuration file {}, make sure it is the same directory as this script".format(strConf_File))
 	sys.exit(4)
 
 strLine = "  "

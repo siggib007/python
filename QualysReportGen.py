@@ -21,7 +21,7 @@ import xmltodict
 import urllib.parse as urlparse
 # End imports
 
-strConf_File = "QSInput.txt"
+strConf_File = "QSInput.ini"
 
 def isInt (CheckValue):
 	# function to safely check if a value can be interpreded as an int
@@ -50,7 +50,7 @@ else:
 if os.path.isfile(strConf_File):
 	print ("Configuration File exists")
 else:
-	print ("Can't find configuration file QSInput.txt, make sure it is the same directory as this script")
+	print ("Can't find configuration file {}, make sure it is the same directory as this script".format(strConf_File))
 	sys.exit(4)
 
 strLine = "  "

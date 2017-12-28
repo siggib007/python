@@ -21,7 +21,7 @@ import time
 import xmltodict
 import urllib.parse as urlparse
 # End imports
-strConf_File = "QualysConf.txt"
+strConf_File = "QualysConf.ini"
 
 dictParams = {}
 dictParams["action"] = "launch"
@@ -38,7 +38,7 @@ print ("The time now is {}".format(now))
 if os.path.isfile(strConf_File):
 	print ("Configuration File exists")
 else:
-	print ("Can't find configuration file QSInput.txt, make sure it is the same directory as this script")
+	print ("Can't find configuration file {}, make sure it is the same directory as this script".format(strConf_File))
 	sys.exit(4)
 
 strLine = "  "
