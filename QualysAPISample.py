@@ -19,10 +19,14 @@ import os
 import string
 import time
 import xmltodict
+import urllib.parse as urlparse
 # End imports
 
-strConf_File = "QualysKBConf.ini"
+strConf_File = "QualysAPI.ini"
+iSizeLimit = 5000000
+strOutFile = "c:\temp\QualysAPIOut.txt"
 
+strAPIFunction = "api/2.0/fo/knowledge_base/vuln"
 dictParams = {}
 dictParams["action"] = "list"
 dictParams["details"] = "Basic"
@@ -56,8 +60,7 @@ for strLine in strLines:
 			strUserName = strConfParts[1]
 		if strConfParts[0] == "QUserPWD":
 			strPWD = strConfParts[1]
-		if strConfParts[0] == "APIFunction":
-			strScanAPI = strConfParts[1]
+
 
 print ("calculating stuff ...")
 strHeader={'X-Requested-With': strHeadReq}
@@ -65,8 +68,8 @@ strHeader={'X-Requested-With': strHeadReq}
 if strBaseURL[-1:] != "/":
 	strBaseURL += "/"
 
-if strScanAPI[-1:] != "/":
-	strScanAPI += "/"
+if strAPIFunction[-1:] != "/":
+	strAPIFunction += "/"
 
 def MakeAPICall (strURL, strHeader, strUserName,strPWD):
 
@@ -85,34 +88,48 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD):
 		print ("response is unknown type")
 		sys.exit(5)
 	# end if
+	print ("call resulted in status code {}".format(WebRequest.status_code))
+	return WebRequest.text
 
-	dictResponse = xmltodict.parse(WebRequest.text)
-	if isinstance(dictResponse,dict):
-		if "SIMPLE_RETURN" in dictResponse:
-			try:
-				if "CODE" in dictResponse["SIMPLE_RETURN"]["RESPONSE"]:
-					iErrCode = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["CODE"]
-					iErrText = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"]
-			except KeyError as e:
-				print ("KeyError: {}".format(e))
-				print (WebRequest.text)
-				iErrCode = "Unknown"
-				iErrText = "Unexpected error"
-	else:
-		print ("Response not a dictionary")
-		sys.exit(8)
+	if len(WebRequest.text) < iSizeLimit :
+		dictResponse = xmltodict.parse(WebRequest.text)
+		if isinstance(dictResponse,dict):
+			if "SIMPLE_RETURN" in dictResponse:
+				try:
+					if "CODE" in dictResponse["SIMPLE_RETURN"]["RESPONSE"]:
+						iErrCode = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["CODE"]
+						iErrText = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"]
+				except KeyError as e:
+					print ("KeyError: {}".format(e))
+					print (WebRequest.text)
+					iErrCode = "Unknown"
+					iErrText = "Unexpected error"
+		else:
+			print ("Response not a dictionary")
+			sys.exit(8)
 
-	if iErrCode != "" or WebRequest.status_code !=200:
-		return "There was a problem with your request. HTTP error {} code {} {}".format(WebRequest.status_code,iErrCode,iErrText)
+		if iErrCode != "" or WebRequest.status_code !=200:
+			return "There was a problem with your request. HTTP error {} code {} {}".format(WebRequest.status_code,iErrCode,iErrText)
+		else:
+			return dictResponse
 	else:
-		return dictResponse
+		return WebRequest.text
 
 
 
 strListScans = urlparse.urlencode(dictParams)
-strURL = strBaseURL + strScanAPI +"?" + strListScans
+strURL = strBaseURL + strAPIFunction +"?" + strListScans
 
 APIResponse = MakeAPICall(strURL,strHeader,strUserName,strPWD)
+
+objFileOut = open(strOutFile,"w")
+objFileOut.write (APIResponse)
+objFileOut.close()
+
+print ("Done")
+
+sys.exit(0)
+
 if isinstance(APIResponse,str):
 	print(APIResponse)
 if isinstance(APIResponse,dict):
