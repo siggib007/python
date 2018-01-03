@@ -24,6 +24,7 @@ import urllib.parse as urlparse
 
 strConf_File = "QualysAPI.ini"
 strAPIFunction = "api/2.0/fo/auth"
+strIPListPathAdd = "IPRanges"
 dictParams = {}
 dictParams["action"] = "list"
 
@@ -55,8 +56,20 @@ for strLine in strLines:
 			strUserName = strConfParts[1]
 		if strConfParts[0] == "QUserPWD":
 			strPWD = strConfParts[1]
+		if strConfParts[0] == "SaveLocation":
+			strSavePath = strConfParts[1]
 
+if strSavePath[-1:] != "\\":
+	strSavePath += "\\"
 
+if strIPListPathAdd[-1:] != "\\":
+	strIPListPathAdd += "\\"
+
+if not os.path.exists (strSavePath+strIPListPathAdd) :
+	os.makedirs(strSavePath+strIPListPathAdd)
+	print ("\nPath '{0}' for output files didn't exists, so I create it!\n".format(strSavePath+strIPListPathAdd))
+
+print ("Saving to: {}".format(strSavePath))
 print ("calculating stuff ...")
 strHeader={'X-Requested-With': strHeadReq}
 if strBaseURL[-1:] != "/":
@@ -107,7 +120,7 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD):
 
 strListScans = urlparse.urlencode(dictParams)
 strURL = strBaseURL + strAPIFunction +"?" + strListScans
-
+dictObjOut = {}
 APIResponse = MakeAPICall(strURL,strHeader,strUserName,strPWD)
 if isinstance(APIResponse,str):
 	print(APIResponse)
@@ -116,12 +129,11 @@ if isinstance(APIResponse,dict):
 		keyAuthRecords = APIResponse["AUTH_RECORDS_OUTPUT"]["RESPONSE"]["AUTH_RECORDS"].keys()
 		for strAuthKey in keyAuthRecords:
 			print ("\n\n" + strAuthKey[:-4])
-			strAuthKeyParts = strAuthKey.split("_")
 			strKeyL1 = strAuthKey[:-4] + "_LIST_OUTPUT"
 			strKeyL2 = "RESPONSE"
 			strKeyL3 = strAuthKey[:-4] + "_LIST"
 			strKeyL4 = strAuthKey[:-4]
-			strURL = strBaseURL + strAPIFunction + strAuthKeyParts[1].lower() +"?" + strListScans
+			strURL = strBaseURL + strAPIFunction + strAuthKey[5:-4].lower() +"/?" + strListScans
 			APIResponse = MakeAPICall(strURL,strHeader,strUserName,strPWD)
 			if isinstance(APIResponse,str):
 				print(APIResponse)
@@ -129,16 +141,52 @@ if isinstance(APIResponse,dict):
 				if strKeyL3 in APIResponse[strKeyL1][strKeyL2]:
 					print ("{} auth records".format (len(APIResponse[strKeyL1][strKeyL2][strKeyL3][strKeyL4])))
 					for AuthRecord in APIResponse[strKeyL1][strKeyL2][strKeyL3][strKeyL4]:
-						strTemp = ""
-						if strAuthKeyParts[1].lower() == "unix":
+						strTemp = " "
+						if strAuthKey[5:-4].lower() not in dictObjOut:
+							dictObjOut[strAuthKey[5:-4].lower()] = open(strSavePath + strAuthKey + ".csv","w")
+							dictObjOut[strAuthKey[5:-4].lower()].write ("AuthID,TITLE,IPRangeCount,SingleIPCount,TotalIPObjects,Other\n")
+						if strAuthKey[5:-4].lower() == "unix":
 							if "SKIP_PASSWORD" in AuthRecord:
 								if AuthRecord["SKIP_PASSWORD"] == "1":
-									strTemp += " : PWDSkip "
+									strTemp += "PWDSkip"
 							else:
-								strTemp += " : NoPWDSkip"
+								strTemp += "NoPWDSkip"
 							if "CLEARTEXT_PASSWORD" in AuthRecord:
 								if AuthRecord["CLEARTEXT_PASSWORD"] == "1":
-									strTemp += " : CLRTXT "
+									strTemp += "CLRTXT"
 							else:
-								strTemp += " : No CLRTXT"
+								strTemp += "No CLRTXT"
 						print ("ID {} : {} {}".format(AuthRecord["ID"],AuthRecord["TITLE"],strTemp))
+						if "IP_SET" in AuthRecord:
+							objFileOut = open(strSavePath+strIPListPathAdd+AuthRecord["ID"]+".txt","w")
+							if "IP_RANGE" in AuthRecord["IP_SET"] :
+								if isinstance (AuthRecord["IP_SET"]["IP_RANGE"] ,list):
+									iRangeCount = len(AuthRecord["IP_SET"]["IP_RANGE"])
+									print ("There are {} IP ranges".format(iRangeCount))
+									for IPRange in AuthRecord["IP_SET"]["IP_RANGE"]:
+										objFileOut.write ("{}\n".format(IPRange))
+								else:
+									objFileOut.write ("{}\n".format(AuthRecord["IP_SET"]["IP_RANGE"]))
+									iRangeCount = 1
+							else:
+								iRangeCount = 0
+							if "IP" in AuthRecord["IP_SET"]:
+								if isinstance (AuthRecord["IP_SET"]["IP"] ,list):
+									iIPCount = len(AuthRecord["IP_SET"]["IP"])
+									print ("There are {} IP addresses".format(iIPCount))
+									for IPAddr in AuthRecord["IP_SET"]["IP"]:
+										objFileOut.write ("{}\n".format(IPAddr))
+								else:
+									iIPCount = 1
+									print ("Single IP address {}".format(AuthRecord["IP_SET"]["IP"]))
+									objFileOut.write ("{}\n".format(AuthRecord["IP_SET"]["IP"]))
+							else:
+								iIPCount = 0
+							objFileOut.close()
+						else:
+							iRangeCount = 0
+							iIPCount = 0
+						dictObjOut[strAuthKey[5:-4].lower()].write("{},{},{},{},{},{}\n".format(AuthRecord["ID"],AuthRecord["TITLE"].replace(","," "),iRangeCount,iIPCount,iRangeCount+iIPCount,strTemp))
+for strObjKey in dictObjOut:
+	print ("Closing {}".format(strObjKey))
+	dictObjOut[strObjKey].close()

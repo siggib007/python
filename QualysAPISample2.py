@@ -23,16 +23,13 @@ import urllib.parse as urlparse
 # End imports
 
 strConf_File = "QualysAPI.ini"
-iSizeLimit = 50000000000000000000000000000000000000000000000
-strOutFile = "c:\\temp\\QualysAPIOut.txt"
+iSizeLimit = 5000000
+strOutFile = "c:\\temp\\QualysAPIOut2.txt"
 
-strAPIFunction = "api/2.0/fo/knowledge_base/vuln"
+strAPIFunction = "api/2.0/fo/auth/unix"
 dictParams = {}
 dictParams["action"] = "list"
-dictParams["details"] = "Basic"
-# dictParams["id_min"] = "1000"
-# dictParams["id_max"] = "1100"
-
+dictParams["ids"] = "27413"
 
 print ("This is a Qualys API Sample script. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 now = time.asctime()
@@ -92,8 +89,10 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD):
 	# end if
 	print ("call resulted in status code {}".format(WebRequest.status_code))
 
-	if len(WebRequest.content) < iSizeLimit :
-		dictResponse = xmltodict.parse(WebRequest.content)
+	if len(WebRequest.text) < iSizeLimit :
+		dictResponse = xmltodict.parse(WebRequest.text)
+		# return dictResponse
+
 		if isinstance(dictResponse,dict):
 			if "SIMPLE_RETURN" in dictResponse:
 				try:
@@ -102,7 +101,7 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD):
 						iErrText = dictResponse["SIMPLE_RETURN"]["RESPONSE"]["TEXT"]
 				except KeyError as e:
 					print ("KeyError: {}".format(e))
-					print (WebRequest.content)
+					print (WebRequest.text)
 					iErrCode = "Unknown"
 					iErrText = "Unexpected error"
 		else:
@@ -114,7 +113,7 @@ def MakeAPICall (strURL, strHeader, strUserName,strPWD):
 		else:
 			return dictResponse
 	else:
-		return WebRequest.content
+		return WebRequest.text
 
 
 
@@ -123,29 +122,33 @@ strURL = strBaseURL + strAPIFunction +"?" + strListScans
 
 APIResponse = MakeAPICall(strURL,strHeader,strUserName,strPWD)
 
-objFileOut = open(strOutFile,"w")
-objFileOut.write ("{}".format(APIResponse))
-objFileOut.close()
+# objFileOut = open(strOutFile,"w")
+# objFileOut.write ("{}".format(APIResponse))
+# objFileOut.close()
 
-print ("Done")
+# print ("Done")
 
-sys.exit(0)
+# sys.exit(0)
 
 if isinstance(APIResponse,str):
 	print(APIResponse)
 if isinstance(APIResponse,dict):
-	if "SCAN_LIST" in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]:
-		if isinstance (APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"],list):
-			print ("There are {} scans since {}".format(len(APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]), strLastNight))
-			for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
-				print ("Title: {} Target: {} Ref: {} Status: {}".format(scan["TITLE"],scan["TARGET"],scan["REF"],scan["STATUS"]["STATE"]))
-				if "SUB_STATE" in scan["STATUS"]:
-					print ("     --  Status Details:{}".format(scan["STATUS"]["SUB_STATE"]))
-		else:
-			print ("There is one scan since {}".format(strLastNight))
-			scan = APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]
-			print ("Title: {} Target: {} Ref: {} Status: {}".format(scan["TITLE"],scan["TARGET"],scan["REF"],scan["STATUS"]["STATE"]))
-			if "SUB_STATE" in scan["STATUS"]:
-				print ("     --  Status Details:{}".format(scan["STATUS"]["SUB_STATE"]))
+	if "AUTH_UNIX_LIST" in APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]:
+		if "TITLE" in APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"] :
+			print ("TITLE: {}".format(APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["TITLE"]))
+		if "IP_RANGE" in APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"] :
+			if isinstance (APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"]["IP_RANGE"] ,list):
+				print ("There are {} IP ranges".format(len(APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"]["IP_RANGE"])))
+				for IPRange in APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"]["IP_RANGE"]:
+					print ("{}".format(IPRange))
+			else:
+				print ("Single IP Range {}".format(APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"]["IP_RANGE"]))
+		if "IP" in APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"] :
+			if isinstance (APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"]["IP"] ,list):
+				print ("There are {} IP addresses".format(len(APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"]["IP"])))
+				for IPRange in APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"]["IP"]:
+					print ("{}".format(IPRange))
+			else:
+				print ("Single IP address {}".format(APIResponse["AUTH_UNIX_LIST_OUTPUT"]["RESPONSE"]["AUTH_UNIX_LIST"]["AUTH_UNIX"]["IP_SET"]["IP"]))
 	else:
-		print ("There are no scans since {}".format(strLastNight))
+		print ("There are no results")
