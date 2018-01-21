@@ -23,19 +23,23 @@ import subprocess as proc
 # End imports
 
 strTextEditor = "subl" #sublime
-#strTextEditor = "notepad"
+# strTextEditor = "notepad"
 
 strConf_File = "QualysAPI.ini"
 strMethod = "post"
 
 strAPIFunction = "api/2.0/fo/auth/unix"
 dictParams = {}
-dictParams["action"] = "update"
-dictParams["ids"] = "126517"
+# dictParams["action"] = "update"
+dictParams["action"] = "create"
+# dictParams["action"] = "delete"
+# dictParams["ids"] = "130625"
+dictParams["title"] = "Siggi's API Auth Windows Test4"
+dictParams["ips"] = "10.93.120.128/25"
+# dictParams["ips"] = "10.93.120.216"
 dictParams["username"] = "MyTesting"
 dictParams["password"] = "qawerewrqwert"
-# dictParams["title"] = "Siggi's API Auth Test3"
-# dictParams["ips"] = "10.93.120.206"
+dictParams["echo_request"]=1
 
 print ("This is a Qualys API Sample script. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 now = time.asctime()
