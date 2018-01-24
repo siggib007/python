@@ -16,6 +16,14 @@ import os
 import string
 import time
 import pymysql
+
+try:
+	import tkinter as tk
+	from tkinter import filedialog
+	btKinterOK = True
+except:
+	print ("Failed to load tkinter, CLI only mode.")
+	btKinterOK = False
 # End imports
 
 
@@ -35,7 +43,12 @@ lsa = len(sys.argv)
 if lsa > 1:
 	strCSVName = sa[1]
 else:
-	strCSVName = input("Please provide full path and filename for the CSV file to be imported: ")
+	if btKinterOK:
+		root = tk.Tk()
+		root.withdraw()
+		strCSVName = filedialog.askopenfilename(title = "Select CSV file",filetypes = (("CSV files","*.csv"),("Text files","*.txt"),("all files","*.*")))
+	else:
+		strCSVName = input("Please provide full path and filename for the CSV file to be imported: ")
 
 if strCSVName =="":
 	print ("No filename provided unable to continue")
@@ -214,6 +227,8 @@ if len(lstFields)>0:
 else:
 	print ("{} has no fields, aborting.".format(strTableName))
 	sys.exit()
+
+print ("Starting import...")
 
 iLineNum = 2
 while strLine:
