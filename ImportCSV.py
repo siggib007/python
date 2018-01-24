@@ -16,16 +16,11 @@ import os
 import string
 import time
 import pymysql
-import tkinter as tk
-from tkinter import filedialog
 # End imports
 
-root = tk.Tk()
-root.withdraw()
 
 strConf_File = "QSAppliance.ini"
 
-strCSVName = "All Servers from SNOW 2018-01-17.csv"
 strInitialDB = "Qualys_Portal"
 strTableName = "tblservicenow"
 bTruncateTable = True   # Truncate the table prior to insert
@@ -33,7 +28,24 @@ bConvertBool = True     # Convert strings true/false into 1 and 0 for insert int
 strDelim = ","          # what is the field seperate in the input file
 iStatusFreq = 1000      # How frequently to print out how many rows have been imported
 
-strCSVName = filedialog.askopenfilename(title = "Select CSV file",filetypes = (("CSV files","*.csv"),("Text files","*.txt"),("all files","*.*")))
+
+sa = sys.argv
+
+lsa = len(sys.argv)
+if lsa > 1:
+	strCSVName = sa[1]
+else:
+	strCSVName = input("Please provide full path and filename for the CSV file to be imported: ")
+
+if strCSVName =="":
+	print ("No filename provided unable to continue")
+	sys.exit()
+
+if os.path.isfile(strCSVName):
+	print ("OK found {}".format(strCSVName))
+else:
+	print ("Can't find CSV file {}".format(strCSVName))
+	sys.exit(4)
 
 print ("This is a script to import csv files. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 now = time.asctime()
