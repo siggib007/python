@@ -49,6 +49,7 @@ def AnalyzeResults(strOutputList):
 	except Exception as err:
 		print ("Generic Exception: {0}".format(err))
 		wsResult.Cells(iOutLineNum,1).Value  = "Generic Exception: {0}".format(err)
+		raise
 
 	wsResult.Cells(iOutLineNum,2).Value = strHostname
 	wsResult.Cells(iOutLineNum,3).Value = strCmdVars[1]
