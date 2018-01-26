@@ -16,6 +16,7 @@ import os
 import string
 import time
 import pymysql
+import csv
 
 try:
 	import tkinter as tk
@@ -27,39 +28,15 @@ except:
 # End imports
 
 
-strConf_File = "QSAppliance.ini"
-
-strInitialDB = "Qualys_Portal"
-strTableName = "tblservicenow"
+# Initialize stuff
+strConf_File = "ImportCSV.ini"
 bTruncateTable = True   # Truncate the table prior to insert
 bConvertBool = True     # Convert strings true/false into 1 and 0 for insert into database boolean field.
 strDelim = ","          # what is the field seperate in the input file
 iStatusFreq = 1000      # How frequently to print out how many rows have been imported
+strCSVName = ""
 
-
-sa = sys.argv
-
-lsa = len(sys.argv)
-if lsa > 1:
-	strCSVName = sa[1]
-else:
-	if btKinterOK:
-		root = tk.Tk()
-		root.withdraw()
-		strCSVName = filedialog.askopenfilename(title = "Select CSV file",filetypes = (("CSV files","*.csv"),("Text files","*.txt"),("all files","*.*")))
-	else:
-		strCSVName = input("Please provide full path and filename for the CSV file to be imported: ")
-
-if strCSVName =="":
-	print ("No filename provided unable to continue")
-	sys.exit()
-
-if os.path.isfile(strCSVName):
-	print ("OK found {}".format(strCSVName))
-else:
-	print ("Can't find CSV file {}".format(strCSVName))
-	sys.exit(4)
-
+#Start doing stuff
 print ("This is a script to import csv files. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
 now = time.asctime()
 print ("The time now is {}".format(now))
@@ -77,7 +54,11 @@ strLines = objINIFile.readlines()
 objINIFile.close()
 
 for strLine in strLines:
-	strLine = strLine.strip()
+	iCommentLoc = strLine.find("#")
+	if iCommentLoc > -1:
+		strLine = strLine[:iCommentLoc].strip()
+	else:
+		strLine = strLine.strip()
 	if "=" in strLine:
 		strConfParts = strLine.split("=")
 		if strConfParts[0] == "APIBaseURL":
@@ -94,6 +75,44 @@ for strLine in strLines:
 			strDBUser = strConfParts[1]
 		if strConfParts[0] == "dbPWD":
 			strDBPWD = strConfParts[1]
+		if strConfParts[0] == "InitialDB":
+			strInitialDB = strConfParts[1]
+		if strConfParts[0] == "TableName":
+			strTableName = strConfParts[1]
+		if strConfParts[0] == "TruncateTable":
+			bTruncateTable = strConfParts[1].lower() == "true"
+		if strConfParts[0] == "ConvertBool":
+			bConvertBool = strConfParts[1].lower() == "true"
+		if strConfParts[0] == "FieldDelim":
+			strDelim = strConfParts[1]
+		if strConfParts[0] == "StatusFreq":
+			iStatusFreq = int(strConfParts[1])
+		if strConfParts[0] == "CSVFileName":
+			strCSVName = strConfParts[1]
+
+sa = sys.argv
+
+lsa = len(sys.argv)
+if lsa > 1:
+	strCSVName = sa[1]
+
+if strCSVName == "":
+	if btKinterOK:
+		root = tk.Tk()
+		root.withdraw()
+		strCSVName = filedialog.askopenfilename(title = "Select CSV file",filetypes = (("CSV files","*.csv"),("Text files","*.txt"),("all files","*.*")))
+	else:
+		strCSVName = input("Please provide full path and filename for the CSV file to be imported: ")
+
+if strCSVName == "":
+	print ("No filename provided unable to continue")
+	sys.exit()
+
+if os.path.isfile(strCSVName):
+	print ("OK found {}".format(strCSVName))
+else:
+	print ("Can't find CSV file {}".format(strCSVName))
+	sys.exit(4)
 
 def SQLConn (strServer,strDBUser,strDBPWD,strInitialDB):
 	try:
@@ -153,6 +172,10 @@ def DBConvertUSdt (strDate):
 def DBClean(strText):
 	if strText.strip() == "":
 		return "NULL"
+	elif isinstance(strText,int):
+		return int(strText)
+	elif isinstance(strText,float):
+		return float(strText)
 	else:
 		strTemp = strText.encode("ascii","ignore")
 		strTemp = strTemp.decode("ascii","ignore")
@@ -217,6 +240,7 @@ else:
 if len(lstFields)>0:
 	iFieldCount = len(lstFields)
 	if bTruncateTable:
+		print ("Truncating exiting table")
 		strSQL = "delete from {};".format(strTableName)
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
