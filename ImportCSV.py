@@ -29,12 +29,13 @@ except:
 
 
 # Initialize stuff
-strConf_File = "ImportCSV.ini"
 bTruncateTable = True   # Truncate the table prior to insert
 bConvertBool = True     # Convert strings true/false into 1 and 0 for insert into database boolean field.
 strDelim = ","          # what is the field seperate in the input file
 iStatusFreq = 1000      # How frequently to print out how many rows have been imported
 strCSVName = ""
+iLoc = sys.argv[0].rfind(".")
+strConf_File = sys.argv[0][:iLoc] + ".ini"
 
 #Start doing stuff
 print ("This is a script to import csv files. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
@@ -61,34 +62,36 @@ for strLine in strLines:
 		strLine = strLine.strip()
 	if "=" in strLine:
 		strConfParts = strLine.split("=")
-		if strConfParts[0] == "APIBaseURL":
-			strBaseURL = strConfParts[1]
-		if strConfParts[0] == "APIRequestHeader":
-			strHeadReq = strConfParts[1]
-		if strConfParts[0] == "QUserID":
-			strUserName = strConfParts[1]
-		if strConfParts[0] == "QUserPWD":
-			strPWD = strConfParts[1]
-		if strConfParts[0] == "Server":
-			strServer = strConfParts[1]
-		if strConfParts[0] == "dbUser":
-			strDBUser = strConfParts[1]
-		if strConfParts[0] == "dbPWD":
-			strDBPWD = strConfParts[1]
-		if strConfParts[0] == "InitialDB":
-			strInitialDB = strConfParts[1]
-		if strConfParts[0] == "TableName":
-			strTableName = strConfParts[1]
-		if strConfParts[0] == "TruncateTable":
-			bTruncateTable = strConfParts[1].lower() == "true"
-		if strConfParts[0] == "ConvertBool":
-			bConvertBool = strConfParts[1].lower() == "true"
-		if strConfParts[0] == "FieldDelim":
-			strDelim = strConfParts[1]
-		if strConfParts[0] == "StatusFreq":
-			iStatusFreq = int(strConfParts[1])
-		if strConfParts[0] == "CSVFileName":
-			strCSVName = strConfParts[1]
+		strVarName = strConfParts[0].strip()
+		strValue = strConfParts[1].strip()
+		if strVarName == "APIBaseURL":
+			strBaseURL = strValue
+		if strVarName == "APIRequestHeader":
+			strHeadReq = strValue
+		if strVarName == "QUserID":
+			strUserName = strValue
+		if strVarName == "QUserPWD":
+			strPWD = strValue
+		if strVarName == "Server":
+			strServer = strValue
+		if strVarName == "dbUser":
+			strDBUser = strValue
+		if strVarName == "dbPWD":
+			strDBPWD = strValue
+		if strVarName == "InitialDB":
+			strInitialDB = strValue
+		if strVarName == "TableName":
+			strTableName = strValue
+		if strVarName == "TruncateTable":
+			bTruncateTable = strValue.lower() == "true"
+		if strVarName == "ConvertBool":
+			bConvertBool = strValue.lower() == "true"
+		if strVarName == "FieldDelim":
+			strDelim = strValue
+		if strVarName == "StatusFreq":
+			iStatusFreq = int(strValue)
+		if strVarName == "CSVFileName":
+			strCSVName = strValue
 
 sa = sys.argv
 
@@ -214,16 +217,8 @@ def isInt (CheckValue):
 	else:
 		return False
 
-x=0
 lstFields = []
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
-objFileIn  = open(strCSVName,"r")
-strLine = objFileIn.readline()
-strLine = strLine.replace("\"","")
-strLine = strLine.replace("\\","\\\\")
-strLine = strLine.replace("'","\\'")
-strLineParts = strLine[:-1].split(strDelim)
-print ("CSV Headers: {}".format(strLine))
 strSQL = "show columns from {};".format(strTableName)
 lstReturn = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstReturn):
@@ -231,10 +226,7 @@ if not ValidReturn(lstReturn):
 	sys.exit(9)
 else:
 	if lstReturn[0] > 0:
-		print ("CSV Header: <> Database Field")
 		for FieldName in lstReturn[1]:
-			print ("{} <> {}".format(strLineParts[x],FieldName[0]))
-			x += 1
 			lstFields.append(FieldName[0])
 
 if len(lstFields)>0:
@@ -252,41 +244,48 @@ else:
 	print ("{} has no fields, aborting.".format(strTableName))
 	sys.exit()
 
-print ("Starting import...")
-
-iLineNum = 2
-while strLine:
+with open(strCSVName,newline="") as hCSV:
+	myReader = csv.reader(hCSV, delimiter=strDelim)
+	lstLine = next(myReader)
+	if len(lstFields) != len(lstLine):
+		print ("Houston we have a problem. The field counts don't line up and I'm not programed to handle that, aborting.")
+		sys.exit()
+	print ("CSV Headers: {}".format(lstLine))
 	x=0
-	strLine = objFileIn.readline()
-	strLine = strLine.replace("\"","")
-	strLine = strLine.replace("\\","\\\\")
-	strLine = strLine.replace("'","\\'")
-	strLineParts = strLine[:-1].split(strDelim)
-	if len(strLineParts) > 0 and strLine.strip() != "" :
+	print ("CSV Header: <> Database Field")
+	for FieldName in lstFields:
+		print ("{} <> {}".format(lstLine[x],FieldName))
+		x += 1
+
+	print ("Starting import...")
+
+	for lstLine in myReader :
+		x=0
 		strSQL = "insert into {} (".format(strTableName)
 		for Field in lstFields :
 			strSQL += Field + ","
 		strSQL = strSQL[:-1] + ") values ("
-		for csvValue in strLineParts:
+		for csvValue in lstLine:
 			strSQL +=  DBClean(csvValue) + ","
 			x += 1
 			if x > iFieldCount-1:
 				break
-		if len(strLineParts) > len(lstFields):
-			print("Line {} {} has {} values, expecting {}. Dropping extra values".format(iLineNum,strLineParts[0],len(strLineParts),iFieldCount))
-		if len(strLineParts) < len(lstFields):
-			print("Line {} {} has {} values, expecting {}. Padding missing".format(iLineNum,strLineParts[0],len(strLineParts),iFieldCount))
+		if len(lstLine) > len(lstFields):
+			print("Line {} {} has {} values, expecting {}. Dropping extra values".format(myReader.line_num,lstLine,len(lstLine),iFieldCount))
+		if len(lstLine) < len(lstFields):
+			print("Line {} {} has {} values, expecting {}. Padding missing".format(myReader.line_num,lstLine[0],len(lstLine),iFieldCount))
 			for i in list(range(x,iFieldCount)):
 				strSQL += "NULL,"
 		strSQL = strSQL[:-1]+");"
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
-			print ("Line {} Unexpected return: {}".format(iLineNum, lstReturn))
+			print ("Line {} Unexpected return: {}".format(myReader.line_num, lstReturn))
 			sys.exit(9)
 		else:
 			if lstReturn[0] != 1:
-				print ("{} row inserted, line {}".format(lstReturn[0],iLineNum))
-			iLineNum += 1
-		if iLineNum%iStatusFreq == 0:
-			print ("Imported {} records...".format(iLineNum))
-print ("{} records imported. Except as noted above all records imported successfully".format(iLineNum-1))
+				print ("{} row inserted, line {}".format(lstReturn[0],myReader.line_num))
+
+		if myReader.line_num%iStatusFreq == 0:
+			print ("imported {} records...".format(myReader.line_num))
+
+print ("{} records imported. Except as noted above all records imported successfully".format(myReader.line_num))

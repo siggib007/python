@@ -1,7 +1,8 @@
+strDelim = ","
 import csv
 print ("Field Size Limit: {}".format(csv.field_size_limit()))
 with open("C:/temp/QualysReport.csv",newline="") as hCSV:
-	myReader = csv.reader(hCSV)
+	myReader = csv.reader(hCSV, delimiter=strDelim)
 	# print(next(myReader))
 	line = next(myReader)
 	for x in list(range(0,len(line))):
