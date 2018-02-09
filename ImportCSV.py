@@ -1,17 +1,15 @@
 '''
 Script to import CSV files
+Version: 3.6
 Author Siggi Bjarnason Copyright 2017
 Website http://www.ipcalc.us/ and http://www.icecomputing.com
 
 Following packages need to be installed as administrator
-pip install requests
-pip install xmltodict
 pip install pymysql
 
 '''
 # Import libraries
 import sys
-import requests
 import os
 import string
 import time
@@ -27,15 +25,20 @@ except:
 	btKinterOK = False
 # End imports
 
-
-# Initialize stuff
+#Default values, overwrite these in the ini file
 bTruncateTable = True   # Truncate the table prior to insert
 bConvertBool = True     # Convert strings true/false into 1 and 0 for insert into database boolean field.
+bRecordStats = True     # Log events and record stats in the database.
+
+# Initialize stuff
 strDelim = ","          # what is the field seperate in the input file
-iStatusFreq = 1000      # How frequently to print out how many rows have been imported
 strCSVName = ""
 iLoc = sys.argv[0].rfind(".")
 strConf_File = sys.argv[0][:iLoc] + ".ini"
+strScriptName = os.path.basename(sys.argv[0])
+localtime = time.localtime(time.time())
+gmt_time = time.gmtime()
+iGMTOffset = (time.mktime(localtime) - time.mktime(gmt_time))/3600
 
 #Start doing stuff
 print ("This is a script to import csv files. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
@@ -86,12 +89,19 @@ for strLine in strLines:
 			bTruncateTable = strValue.lower() == "true"
 		if strVarName == "ConvertBool":
 			bConvertBool = strValue.lower() == "true"
+		if strVarName == "RecordStats":
+			bRecordStats = strValue.lower() == "true"
 		if strVarName == "FieldDelim":
 			strDelim = strValue
-		if strVarName == "StatusFreq":
-			iStatusFreq = int(strValue)
 		if strVarName == "CSVFileName":
 			strCSVName = strValue
+
+def getInput(strPrompt):
+    if sys.version_info[0] > 2 :
+        return input(strPrompt)
+    else:
+        return raw_input(strPrompt)
+# end getInput
 
 sa = sys.argv
 
@@ -101,11 +111,12 @@ if lsa > 1:
 
 if strCSVName == "":
 	if btKinterOK:
+		print ("File name to be imported is missing. Opening up a file open dialog box, please select the file you wish to import.")
 		root = tk.Tk()
 		root.withdraw()
 		strCSVName = filedialog.askopenfilename(title = "Select CSV file",filetypes = (("CSV files","*.csv"),("Text files","*.txt"),("all files","*.*")))
 	else:
-		strCSVName = input("Please provide full path and filename for the CSV file to be imported: ")
+		strCSVName = getInput("Please provide full path and filename for the CSV file to be imported: ")
 
 if strCSVName == "":
 	print ("No filename provided unable to continue")
@@ -116,6 +127,23 @@ if os.path.isfile(strCSVName):
 else:
 	print ("Can't find CSV file {}".format(strCSVName))
 	sys.exit(4)
+
+def LogEntry(strMsg):
+	if bRecordStats:
+		strTemp = ""
+		strDBMsg = DBClean(strMsg)
+		strSQL = "INSERT INTO tblLogs (dtTimestamp, vcScriptName, vcLogEntry) VALUES (now(),'{}',{});".format(strScriptName,strDBMsg)
+		if dbConn !="":
+			lstReturn = SQLQuery (strSQL,dbConn)
+			if not ValidReturn(lstReturn):
+				strTemp = ("   Unexpected issue inserting log entry to the database: {}\n{}".format(lstReturn,strSQL))
+			elif lstReturn[0] != 1:
+				strTemp = ("   Records affected {}, expected 1 record affected when inserting log entry to the database".format(lstReturn[0]))
+		else:
+			strTemp = ". Database connection not established yet"
+
+		strMsg += strTemp
+	print (strMsg)
 
 def SQLConn (strServer,strDBUser,strDBPWD,strInitialDB):
 	try:
@@ -219,6 +247,30 @@ def isInt (CheckValue):
 
 lstFields = []
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
+LogEntry("Starting the import of {}".format(strCSVName))
+
+if bRecordStats:
+	strSQL = "INSERT INTO tblScriptExecuteList (vcScriptName,dtStartTime,iGMTOffset) VALUES('{}',now(),{});".format(strScriptName,iGMTOffset)
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		LogEntry ("Unexpected: {}".format(lstReturn))
+		sys.exit(9)
+	elif lstReturn[0] != 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+
+	strSQL = "select iExecuteID from tblScriptExecuteList where dtStartTime = (select max(dtStartTime) from tblScriptExecuteList where vcScriptName = '{}');".format(strScriptName)
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		LogEntry ("Unexpected: {}".format(lstReturn))
+		sys.exit(9)
+	elif lstReturn[0] != 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+		iEntryID = -10
+	else:
+		iEntryID = lstReturn[1][0][0]
+
+	LogEntry("Recorded start entry, ID {}".format(iEntryID))
+
 strSQL = "show columns from {};".format(strTableName)
 lstReturn = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstReturn):
@@ -232,23 +284,23 @@ else:
 if len(lstFields)>0:
 	iFieldCount = len(lstFields)
 	if bTruncateTable:
-		print ("Truncating exiting table")
+		LogEntry ("Truncating exiting table")
 		strSQL = "delete from {};".format(strTableName)
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
 			print ("Unexpected: {}".format(lstReturn))
 			sys.exit(9)
 		else:
-			print ("Deleted {} old records".format(lstReturn[0]))
+			LogEntry ("Deleted {} old records".format(lstReturn[0]))
 else:
-	print ("{} has no fields, aborting.".format(strTableName))
+	LogEntry ("{} has no fields, aborting.".format(lstFields))
 	sys.exit()
 
 with open(strCSVName,newline="") as hCSV:
 	myReader = csv.reader(hCSV, delimiter=strDelim)
 	lstLine = next(myReader)
 	if len(lstFields) != len(lstLine):
-		print ("Houston we have a problem. The field counts don't line up and I'm not programed to handle that, aborting.")
+		LogEntry ("Houston we have a problem. The field counts don't line up and I'm not programed to handle that, aborting.")
 		sys.exit()
 	print ("CSV Headers: {}".format(lstLine))
 	x=0
@@ -257,7 +309,7 @@ with open(strCSVName,newline="") as hCSV:
 		print ("{} <> {}".format(lstLine[x],FieldName))
 		x += 1
 
-	print ("Starting import...")
+	LogEntry ("Starting import...")
 
 	for lstLine in myReader :
 		x=0
@@ -271,21 +323,36 @@ with open(strCSVName,newline="") as hCSV:
 			if x > iFieldCount-1:
 				break
 		if len(lstLine) > len(lstFields):
-			print("Line {} {} has {} values, expecting {}. Dropping extra values".format(myReader.line_num,lstLine,len(lstLine),iFieldCount))
+			LogEntry("\nLine {} {} has {} values, expecting {}. Dropping extra values".format(myReader.line_num,lstLine,len(lstLine),iFieldCount))
 		if len(lstLine) < len(lstFields):
-			print("Line {} {} has {} values, expecting {}. Padding missing".format(myReader.line_num,lstLine[0],len(lstLine),iFieldCount))
+			LogEntry("\nLine {} {} has {} values, expecting {}. Padding missing".format(myReader.line_num,lstLine[0],len(lstLine),iFieldCount))
 			for i in list(range(x,iFieldCount)):
 				strSQL += "NULL,"
 		strSQL = strSQL[:-1]+");"
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
-			print ("Line {} Unexpected return: {}".format(myReader.line_num, lstReturn))
+			print ("\nLine {} Unexpected return: {}".format(myReader.line_num, lstReturn))
 			sys.exit(9)
 		else:
 			if lstReturn[0] != 1:
-				print ("{} row inserted, line {}".format(lstReturn[0],myReader.line_num))
+				print ("\n{} row inserted, line {}".format(lstReturn[0],myReader.line_num))
+		if bRecordStats:
+			strSQL = "update tblScriptExecuteList set dtStopTime=now(), bComplete=0, iRowsUpdated={} where iExecuteID = {} ;".format(myReader.line_num,iEntryID)
+			lstReturn = SQLQuery (strSQL,dbConn)
+			if not ValidReturn(lstReturn):
+				LogEntry ("Unexpected: {}".format(lstReturn))
+			elif lstReturn[0] != 1:
+				LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 
-		if myReader.line_num%iStatusFreq == 0:
-			print ("imported {} records...".format(myReader.line_num))
+		print ("imported {} records...".format(myReader.line_num),end="\r")
 
-print ("{} records imported. Except as noted above all records imported successfully".format(myReader.line_num))
+LogEntry ("\n{} records imported. Except as noted above all records imported successfully".format(myReader.line_num))
+if bRecordStats:
+	LogEntry("Updating completion entry")
+	strSQL = "update tblScriptExecuteList set dtStopTime=now(), bComplete=1, iRowsUpdated={} where iExecuteID = {} ;".format(myReader.line_num,iEntryID)
+	lstReturn = SQLQuery (strSQL,dbConn)
+	if not ValidReturn(lstReturn):
+		LogEntry ("Unexpected: {}".format(lstReturn))
+	elif lstReturn[0] != 1:
+		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
+LogEntry ("All Done!")
