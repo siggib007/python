@@ -95,6 +95,8 @@ for strLine in strLines:
 			strDelim = strValue
 		if strVarName == "CSVFileName":
 			strCSVName = strValue
+		if strVarName == "DateTimeFormat":
+			strDTFormat = strValue
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -194,12 +196,6 @@ def SQLQuery (strSQL,db):
 			db.rollback()
 		return "unknown Error: unable to execute: {}\n{}".format(err,strSQL)
 
-def DBConvertEUdt (strDate):
-	return time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.mktime(time.strptime(strDate,"%d-%m-%Y %H:%M:%S"))))
-
-def DBConvertUSdt (strDate):
-	return time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.mktime(time.strptime(strDate,"%m/%d/%Y %H:%M:%S"))))
-
 def DBClean(strText):
 	if strText.strip() == "":
 		return "NULL"
@@ -212,8 +208,10 @@ def DBClean(strText):
 		strTemp = strTemp.decode("ascii","ignore")
 		strTemp = strTemp.replace("\\","\\\\")
 		strTemp = strTemp.replace("'","\\'")
-		if strTemp.count(":") == 2 and strTemp.count("-") == 2 and strTemp.count(" ") == 1:
-			strTemp = DBConvertEUdt(strTemp)
+		try:
+			strTemp = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.mktime(time.strptime(strTemp,strDTFormat))))
+		except ValueError:
+			pass
 		if bConvertBool:
 			if strTemp.lower() == "false":
 				strTemp = "0"
@@ -247,7 +245,8 @@ def isInt (CheckValue):
 
 lstFields = []
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
-LogEntry("Starting the import of {}".format(strCSVName))
+LogEntry("Starting the import of {} into database on {}".format(strCSVName,strServer))
+LogEntry("Date Time format set to: {}".format(strDTFormat))
 
 if bRecordStats:
 	strSQL = "INSERT INTO tblScriptExecuteList (vcScriptName,dtStartTime,iGMTOffset) VALUES('{}',now(),{});".format(strScriptName,iGMTOffset)
