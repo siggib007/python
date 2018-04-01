@@ -271,6 +271,9 @@ def IPCalc (strIPAddress):
 		iDecBroad = iDecSubID + iHostcount - 1
 		dictIPInfo['Subnet'] = DotDecGen(iDecSubID)
 		dictIPInfo['Broadcast'] = DotDecGen(iDecBroad)
+		dictIPInfo['iDecIPAddr'] = iDecIPAddr
+		dictIPInfo['iDecSubID'] = iDecSubID
+		dictIPInfo['iDecBroad'] = iDecBroad
 	else:
 		dictIPInfo['IPError'] = "'" + strIPAddress + "' is not a valid IP!"
 	# End if
@@ -673,6 +676,9 @@ while bContinue:
 
 			print ("Subnet IP: " + IP_Result['Subnet'])
 			print ("Broadcast IP: " + IP_Result['Broadcast'])
+			print ("Integer value of that IP: {}".format(IP_Result['iDecIPAddr']))
+			print ("Integer value of the subnet IP: {}".format(IP_Result['iDecSubID']))
+			print ("Integer value of the broadcast IP: {}".format(IP_Result['iDecBroad']))
 
 			if bWhoisQuery:
 				print ("Please stand by while I query ARIN for more details...")
