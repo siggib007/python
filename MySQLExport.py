@@ -51,6 +51,8 @@ now = time.asctime()
 print ("The time now is {}".format(now))
 print ("Logs saved to {}".format(strLogFile))
 objLogOut = open(strLogFile,"w",1)
+strFieldDelim = ","
+strAtlDelim = ";"
 
 
 def SendNotification (strMsg):
@@ -105,6 +107,8 @@ def processConf():
   global strNotifyURL
   global strNotifyToken
   global strNotifyChannel
+  global strFieldDelim
+  global strAtlDelim
 
   if os.path.isfile(strConf_File):
     LogEntry ("Configuration File exists")
@@ -148,6 +152,10 @@ def processConf():
         strNotifyChannel = strValue
       if strVarName == "NotifyToken":
         strNotifyToken = strValue
+      if strVarName == "FieldSeperate":
+        strFieldDelim = strValue
+      if strVarName == "AltDelim":
+        strAtlDelim = strValue
 
   LogEntry ("Done processing configuration, moving on")
 
@@ -245,6 +253,14 @@ if os.path.isfile(strOutFileName):
     sys.exit()
 else:
   objFileOut = open(strOutFileName,"w")
+if strAtlDelim == "\\t" or strAtlDelim == "^t" or strAtlDelim == "tab":
+  strAtlDelim = "\t"
+
+if strFieldDelim == "\\t" or strFieldDelim == "^t" or strFieldDelim == "tab":
+  strFieldDelim = "\t"
+  LogEntry ("Field seperater is set as tab")
+else:
+  LogEntry ("Field seperater is set as {}".format(strFieldDelim))
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 LogEntry("Database connection established, executing the query : {}".format(strSQL))
 tStart=time.time()
@@ -253,8 +269,8 @@ print ("Query complete now processing cursor")
 # iRowCount = dbCursor.rowcount
 # Capture headers
 for temp in dbCursor.description:
-  strHeaders += temp[0] + ","
-if strHeaders[-1]==",":
+  strHeaders += temp[0] + strFieldDelim
+if strHeaders[-1]==strFieldDelim:
   strHeaders = strHeaders[:-1]
 # LogEntry ("Fetched {} rows".format(iRowCount))
 
@@ -265,12 +281,12 @@ for dbRow in dbCursor:
     if strField is None:
       strTemp = ""
     else:
-      strTemp = str(strField).replace(",",";")
+      strTemp = str(strField).replace(strFieldDelim,strAtlDelim)
       strTemp = strTemp.replace("\n"," ")
       strTemp = strTemp.replace("\r"," ")
       strTemp = strTemp.replace("\t"," ")
-    strLine += strTemp + ","
-  if strLine[-1] == ",":
+    strLine += strTemp + strFieldDelim
+  if strLine[-1] == strFieldDelim:
     strLine = strLine[:-1]
   objFileOut.write ("{}\n".format(strLine))
   iLineNum += 1
