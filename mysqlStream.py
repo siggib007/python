@@ -1,12 +1,13 @@
 #pip install pymysql
 import pymysql
 import sys
+import time
 
 strServer = "10.65.46.144"
 strUser = "snowImport"
 strPWD = "DbBXhecXsrWELLBd5ebv3e7s"
 strInitialDB = "Qualys_Portal"
-strHeaders = ""
+
 
 def SQLConn (strServer,strUser,strPWD,strInitialDB):
 	try:
@@ -23,26 +24,14 @@ def SQLConn (strServer,strUser,strPWD,strInitialDB):
 		sys.exit(5)
 
 def SQLQuery (strSQL,db):
-	global strHeaders
 	try:
 		# prepare a cursor object using cursor() method
-		dbCursor = db.cursor()
+		dbCursor = db.cursor(pymysql.cursors.SSCursor)
 		# Execute the SQL command
 		dbCursor.execute(strSQL)
 		# Capture headers
-		for temp in dbCursor.description:
-			strHeaders += temp[0] + ","
-		if strHeaders[-1]==",":
-			strHeaders = strHeaders[:-1]
-		# Count rows
-		iRowCount = dbCursor.rowcount
-		if strSQL[:6].lower() == "select":
-			dbResults = dbCursor.fetchall()
-			print ("dbResults type is: {}".format(type(dbResults)))
-		else:
-			db.commit()
-			dbResults = ()
-		return [iRowCount,dbResults]
+
+		return dbCursor
 	except pymysql.err.InternalError as err:
 		if strSQL[:6].lower() != "select":
 			db.rollback()
@@ -60,31 +49,44 @@ def SQLQuery (strSQL,db):
 			db.rollback()
 		return "Integrity Error: unable to execute: {}".format(err)
 
-def ValidReturn(lsttest):
-	if isinstance(lsttest,list):
-		if len(lsttest) == 2:
-			if isinstance(lsttest[0],int) and isinstance(lsttest[1],tuple):
-				return True
-			else:
-				return False
-		else:
-			return False
-	else:
-		return False
+strSQL = "select * from tblLogs limit 2000000;"
+strHeaders = ""
+iLineNum = 0
+iTotalSec = 0
+tStart=time.time()
 
-strSQL = "select * from tblservicenow limit 10;"
-
-print ("Executing: {}".format(strSQL))
 db = SQLConn (strServer,strUser,strPWD,strInitialDB)
-lstReturn = SQLQuery (strSQL,db)
-if ValidReturn(lstReturn):
-	print ("Rows affected: {}".format(lstReturn[0]))
-	print (strHeaders)
-	for row in lstReturn[1] :
-		# print ("Row is of type {}".format(type(row)))
-		print (" ".join(map(str,row)))
-else:
-	print ("Unexpected: {}".format(lstReturn))
+print ("Executing: {}".format(strSQL))
+dbCursor = SQLQuery (strSQL,db)
+tStop=time.time()
+iElapseSec = tStop - tStart
+iTotalSec += iElapseSec
+tStart=time.time()
+print ("Query complete, {} seconds".format(iElapseSec))
+for temp in dbCursor.description:
+	strHeaders += temp[0] + ","
+if strHeaders[-1]==",":
+	strHeaders = strHeaders[:-1]
 
+for dbRow in dbCursor:
+	strLine = ""
+	# print ("Type: {} | {}".format(type(dbRow), dbRow))
+	for strElement in dbRow:
+		if strElement is None:
+			strLine += ","
+		else:
+			strLine += "{},".format(strElement)
+	if strLine[-1]==",":
+		strLine = strLine[:-1]
+	# print (strLine)
+	iLineNum += 1
+	print ("writen {} lines.".format(iLineNum),end="\r")
+
+print ()
 # disconnect from server
 db.close()
+tStop=time.time()
+iElapseSec = tStop - tStart
+iTotalSec += iElapseSec
+
+print ("Done, {} seconds. Total Time {} seconds".format(iElapseSec,iTotalSec))
