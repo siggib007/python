@@ -2,11 +2,22 @@ import sys
 import os
 import getpass
 import time
-import tkinter as tk
-from tkinter import filedialog
+try:
+	import tkinter as tk
+	from tkinter import filedialog
+	btKinterOK = True
+except:
+	print ("Failed to load tkinter, CLI only mode.")
+	btKinterOK = False
+# End imports
 
-root = tk.Tk()
-root.withdraw()
+def getInput(strPrompt):
+    if sys.version_info[0] > 2 :
+        return input(strPrompt)
+    else:
+        return raw_input(strPrompt)
+# end getInput
+
 
 print ("Welcome to my Python Test script. Your username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],getpass.getuser()))
 print ("This script is called {}".format(sys.argv[0]))
@@ -19,8 +30,14 @@ print ("Longformat {}".format(LongDate))
 ISO = time.strftime("%Y-%m-%d %H:%M:%S : ")
 print ("ISO {}".format(ISO))
 
-print ("Using the file open dialog please find the file to use")
-strFilein = filedialog.askopenfilename(title = "Select file",filetypes = (("Text Files","*.txt"),("All Files","*.*")))
+if btKinterOK:
+	root = tk.Tk()
+	root.withdraw()
+	print ("Using the file open dialog please find the file to use")
+	strFilein = filedialog.askopenfilename(title = "Select file",filetypes = (("Text Files","*.txt"),("All Files","*.*")))
+else:
+	strFilein = getInput("Please provide full path and filename for the CSV file to be imported: ")
+
 iLoc = strFilein.rfind(".")
 iNegLoc = iLoc * -1
 print ("You selected: ", strFilein)

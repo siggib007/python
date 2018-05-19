@@ -98,6 +98,8 @@ for strLine in strLines:
 		if strVarName == "DateTimeFormat":
 			strDTFormat = strValue
 
+strScriptName = strScriptName[:-3] + "-" + strTableName
+
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
         return input(strPrompt)

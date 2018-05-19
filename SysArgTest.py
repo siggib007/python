@@ -10,9 +10,11 @@ print ("sys.argv length: {}".format(len(sys.argv)))
 print ("sys.argv contains: {}".format(sys.argv))
 print ("file dirname: {}".format(os.path.dirname(__file__)))
 print ("sys.argv[0] dirname: {}".format(os.path.dirname(sys.argv[0])))
+print ("sys.argv[0] basename: {}".format(os.path.basename(sys.argv[0])))
 print ("getcwd: {}".format(os.getcwd()))
 print ("File:{}".format(__file__))
 print ("Sys.argv[0]: {}".format(sys.argv[0]))
+print ("sys.argv[0] realpath: {}".format(os.path.realpath(sys.argv[0])))
 
 iLoc = sys.argv[0].rfind(".")
 strConfFile = sys.argv[0][:iLoc] + ".ini"

@@ -1,5 +1,7 @@
 import sys
 import getpass
+import platform
+strHostName = platform.node()
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -8,7 +10,8 @@ def getInput(strPrompt):
         return raw_input(strPrompt)
 # end getInput
 
-print ("Welcome to my Python Test script. Your username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],getpass.getuser()))
+print ("Welcome to my Python Test script. Your username is {3} and this is running on {4}. This is running under Python Version {0}.{1}.{2}".format(
+    sys.version_info[0],sys.version_info[1],sys.version_info[2],getpass.getuser(),strHostName))
 sa = sys.argv
 lsa = len(sys.argv)
 if lsa != 2:

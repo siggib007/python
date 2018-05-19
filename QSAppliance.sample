@@ -11,6 +11,5 @@ QUserPWD=xxxxxxxx
 
 # Database stuff
 Server=localhost
-Database=Networks
 dbUser=MyScriptUser
 dbPWD=supersecretstrongDBpassword

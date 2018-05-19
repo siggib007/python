@@ -2,20 +2,30 @@ import time
 import sys
 import getpass
 
+def getInput(strPrompt):
+    if sys.version_info[0] > 2 :
+        return input(strPrompt)
+    else:
+        return raw_input(strPrompt)
+# end getInput
+
 print ("Welcome to my Python Test script. Your username is {3}. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2],getpass.getuser()))
 
 localtime = time.localtime(time.time())
 gmt_time = time.gmtime()
-iGMT_offset = localtime.tm_gmtoff
-# iGMT_offset = -25200
-localgtmdiff = time.mktime(localtime) - time.mktime(gmt_time)
+localgtmdiff = (time.mktime(localtime) - time.mktime(gmt_time))/3600
 print ("Local current time :{}".format(localtime))
 print ("GTM current time :{}".format(gmt_time))
 print ("Local time diff from GTM: {}".format(localgtmdiff))
-print ("\n month:{}\n ".format(localtime[1]))
-print ("\n isdst:{}\n ".format(localtime[8]))
-print ("\n offset:{}\n ".format(localtime.tm_gmtoff))
-print ("\n zone:{}\n ".format(localtime.tm_zone))
+
+if sys.version_info[0] > 2 and sys.version_info[1] > 5:
+	iGMT_offset = localtime.tm_gmtoff
+	print ("\n month:{}\n ".format(localtime[1]))
+	print ("\n isdst:{}\n ".format(localtime[8]))
+	print ("\n offset:{} seconds or {} hours\n ".format(localtime.tm_gmtoff, localtime.tm_gmtoff/3600))
+	print ("\n zone:{}\n ".format(localtime.tm_zone))
+else:
+	iGMT_offset = time.mktime(localtime) - time.mktime(gmt_time)
 
 now = time.asctime()
 print ("The time now is {}".format(now))

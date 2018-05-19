@@ -265,7 +265,9 @@ dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 LogEntry("Database connection established, executing the query : {}".format(strSQL))
 tStart=time.time()
 dbCursor = SQLQuery (strSQL,dbConn)
-print ("Query complete now processing cursor")
+print ("Query complete. Now processing cursor")
+if isinstance(dbCursor,str):
+  LogEntry("Results is only the following string: {}".format(dbCursor),True)
 # iRowCount = dbCursor.rowcount
 # Capture headers
 for temp in dbCursor.description:

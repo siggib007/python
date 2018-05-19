@@ -116,8 +116,6 @@ while strLine:
 		strIPAddr = strIPAddr.replace('"' ,"")
 		iIPAddr = DotDec2Int(strIPAddr)
 		# iIPAddr = strLineParts[2]
-	else:
-		iIPAddr = 0
-	objFileOut.write ("{},{}\n".format(strLine[:-1],iIPAddr))
+		objFileOut.write ("{},{}\n".format(strLine[:-1],iIPAddr))
 #end while
 print ("All Done, make sure you import {}".format(strOutFile))

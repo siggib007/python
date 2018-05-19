@@ -118,7 +118,7 @@ timeLastNightGMT = time.localtime(time.mktime(time.strptime(timeLastNightLocal,"
 strQualysTime = time.strftime("%Y-%m-%dT%H:%M:%SZ",timeLastNightGMT)
 strLastNight = time.strftime("%m/%d/%Y %H:%M %Z",time.localtime(time.mktime(time.strptime(timeLastNightLocal,"%Y-%m-%d %H:%M"))))
 
-strListScans = "action=list&user_login={}&launched_after_datetime={}".format(strUserName,strQualysTime)
+strListScans = "action=list&user_login={}&launched_after_datetime={}".format("tmbeu2sb1",strQualysTime)
 strURL = strBaseURL + strScanAPI + strListScans
 
 APIResponse = MakeAPICall(strURL,strHeader,strUserName,strPWD)
@@ -129,13 +129,13 @@ if isinstance(APIResponse,dict):
 		if isinstance (APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"],list):
 			print ("There are {} scans since {}".format(len(APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]), strLastNight))
 			for scan in APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]:
-				print ("Title: {} Target: {} Ref: {} Status: {}".format(scan["TITLE"],scan["TARGET"],scan["REF"],scan["STATUS"]["STATE"]))
+				print ("Title: {} Ref: {} Status: {}".format(scan["TITLE"],scan["REF"],scan["STATUS"]["STATE"]))
 				if "SUB_STATE" in scan["STATUS"]:
 					print ("     --  Status Details:{}".format(scan["STATUS"]["SUB_STATE"]))
 		else:
 			print ("There is one scan since {}".format(strLastNight))
 			scan = APIResponse["SCAN_LIST_OUTPUT"]["RESPONSE"]["SCAN_LIST"]["SCAN"]
-			print ("Title: {} Target: {} Ref: {} Status: {}".format(scan["TITLE"],scan["TARGET"],scan["REF"],scan["STATUS"]["STATE"]))
+			print ("Title: {} Ref: {} Status: {}".format(scan["TITLE"],scan["REF"],scan["STATUS"]["STATE"]))
 			if "SUB_STATE" in scan["STATUS"]:
 				print ("     --  Status Details:{}".format(scan["STATUS"]["SUB_STATE"]))
 	else:

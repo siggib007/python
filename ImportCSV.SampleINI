@@ -3,7 +3,6 @@
 
 # Database stuff
 Server=localhost
-Database=Networks
 dbUser=YOurUser
 dbPWD=lasdjfoasdufjsiufsdfjsadlfja;sj
 InitialDB=Qualys_Portal
