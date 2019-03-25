@@ -31,11 +31,27 @@ now = time.asctime()
 print ("The time now is {}".format(now))
 
 def getInput(strPrompt):
-    if sys.version_info[0] > 2 :
-        return input(strPrompt)
-    else:
-        return raw_input(strPrompt)
+	if sys.version_info[0] > 2 :
+		return input(strPrompt)
+	else:
+		return raw_input(strPrompt)
 # end getInput
+
+def Analyze(dictInspect):
+	if isinstance(dictInspect,dict):
+		for strKey in dictInspect.keys():
+			print ("key {} is a {} and has {} elements".format(strKey,type(dictInspect[strKey]),len(dictInspect[strKey])))
+			if isinstance(dictInspect[strKey],list):
+				print ("Element {} is a list, first instance in the list has the following elements:".format(strKey))
+				# print ("Element, type")
+				for strElement in dictInspect[strKey][0].keys():
+					print ("{}, {}".format(strElement,type(dictInspect[strKey][0][strElement])))
+	elif isinstance(dictInspect,list):
+		for strKey in dictInspect:
+			print ("key {} is a {} and has {} elements".format(strKey,type(dictInspect[strKey]),len(dictInspect[strKey])))
+
+	else:
+		print("dictInspect not a list or a dictionary")
 
 sa = sys.argv
 
@@ -67,12 +83,6 @@ with open(strJSONfile,"r") as objFilejson:
 
 print ("File loaded, result is a: {}".format(type(dictFile)))
 if isinstance(dictFile,(list,dict)):
-	for strKey in dictFile.keys():
-		print ("key {} is a {} and has {} elements".format(strKey,type(dictFile[strKey]),len(dictFile[strKey])))
-		if isinstance(dictFile[strKey],list):
-			print ("Element {} is a list, first instance in the list has the following elements:".format(strKey))
-			# print ("Element, type")
-			for strElement in dictFile[strKey][0].keys():
-				print ("{}, {}".format(strElement,type(dictFile[strKey][0][strElement])))
+	Analyze(dictFile)
 else:
 	print("file did not load as a json dictionary or list, can't process")
