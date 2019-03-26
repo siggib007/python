@@ -37,21 +37,26 @@ def getInput(strPrompt):
 		return raw_input(strPrompt)
 # end getInput
 
-def Analyze(dictInspect):
+def Analyze(dictInspect,strPrefix):
 	if isinstance(dictInspect,dict):
 		for strKey in dictInspect.keys():
-			print ("key {} is a {} and has {} elements".format(strKey,type(dictInspect[strKey]),len(dictInspect[strKey])))
-			if isinstance(dictInspect[strKey],list):
-				print ("Element {} is a list, first instance in the list has the following elements:".format(strKey))
-				# print ("Element, type")
-				for strElement in dictInspect[strKey][0].keys():
-					print ("{}, {}".format(strElement,type(dictInspect[strKey][0][strElement])))
+			if isinstance(dictInspect[strKey],(dict,list)):
+				print ("{}{} is a {} and has {} elements".format(strPrefix, strKey,type(dictInspect[strKey]),len(dictInspect[strKey])))
+				Analyze(dictInspect[strKey],strPrefix+strKey+"/")
+			else:
+				print ("{}{} is a {}".format(strPrefix, strKey,type(dictInspect[strKey])))
 	elif isinstance(dictInspect,list):
-		for strKey in dictInspect:
-			print ("key {} is a {} and has {} elements".format(strKey,type(dictInspect[strKey]),len(dictInspect[strKey])))
-
+		print ("{} Element is a list and has {} elements".format(strPrefix, len(dictInspect)))
+		if isinstance(dictInspect[0],dict):
+			print ("{} first instance in the list is a dictionary and has the following elements:".format(strPrefix))
+			for strKey in dictInspect[0]:
+				print ("{}{} is a {}".format(strPrefix, strKey,type(dictInspect[0][strKey])))
+				if isinstance(dictInspect[0][strKey],(dict,list)):
+					Analyze(dictInspect[0][strKey],strPrefix+strKey+"/")
+		else:
+			print ("{} first instance in the list is a {}".format(strPrefix, type(dictInspect[0])))
 	else:
-		print("dictInspect not a list or a dictionary")
+		print("{} dictInspect not a list or a dictionary".format(strPrefix))
 
 sa = sys.argv
 
@@ -83,6 +88,6 @@ with open(strJSONfile,"r") as objFilejson:
 
 print ("File loaded, result is a: {}".format(type(dictFile)))
 if isinstance(dictFile,(list,dict)):
-	Analyze(dictFile)
+	Analyze(dictFile,"/")
 else:
 	print("file did not load as a json dictionary or list, can't process")
