@@ -24,6 +24,7 @@ except:
 # Initialize stuff
 strJSONfile = ""
 
+
 #Start doing stuff
 print ("This is a script to show structure of json files. This is running under Python Version {0}.{1}.{2}".format(
 	sys.version_info[0],sys.version_info[1],sys.version_info[2]))
