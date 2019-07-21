@@ -48,14 +48,17 @@ def Analyze(dictInspect,strPrefix):
 				print ("{}{} is a {}".format(strPrefix, strKey,type(dictInspect[strKey])))
 	elif isinstance(dictInspect,list):
 		print ("{} Element is a list and has {} elements".format(strPrefix, len(dictInspect)))
-		if isinstance(dictInspect[0],dict):
-			print ("{} first instance in the list is a dictionary and has the following elements:".format(strPrefix))
-			for strKey in dictInspect[0]:
-				print ("{}{} is a {}".format(strPrefix, strKey,type(dictInspect[0][strKey])))
-				if isinstance(dictInspect[0][strKey],(dict,list)):
-					Analyze(dictInspect[0][strKey],strPrefix+strKey+"/")
+		if len(dictInspect) > 0:
+			if isinstance(dictInspect[0],dict):
+				print ("{} first instance in the list is a dictionary and has the following elements:".format(strPrefix))
+				for strKey in dictInspect[0]:
+					print ("{}{} is a {}".format(strPrefix, strKey,type(dictInspect[0][strKey])))
+					if isinstance(dictInspect[0][strKey],(dict,list)):
+						Analyze(dictInspect[0][strKey],strPrefix+strKey+"/")
+			else:
+				print ("{} first instance in the list is a {}".format(strPrefix, type(dictInspect[0])))
 		else:
-			print ("{} first instance in the list is a {}".format(strPrefix, type(dictInspect[0])))
+			print ("List has no elements, moving on.")
 	else:
 		print("{} dictInspect not a list or a dictionary".format(strPrefix))
 
