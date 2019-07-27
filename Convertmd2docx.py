@@ -71,7 +71,6 @@ while strLine:
 	strLine = objFileIn.readline()
 	if strLine.strip() != "":
 		if os.path.isfile(strInPath + strLine.strip()) :
-			print ("{} is a valid file!".format(strInPath + strLine.strip()))
 			objtmpIn = open(strInPath + strLine.strip(),encoding='utf-8')
 			strFileText = objtmpIn.read()
 			strFileText = strFileText.encode("ascii","ignore")
@@ -81,6 +80,7 @@ while strLine:
 			for strReplace in dictReplacements:
 				strFileText = strFileText.replace(strReplace,dictReplacements[strReplace])
 			objFileOut.write (strFileText+"\n")
+			print ("{} is a done!".format(strInPath + strLine.strip()))
 		else:
 			print ("{} is NOT a valid file!".format(strInPath + strLine.strip()))
 	else:
