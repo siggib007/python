@@ -38,71 +38,44 @@ def getInput(strPrompt):
 # end getInput
 
 def ConvertJson2CSV(Itm2Bconverted):
-	strLine = ""
-	lstHeaders = []
 	if isinstance(Itm2Bconverted,dict):
 		for strKey in Itm2Bconverted.keys():
 			if isinstance(Itm2Bconverted[strKey],(list)):
-				print ("{} is a {} and has {} elements".format(strKey,type(Itm2Bconverted[strKey]),
-					len(Itm2Bconverted[strKey])))
-				# print ("second element of the list is a {}".format(type(Itm2Bconverted[strKey][1])))
-				for outitem in Itm2Bconverted[strKey]:
-					for InnerItem in outitem.keys():
-						if InnerItem not in lstHeaders:
-							lstHeaders.append(InnerItem)
-				for strHeadKey in lstHeaders:
-					strLine += strHeadKey + ","
-				strLine = strLine[:-1]
-				# print ("Header:\n{}".format(strLine))
-				objFileOut.write ("\n{}\n{}\n".format(strKey,strLine))
-				for dictItem in Itm2Bconverted[strKey]:
-					strLine = ""
-					for strHeadKey in lstHeaders:
-						if strHeadKey in dictItem:
-							if isinstance(dictItem[strHeadKey],dict):
-								strLine += "dictionary with {} items,".format(len(dictItem[strHeadKey]))
-							elif isinstance(dictItem[strHeadKey],list):
-								strLine += "list with {} items,".format(len(dictItem[strHeadKey]))
-							else:
-								strLine += str(dictItem[strHeadKey]) +","
-						else:
-							strLine += ","
-					strLine = strLine[:-1]
-					# print (strLine)
-					objFileOut.write(strLine + "\n")
+				Write2CSV(Itm2Bconverted[strKey])
 			else:
 				print ("{} is a {}".format(strKey,type(Itm2Bconverted[strKey])))
 	elif isinstance(Itm2Bconverted,list):
-		print ("item is a list and has {} elements".format(len(Itm2Bconverted)))
-		for itm in Itm2Bconverted:
-			print ("{} is a {}".format(itm,type(itm)))
+		Write2CSV(Itm2Bconverted)
 
-def Analyze(dictInspect,strPrefix):
-	if isinstance(dictInspect,dict):
-		print ("{} is a dict".format(strPrefix))
-		for strKey in dictInspect.keys():
-			print ("analyzing key:{}".format(strKey))
-			if isinstance(dictInspect[strKey],(dict,list)):
-				print ("{}{} is a {} and has {} elements".format(strPrefix, strKey,type(dictInspect[strKey]),
-					len(dictInspect[strKey])))
-				Analyze(dictInspect[strKey],strPrefix+strKey+"/")
+def Write2CSV(lstItem):
+	strLine = ""
+	lstHeaders = []
+	print ("item is a {} and has {} elements".format(type(lstItem),len(lstItem)))
+	for outitem in lstItem:
+		for InnerItem in outitem.keys():
+			if InnerItem not in lstHeaders:
+				lstHeaders.append(InnerItem)
+	for strHeadKey in lstHeaders:
+		strLine += strHeadKey + ","
+	strLine = strLine[:-1]
+	objFileOut.write ("{}\n".format(strLine))
+	for dictItem in lstItem:
+		strLine = ""
+		for strHeadKey in lstHeaders:
+			if strHeadKey in dictItem:
+				if isinstance(dictItem[strHeadKey],dict):
+					strLine += "dictionary with {} items,".format(len(dictItem[strHeadKey]))
+				elif isinstance(dictItem[strHeadKey],list):
+					strLine += "list with {} items,".format(len(dictItem[strHeadKey]))
+				else:
+					strLine += str(dictItem[strHeadKey]) +","
 			else:
-				print ("{}{} is a {}".format(strPrefix, strKey,type(dictInspect[strKey])))
-	elif isinstance(dictInspect,list):
-		print ("{} Element is a list and has {} elements".format(strPrefix, len(dictInspect)))
-		if len(dictInspect) > 0:
-			if isinstance(dictInspect[0],dict):
-				print ("{} first instance in the list is a dictionary and has the following elements:".format(strPrefix))
-				for strKey in dictInspect[0]:
-					print ("{}{} is a {}".format(strPrefix, strKey,type(dictInspect[0][strKey])))
-					if isinstance(dictInspect[0][strKey],(dict,list)):
-						Analyze(dictInspect[0][strKey],strPrefix+strKey+"/")
-			else:
-				print ("{} first instance in the list is a {}".format(strPrefix, type(dictInspect[0])))
-		else:
-			print ("List has no elements, moving on.")
-	else:
-		print("{} dictInspect not a list or a dictionary".format(strPrefix))
+				strLine += ","
+		strLine = strLine[:-1]
+		# print (strLine)
+		objFileOut.write(strLine + "\n")
+
+
 
 sa = sys.argv
 
@@ -141,7 +114,6 @@ with open(strJSONfile,"r") as objFilejson:
 
 print ("File loaded, result is a: {}".format(type(dictFile)))
 if isinstance(dictFile,(list,dict)):
-	# Analyze(dictFile,"/")
 	ConvertJson2CSV(dictFile)
 else:
 	print("file did not load as a json dictionary or list, can't process")
