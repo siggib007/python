@@ -40,8 +40,10 @@ def getInput(strPrompt):
 def ConvertJson2CSV(Itm2Bconverted):
 	if isinstance(Itm2Bconverted,dict):
 		for strKey in Itm2Bconverted.keys():
-			if isinstance(Itm2Bconverted[strKey],(list)):
+			if isinstance(Itm2Bconverted[strKey],list):
 				Write2CSV(Itm2Bconverted[strKey],strKey)
+			elif isinstance(Itm2Bconverted[strKey],dict):
+				Write2CSV([Itm2Bconverted[strKey]],"")
 			else:
 				print ("{} is a {}, writing to CSV file as is.".format(strKey,type(Itm2Bconverted[strKey])))
 				objFileOut.write ("\n{},{}\n".format(strKey,Itm2Bconverted[strKey]))
