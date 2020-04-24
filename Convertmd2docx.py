@@ -19,8 +19,9 @@ import subprocess as proc
 # Defining stuff
 strFilein = "C:/book/source/manuscript/Book.txt"
 strOutPath = "C:/book/"
-strOutFile = "OnlineSafety.md"
-strConvertedFileName = "OnlineSafety.docx"
+strOutFile = "testOnlineSafety.md"
+strConvertedFileName = "testOnlineSafety.docx"
+strIndexFile = "OnlineSafetyIndex.txt"
 strOrigionalFormat = "markdown"
 strConvert2 = "docx"
 
@@ -32,7 +33,7 @@ lstStr2Delete.append("{book: true, sample: false}")
 lstStr2Delete.append("{backmatter}")
 
 dictReplacements = {}
-dictReplacements["]("] = "](source/manuscript/resources/"
+dictReplacements["]("] = "](C:/book/source/manuscript/resources/"
 
 
 # Doing stuff
@@ -56,6 +57,7 @@ if not os.path.exists (strOutPath) :
 if strOutPath[-1:] != "/":
 	strOutPath += "/"
 
+strFullIndexFile = strOutPath + strIndexFile
 strFullOutFile = strOutPath + strOutFile
 print ("Output will be saved to {}".format(strFullOutFile))
 strFullconverted = strOutPath + strConvertedFileName
@@ -65,14 +67,17 @@ strInPath = strFilein[:iLoc+1]
 print ("Base path is: {}".format(strInPath))
 objFileIn  = open(strFilein,"r")
 objFileOut = open(strFullOutFile,"w")
+objIndexOut = open(strFullIndexFile,"w")
 strLine = "nada"
 
 while strLine:
 	strLine = objFileIn.readline()
 	if strLine.strip() != "":
-		if os.path.isfile(strInPath + strLine.strip()) :
-			objtmpIn = open(strInPath + strLine.strip(),encoding='utf-8')
+		strInFile = strInPath + strLine.strip()
+		if os.path.isfile(strInFile) :
+			objtmpIn = open(strInFile,encoding='utf-8')
 			strFileText = objtmpIn.read()
+			objtmpIn.close()
 			strFileText = strFileText.encode("ascii","ignore")
 			strFileText = strFileText.decode("ascii","ignore")
 			for strFind in lstStr2Delete:
@@ -80,15 +85,24 @@ while strLine:
 			for strReplace in dictReplacements:
 				strFileText = strFileText.replace(strReplace,dictReplacements[strReplace])
 			objFileOut.write (strFileText+"\n")
+			iStart = strFileText.find("#")
+			iEnd = strFileText.find("\n",iStart)
+			# print ("first line is {} char long".format(iLoc))
+			# print ("First line of {} is: {}".format(strInFile,strFileText[iStart:iEnd]))
+			objIndexOut.write ("{},{}\n".format(strInFile,strFileText[iStart:iEnd]))
 			print ("{} is a done!".format(strInPath + strLine.strip()))
 		else:
 			print ("{} is NOT a valid file!".format(strInPath + strLine.strip()))
-	else:
-		pass
-		# print ("blank line")
 
+objFileIn.close()
+objFileOut.close()
+objIndexOut.close()
+objFileIn = None
+objFileOut = None
+objIndexOut = None
+objtmpIn = None
 
-strCmdLine = "pandoc {} -f {} -t {} -o {}".format(strOutFile,strOrigionalFormat,strConvert2,strFullconverted)
+strCmdLine = "pandoc {} -f {} -t {} -o {}".format(strFullOutFile,strOrigionalFormat,strConvert2,strFullconverted)
 print ("executing {}".format(strCmdLine))
 proc.Popen(strCmdLine)
 print ("All done !!! :-D")
