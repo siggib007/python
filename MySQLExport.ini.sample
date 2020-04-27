@@ -15,5 +15,5 @@ AltDelim=;        # If a field contains chosen Field seperator, what should it b
 
 #Notification stuff
 NotificationURL=https://slack.com/api/chat.postMessage   # Main Slack API URL
-NotifyChannel=G9B0PDY73  # The notification receipient. G9B0PDY73 is the ID for for slack channel "pa-automation" replace with your ID to send direct message
-NotifyToken=xoxb-320383731716-XqHkBgzj3sGh1SWwZKn609Nt   # Auth Token for the Platform Assurance Notifications Bot
+NotifyChannel=               # The slack ID for the notification receipient.
+NotifyToken=                 # Auth Token for the Slack Notifications Bot
