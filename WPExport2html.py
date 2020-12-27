@@ -114,9 +114,12 @@ if "rss" in dictInput:
           strPostType = dictItem["wp:post_type"]
           strPostTitle = dictItem["title"]
           strContent = dictItem["content:encoded"]
-          strPostTitle = strPostTitle.replace("?","")
-          strPostTitle = strPostTitle.replace(".", "")
-          strPostTitle = strPostTitle.replace("!", "")
+          if strPostTitle is None:
+            strPostTitle = "None"
+          else:
+            strPostTitle = strPostTitle.replace("?","")
+            strPostTitle = strPostTitle.replace(".", "")
+            strPostTitle = strPostTitle.replace("!", "")
           if strPostType == "post" or strPostType == "page":
             strItemPath = strOutPath + strPostType
             if strItemPath[-1:] != "/":
