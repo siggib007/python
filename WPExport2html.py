@@ -48,7 +48,7 @@ if strFilein == "":
     print ("File name to be processed is missing. Opening up a file open dialog box, please select the file you wish to process.")
     root = tk.Tk()
     root.withdraw()
-    strFilein = filedialog.askopenfilename(title = "Select the WP Export file",filetypes = (("XML files","*.xml"),("all files","*.*")))
+    strFilein = filedialog.askopenfilename (title = "Select the WP Export file",filetypes = (("XML files","*.xml"),("all files","*.*")))
   else:
     strFilein = getInput("Please provide full path and filename for the WP Export file to be processed: ")
 
@@ -64,13 +64,13 @@ else:
 
 
 iLoc = strFilein.rfind(".")
-strFileExt = strFilein[iLoc:]
+strFileExt = strFilein[iLoc+1:]
 strOutFile = strFilein[:iLoc] + "-fixed" + strFilein[iLoc:]
 
 if strFileExt.lower() == "xml":
-  objFileIn = open(strFilein, "r")
+  objFileIn = open(strFilein, "r", encoding='utf-8')
 else:
-  print ("only able to process XML files")
+  print ("only able to process XML files. Unable to process {} files".format(strFileExt))
   sys.exit(5)
 
 
@@ -83,3 +83,18 @@ except xml.parsers.expat.ExpatError as err:
     iErrText = "Expat Error: {}\n{}".format(err,strXML)
 
 print ("File read in, here are top level keys {}".format(dictInput.keys()))
+if "rss" in dictInput:
+  if "channel" in dictInput["rss"]:
+    if "item" in dictInput["rss"]["channel"]:
+      if isinstance (dictInput["rss"]["channel"]["item"],list):
+        for dictItem in dictInput["rss"]["channel"]["item"]:
+          print ("{} | {} | {} ".format(dictItem["title"],dictItem["post_type"],dictItem["created"]))
+      else:
+        print("item is not a list, it is a {}".format(
+            type(dictInput["rss"]["channel"]["item"])))
+    else:
+      print ("No Item list")
+  else:
+    print ("No channel item")
+else:
+  print ("No rss feed")
