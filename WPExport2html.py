@@ -41,6 +41,8 @@ def getInput(strPrompt):
     sys.exit(5)
 
 def IsHTML(strCheck):
+  if strCheck is None:
+    return False
   for strHTMLElement in lstHTMLElements:
     if strHTMLElement in strCheck:
       return True
@@ -125,11 +127,14 @@ if "rss" in dictInput:
                   strItemPath))
             if IsHTML(strContent):
               strFileOut = strItemPath + strPostTitle + ".html"
-              strContent = "<h1>{}</h1>\n{}".format(
-                  dictItem["title"], strContent)
+              strContent = "<h1>{}</h1>\n<h2>{} by {}. Posted on {} GMT</h2>\n{}".format(
+                  dictItem["title"], strPostType[0].upper()+strPostType[1:], dictItem["dc:creator"], 
+                  dictItem["wp:post_date_gmt"], strContent)
             else:
               strFileOut = strItemPath + strPostTitle + ".txt"
-              strContent = "{}\n{}".format(dictItem["title"], strContent)
+              strContent = "{}\n{} by {}. Posted on {} GMT\n{}".format(
+                  dictItem["title"], strPostType[0].upper()+strPostType[1:], dictItem["dc:creator"],
+                  dictItem["wp:post_date_gmt"], strContent)
             objFileOut = open(strFileOut,"w",1)
             objFileOut.write(strContent)
             objFileOut.close()
