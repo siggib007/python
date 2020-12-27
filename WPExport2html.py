@@ -30,12 +30,21 @@ except:
 
 # End imports
 
+lstHTMLElements = ["</a>", "</p>", "</ol>",
+                   "</li>", "</ul>", "</span>", "</div>"]
+
 def getInput(strPrompt):
   if sys.version_info[0] > 2 :
     return input(strPrompt)
   else:
     print ("please upgrade to python 3")
     sys.exit(5)
+
+def IsHTML(strCheck):
+  for strHTMLElement in lstHTMLElements:
+    if strHTMLElement in strCheck:
+      return True
+  return False
 
 strFilein = ""
 sa = sys.argv
@@ -65,7 +74,17 @@ else:
 
 iLoc = strFilein.rfind(".")
 strFileExt = strFilein[iLoc+1:]
-strOutFile = strFilein[:iLoc] + "-fixed" + strFilein[iLoc:]
+iLoc = strFilein.find(".")
+strOutPath = strFilein[:iLoc]
+if strOutPath[-1:] != "/":
+	strOutPath += "/"
+
+if not os.path.exists(strOutPath):
+  os.makedirs(strOutPath)
+  print("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
+      strOutPath))
+else:
+  print ("Path {} is OK".format(strOutPath))
 
 if strFileExt.lower() == "xml":
   objFileIn = open(strFilein, "r", encoding='utf-8')
@@ -87,8 +106,36 @@ if "rss" in dictInput:
   if "channel" in dictInput["rss"]:
     if "item" in dictInput["rss"]["channel"]:
       if isinstance (dictInput["rss"]["channel"]["item"],list):
+        # print("Here are the keys in first item entry: {}".format(
+        #     dictInput["rss"]["channel"]["item"][0].keys()))
         for dictItem in dictInput["rss"]["channel"]["item"]:
-          print ("{} | {} | {} ".format(dictItem["title"],dictItem["post_type"],dictItem["created"]))
+          strPostType = dictItem["wp:post_type"]
+          strPostTitle = dictItem["title"]
+          strContent = dictItem["content:encoded"]
+          strPostTitle = strPostTitle.replace("?","")
+          strPostTitle = strPostTitle.replace(".", "")
+          strPostTitle = strPostTitle.replace("!", "")
+          if strPostType == "post" or strPostType == "page":
+            strItemPath = strOutPath + strPostType
+            if strItemPath[-1:] != "/":
+              strItemPath += "/"
+            if not os.path.exists(strItemPath):
+              os.makedirs(strItemPath)
+              print("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
+                  strItemPath))
+            if IsHTML(strContent):
+              strFileOut = strItemPath + strPostTitle + ".html"
+              strContent = "<h1>{}</h1>\n{}".format(
+                  dictItem["title"], strContent)
+            else:
+              strFileOut = strItemPath + strPostTitle + ".txt"
+              strContent = "{}\n{}".format(dictItem["title"], strContent)
+            objFileOut = open(strFileOut,"w",1)
+            objFileOut.write(strContent)
+            objFileOut.close()
+
+          print("{} | {} | {} ".format(
+              dictItem["title"], strPostType, dictItem["dc:creator"]))
       else:
         print("item is not a list, it is a {}".format(
             type(dictInput["rss"]["channel"]["item"])))
