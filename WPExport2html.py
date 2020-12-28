@@ -57,11 +57,11 @@ def FetchFile (strURL):
   try:
     WebRequest = requests.get(strURL, headers={}, verify=False)
   except Exception as err:
-    print ("Issue with API call. {}".format(err))
+    LogEntry ("Issue with API call. {}".format(err))
     return None
 
   if isinstance(WebRequest, requests.models.Response) == False:
-    print ("response is unknown type")
+    LogEntry ("response is unknown type")
     return None
   
   return WebRequest.content
@@ -189,7 +189,11 @@ if "rss" in dictInput:
                   dictItem["title"], strPostType[0].upper()+strPostType[1:], dictItem["dc:creator"],
                   dictItem["wp:post_date_gmt"], strContent)
             objFileOut = open(strFileOut,"w",1)
-            objFileOut.write(strContent)
+            try:
+              objFileOut.write(strContent)
+            except Exception as err:
+              LogEntry ("Error while write to file {}. {}".format(strFileOut,err))
+            
             objFileOut.close()
           elif strPostType == "attachment":
             strItemPath = strOutPath + strPostType
@@ -225,4 +229,6 @@ if "rss" in dictInput:
 else:
   LogEntry ("No rss feed")
 
-LogEntry ("Done! Was missing ways to handle these types: {}".format(dictMissing))
+LogEntry ("Done! Was missing ways to handle these types:")
+for strKey in dictMissing.keys():
+  LogEntry ("{}: {}".format(strKey,",".join(dictMissing[strKey])))
