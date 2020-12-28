@@ -38,6 +38,21 @@ requests.urllib3.disable_warnings()
 lstHTMLElements = ["</a>", "</p>", "</ol>",
                    "</li>", "</ul>", "</span>", "</div>"]
 
+lstBadChar = ["?", "!", "'", '"', "~", "#", "%", "&", "*", ":", "<", ">", "?", "/", "\\", 
+              "{", " | ", "}", "$", "!", "@", "+", "=", "`"]
+
+def CleanFileName(strClean):
+  if strClean is None:
+    return ""
+
+  for cBad in lstBadChar:
+    strClean = strClean.replace(cBad, "")
+  
+  strClean = strClean.replace(".","-")
+  strClean = strClean.strip()
+  return strClean
+
+
 def getInput(strPrompt):
   if sys.version_info[0] > 2 :
     return input(strPrompt)
@@ -167,9 +182,7 @@ if "rss" in dictInput:
           if strPostTitle is None:
             strPostTitle = "None"
           else:
-            strPostTitle = strPostTitle.replace("?","")
-            strPostTitle = strPostTitle.replace(".", "")
-            strPostTitle = strPostTitle.replace("!", "")
+            strPostTitle = CleanFileName (strPostTitle)
           if strPostType == "post" or strPostType == "page":
             strItemPath = strOutPath + strPostType
             if strItemPath[-1:] != "/":
