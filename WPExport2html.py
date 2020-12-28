@@ -66,6 +66,36 @@ def FetchFile (strURL):
   
   return WebRequest.content
 
+def LogEntry(strMsg):
+	strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
+	objLogOut.write("{0} : {1}\n".format(strTimeStamp, strMsg))
+	print(strMsg)
+
+ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
+
+strBaseDir = os.path.dirname(sys.argv[0])
+strBaseDir = strBaseDir.replace("\\", "/")
+strRealPath = os.path.realpath(sys.argv[0])
+strRealPath = strRealPath.replace("\\","/")
+if strBaseDir == "":
+  iLoc = strRealPath.rfind("/")
+  strBaseDir = strRealPath[:iLoc]
+if strBaseDir[-1:] != "/":
+  strBaseDir += "/"
+strLogDir  = strBaseDir + "Logs/"
+if strLogDir[-1:] != "/":
+  strLogDir += "/"
+
+iLoc = sys.argv[0].rfind(".")
+
+if not os.path.exists (strLogDir) :
+  os.makedirs(strLogDir)
+  print ("\nPath '{0}' for log files didn't exists, so I create it!\n".format(strLogDir))
+
+strScriptName = os.path.basename(sys.argv[0])
+iLoc = strScriptName.rfind(".")
+strLogFile = strLogDir + strScriptName[:iLoc] + ISO + ".log"
+objLogOut = open(strLogFile, "w", 1)
 
 strFilein = ""
 sa = sys.argv
@@ -102,15 +132,15 @@ if strOutPath[-1:] != "/":
 
 if not os.path.exists(strOutPath):
   os.makedirs(strOutPath)
-  print("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
+  LogEntry("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
       strOutPath))
 else:
-  print ("Path {} is OK".format(strOutPath))
+  LogEntry ("Path {} is OK".format(strOutPath))
 
 if strFileExt.lower() == "xml":
   objFileIn = open(strFilein, "r", encoding='utf-8')
 else:
-  print ("only able to process XML files. Unable to process {} files".format(strFileExt))
+  LogEntry ("only able to process XML files. Unable to process {} files".format(strFileExt))
   sys.exit(5)
 
 
@@ -118,16 +148,16 @@ strXML = objFileIn.read()
 try:
     dictInput = xmltodict.parse(strXML)
 except xml.parsers.expat.ExpatError as err:
-    print ("Expat Error: {}\n{}".format(err,strXML))
+    LogEntry ("Expat Error: {}\n{}".format(err,strXML))
     iErrCode = "Expat Error"
     iErrText = "Expat Error: {}\n{}".format(err,strXML)
 
-print ("File read in, here are top level keys {}".format(dictInput.keys()))
+LogEntry ("File read in, here are top level keys {}".format(dictInput.keys()))
 if "rss" in dictInput:
   if "channel" in dictInput["rss"]:
     if "item" in dictInput["rss"]["channel"]:
       if isinstance (dictInput["rss"]["channel"]["item"],list):
-        # print("Here are the keys in first item entry: {}".format(
+        # LogEntry("Here are the keys in first item entry: {}".format(
         #     dictInput["rss"]["channel"]["item"][0].keys()))
         for dictItem in dictInput["rss"]["channel"]["item"]:
           strPostType = dictItem["wp:post_type"]
@@ -145,7 +175,7 @@ if "rss" in dictInput:
               strItemPath += "/"
             if not os.path.exists(strItemPath):
               os.makedirs(strItemPath)
-              print("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
+              LogEntry("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
                   strItemPath))
             if IsHTML(strContent):
               strFileOut = strItemPath + strPostTitle + ".html"
@@ -166,27 +196,27 @@ if "rss" in dictInput:
               strItemPath += "/"
             if not os.path.exists(strItemPath):
               os.makedirs(strItemPath)
-              print("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
+              LogEntry("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
                   strItemPath))
             strURL = dictItem["wp:attachment_url"]
             iLoc = strURL.rfind("/")+1
             strFileOut = strItemPath + strURL[iLoc:]
-            print ("Fetching URL: {}".format(strURL))
+            LogEntry ("Fetching URL: {}".format(strURL))
             strContent = FetchFile(strURL)
             if strContent is not None:
-              print ("Saving attachment to {}".format(strFileOut))
+              LogEntry ("Saving attachment to {}".format(strFileOut))
               objFileOut = open(strFileOut, "wb", 1)
               objFileOut.write(strContent)
               objFileOut.close()
 
-          print("{} | {} | {} ".format(
+          LogEntry("{} | {} | {} ".format(
               dictItem["title"], strPostType, dictItem["dc:creator"]))
       else:
-        print("item is not a list, it is a {}".format(
+        LogEntry("item is not a list, it is a {}".format(
             type(dictInput["rss"]["channel"]["item"])))
     else:
-      print ("No Item list")
+      LogEntry ("No Item list")
   else:
-    print ("No channel item")
+    LogEntry ("No channel item")
 else:
-  print ("No rss feed")
+  LogEntry ("No rss feed")

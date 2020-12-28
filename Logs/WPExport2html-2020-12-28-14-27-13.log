@@ -1,0 +1,198 @@
+12-28-2020 14:27:22 : 
+Path 'C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/' for the output files didn't exists, so I create it!
+
+12-28-2020 14:27:22 : File read in, here are top level keys odict_keys(['rss'])
+12-28-2020 14:27:22 : 
+Path 'C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/' for the output files didn't exists, so I create it!
+
+12-28-2020 14:27:22 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/11/SuperGeek.jpg
+12-28-2020 14:27:23 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/SuperGeek.jpg
+12-28-2020 14:27:23 : SuperGeek | attachment | siggib 
+12-28-2020 14:27:23 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/11/cropped-SuperGeek.jpg
+12-28-2020 14:27:24 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/cropped-SuperGeek.jpg
+12-28-2020 14:27:24 : cropped-SuperGeek.jpg | attachment | siggib 
+12-28-2020 14:27:24 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/11/cropped-SuperGeek-1.jpg
+12-28-2020 14:27:25 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/cropped-SuperGeek-1.jpg
+12-28-2020 14:27:25 : cropped-SuperGeek-1.jpg | attachment | siggib 
+12-28-2020 14:27:25 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/11/IMG-245a44044148d42b1f9b2b70a12325d2-V.jpg
+12-28-2020 14:27:26 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/IMG-245a44044148d42b1f9b2b70a12325d2-V.jpg
+12-28-2020 14:27:26 : IMG-245a44044148d42b1f9b2b70a12325d2-V | attachment | siggib 
+12-28-2020 14:27:26 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/11/P8310156-scaled.jpg
+12-28-2020 14:27:27 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/P8310156-scaled.jpg
+12-28-2020 14:27:27 : None | attachment | siggib 
+12-28-2020 14:27:27 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/11/SuperGeek300Trans.png
+12-28-2020 14:27:28 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/SuperGeek300Trans.png
+12-28-2020 14:27:28 : SuperGeek300Trans | attachment | siggib 
+12-28-2020 14:27:28 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/11/SuperGeek.png
+12-28-2020 14:27:29 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/SuperGeek.png
+12-28-2020 14:27:29 : SuperGeek | attachment | siggib 
+12-28-2020 14:27:29 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/11/cropped-SuperGeek.png
+12-28-2020 14:27:31 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/cropped-SuperGeek.png
+12-28-2020 14:27:31 : cropped-SuperGeek.png | attachment | siggib 
+12-28-2020 14:27:31 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/SuperGeek300Trans.png
+12-28-2020 14:27:32 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/SuperGeek300Trans.png
+12-28-2020 14:27:32 : SuperGeek300Trans | attachment | siggib 
+12-28-2020 14:27:32 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/SuperGeek400.jpg
+12-28-2020 14:27:32 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/SuperGeek400.jpg
+12-28-2020 14:27:32 : SuperGeek400 | attachment | siggib 
+12-28-2020 14:27:32 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/arts_couple_190018.jpg
+12-28-2020 14:27:33 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/arts_couple_190018.jpg
+12-28-2020 14:27:33 : arts_couple_190018 | attachment | siggib 
+12-28-2020 14:27:33 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/arts_dancer_189680.jpg
+12-28-2020 14:27:34 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/arts_dancer_189680.jpg
+12-28-2020 14:27:34 : arts_dancer_189680 | attachment | siggib 
+12-28-2020 14:27:34 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c92056_s.jpg
+12-28-2020 14:27:35 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c92056_s.jpg
+12-28-2020 14:27:35 : c92056_s | attachment | siggib 
+12-28-2020 14:27:35 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c138127_m.jpg
+12-28-2020 14:27:36 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c138127_m.jpg
+12-28-2020 14:27:36 : c138127_m | attachment | siggib 
+12-28-2020 14:27:36 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c139284_s.jpg
+12-28-2020 14:27:36 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c139284_s.jpg
+12-28-2020 14:27:36 : c139284_s | attachment | siggib 
+12-28-2020 14:27:36 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c162055_m.jpg
+12-28-2020 14:27:37 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c162055_m.jpg
+12-28-2020 14:27:37 : c162055_m | attachment | siggib 
+12-28-2020 14:27:37 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c164732_m.jpg
+12-28-2020 14:27:38 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c164732_m.jpg
+12-28-2020 14:27:38 : c164732_m | attachment | siggib 
+12-28-2020 14:27:38 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c164862_s.jpg
+12-28-2020 14:27:38 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c164862_s.jpg
+12-28-2020 14:27:38 : c164862_s | attachment | siggib 
+12-28-2020 14:27:38 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c165602_m.jpg
+12-28-2020 14:27:39 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c165602_m.jpg
+12-28-2020 14:27:39 : c165602_m | attachment | siggib 
+12-28-2020 14:27:39 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c189680_m.jpg
+12-28-2020 14:27:40 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c189680_m.jpg
+12-28-2020 14:27:40 : c189680_m | attachment | siggib 
+12-28-2020 14:27:40 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c190018_m.jpg
+12-28-2020 14:27:41 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c190018_m.jpg
+12-28-2020 14:27:41 : c190018_m | attachment | siggib 
+12-28-2020 14:27:41 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c204262_m.jpg
+12-28-2020 14:27:41 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c204262_m.jpg
+12-28-2020 14:27:41 : c204262_m | attachment | siggib 
+12-28-2020 14:27:41 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c204375_s.jpg
+12-28-2020 14:27:42 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c204375_s.jpg
+12-28-2020 14:27:42 : c204375_s | attachment | siggib 
+12-28-2020 14:27:42 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c204428_m.jpg
+12-28-2020 14:27:43 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c204428_m.jpg
+12-28-2020 14:27:43 : c204428_m | attachment | siggib 
+12-28-2020 14:27:43 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c204472_s.jpg
+12-28-2020 14:27:43 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c204472_s.jpg
+12-28-2020 14:27:43 : c204472_s | attachment | siggib 
+12-28-2020 14:27:43 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c204552_m.jpg
+12-28-2020 14:27:44 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c204552_m.jpg
+12-28-2020 14:27:44 : c204552_m | attachment | siggib 
+12-28-2020 14:27:44 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c204870_s.jpg
+12-28-2020 14:27:45 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c204870_s.jpg
+12-28-2020 14:27:45 : c204870_s | attachment | siggib 
+12-28-2020 14:27:45 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/c281304_m.jpg
+12-28-2020 14:27:46 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/c281304_m.jpg
+12-28-2020 14:27:46 : c281304_m | attachment | siggib 
+12-28-2020 14:27:46 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/Linedance.jpg
+12-28-2020 14:27:47 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/Linedance.jpg
+12-28-2020 14:27:47 : Linedance | attachment | siggib 
+12-28-2020 14:27:47 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/MyLogo.jpg
+12-28-2020 14:27:47 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/MyLogo.jpg
+12-28-2020 14:27:47 : MyLogo | attachment | siggib 
+12-28-2020 14:27:47 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/MyLogoTitled.png
+12-28-2020 14:27:48 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/MyLogoTitled.png
+12-28-2020 14:27:48 : MyLogoTitled | attachment | siggib 
+12-28-2020 14:27:48 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/MyLogoTrans.png
+12-28-2020 14:27:49 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/MyLogoTrans.png
+12-28-2020 14:27:49 : MyLogoTrans | attachment | siggib 
+12-28-2020 14:27:49 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/nico-smit-QnkzvFCxKrA-unsplash-scaled.jpg
+12-28-2020 14:27:50 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/nico-smit-QnkzvFCxKrA-unsplash-scaled.jpg
+12-28-2020 14:27:50 : nico-smit-QnkzvFCxKrA-unsplash | attachment | siggib 
+12-28-2020 14:27:50 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/SuperGeekBanner.png
+12-28-2020 14:27:51 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/SuperGeekBanner.png
+12-28-2020 14:27:51 : SuperGeekBanner | attachment | siggib 
+12-28-2020 14:27:51 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/Dance-Banner.png
+12-28-2020 14:27:52 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/Dance-Banner.png
+12-28-2020 14:27:52 : Dance Banner | attachment | siggib 
+12-28-2020 14:27:52 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/Dance-Banner-1.png
+12-28-2020 14:27:54 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/Dance-Banner-1.png
+12-28-2020 14:27:54 : Dance Banner | attachment | siggib 
+12-28-2020 14:27:54 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/erik-mclean-PFfA3xlHFbQ-unsplash-scaled-e1608829253403.jpg
+12-28-2020 14:27:55 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/erik-mclean-PFfA3xlHFbQ-unsplash-scaled-e1608829253403.jpg
+12-28-2020 14:27:55 : erik-mclean-PFfA3xlHFbQ-unsplash | attachment | siggib 
+12-28-2020 14:27:55 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/erik-mclean-PFfA3xlHFbQ-unsplash-e1608829913936.png
+12-28-2020 14:27:55 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/erik-mclean-PFfA3xlHFbQ-unsplash-e1608829913936.png
+12-28-2020 14:27:55 : erik-mclean-PFfA3xlHFbQ-unsplash | attachment | siggib 
+12-28-2020 14:27:55 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/tim-marshall-cAtzHUz7Z8g-unsplash-scaled.jpg
+12-28-2020 14:27:56 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/tim-marshall-cAtzHUz7Z8g-unsplash-scaled.jpg
+12-28-2020 14:27:56 : tim-marshall-cAtzHUz7Z8g-unsplash | attachment | siggib 
+12-28-2020 14:27:56 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/markus-winkler-7iSEHWsxPLw-unsplash-scaled.jpg
+12-28-2020 14:27:58 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/markus-winkler-7iSEHWsxPLw-unsplash-scaled.jpg
+12-28-2020 14:27:58 : markus-winkler-7iSEHWsxPLw-unsplash | attachment | siggib 
+12-28-2020 14:27:58 : Home | nav_menu_item | siggib 
+12-28-2020 14:27:58 : The Geek | nav_menu_item | siggib 
+12-28-2020 14:27:58 : None | nav_menu_item | siggib 
+12-28-2020 14:27:58 : Facebook | nav_menu_item | siggib 
+12-28-2020 14:27:58 : Twitter | nav_menu_item | siggib 
+12-28-2020 14:27:58 : Email | nav_menu_item | siggib 
+12-28-2020 14:27:58 : None | nav_menu_item | siggib 
+12-28-2020 14:27:58 : None | nav_menu_item | siggib 
+12-28-2020 14:27:58 : None | nav_menu_item | siggib 
+12-28-2020 14:27:58 : Resume | nav_menu_item | siggib 
+12-28-2020 14:27:58 : Theater | nav_menu_item | siggib 
+12-28-2020 14:27:58 : Dancing | nav_menu_item | siggib 
+12-28-2020 14:27:58 : None | nav_menu_item | siggib 
+12-28-2020 14:27:58 : LinkedIn | nav_menu_item | siggib 
+12-28-2020 14:27:58 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/robin-jonathan-deutsch-lZhnckMx15M-unsplash-scaled.jpg
+12-28-2020 14:27:59 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/robin-jonathan-deutsch-lZhnckMx15M-unsplash-scaled.jpg
+12-28-2020 14:27:59 : robin-jonathan-deutsch-lZhnckMx15M-unsplash | attachment | siggib 
+12-28-2020 14:27:59 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/tim-johnson-MlpVwIvHyGM-unsplash-scaled.jpg
+12-28-2020 14:28:00 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/tim-johnson-MlpVwIvHyGM-unsplash-scaled.jpg
+12-28-2020 14:28:00 : tim-johnson-MlpVwIvHyGM-unsplash | attachment | siggib 
+12-28-2020 14:28:00 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/green-chameleon-s9CC2SKySJM-unsplash-scaled.jpg
+12-28-2020 14:28:01 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/green-chameleon-s9CC2SKySJM-unsplash-scaled.jpg
+12-28-2020 14:28:01 : green-chameleon-s9CC2SKySJM-unsplash | attachment | siggib 
+12-28-2020 14:28:01 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/mathyas-kurmann-fb7yNPbT0l8-unsplash-scaled.jpg
+12-28-2020 14:28:03 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/mathyas-kurmann-fb7yNPbT0l8-unsplash-scaled.jpg
+12-28-2020 14:28:03 : mathyas-kurmann-fb7yNPbT0l8-unsplash | attachment | siggib 
+12-28-2020 14:28:03 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/mathyas-kurmann-fb7yNPbT0l8-unsplash-1-scaled.jpg
+12-28-2020 14:28:04 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/mathyas-kurmann-fb7yNPbT0l8-unsplash-1-scaled.jpg
+12-28-2020 14:28:04 : mathyas-kurmann-fb7yNPbT0l8-unsplash | attachment | siggib 
+12-28-2020 14:28:04 : Fetching URL: https://supergeek.us/wp-content/uploads/2020/12/Media-Collection.png
+12-28-2020 14:28:05 : Saving attachment to C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/attachment/Media-Collection.png
+12-28-2020 14:28:05 : Media Collection | attachment | siggib 
+12-28-2020 14:28:05 : 
+Path 'C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/page/' for the output files didn't exists, so I create it!
+
+12-28-2020 14:28:05 : Sample Page | page | siggib 
+12-28-2020 14:28:05 : Privacy Policy | page | siggib 
+12-28-2020 14:28:05 : The New UMoMA Opens its Doors | page | siggib 
+12-28-2020 14:28:05 : Siggi The Super Geek | page | siggib 
+12-28-2020 14:28:05 : Contact | page | siggib 
+12-28-2020 14:28:05 : Blog | page | siggib 
+12-28-2020 14:28:05 : 
+Path 'C:/Users/siggi/OneDrive/Surface Download/thedancingsupergeek/post/' for the output files didn't exists, so I create it!
+
+12-28-2020 14:28:05 : Are women better than men? | post | siggib 
+12-28-2020 14:28:05 : Welcome | page | siggib 
+12-28-2020 14:28:05 : Doesn't Seattle have bigger problems? | post | siggib 
+12-28-2020 14:28:05 : Healthcare reform problems | post | siggib 
+12-28-2020 14:28:05 : Testing BlogJet | post | siggib 
+12-28-2020 14:28:05 : Blogging application review | post | siggib 
+12-28-2020 14:28:05 : Siggi The Dancer | page | siggib 
+12-28-2020 14:28:05 : Siggi Goes to the Theater | page | siggib 
+12-28-2020 14:28:05 : Volunteering | page | siggib 
+12-28-2020 14:28:05 : Links | page | siggib 
+12-28-2020 14:28:05 : My Resume | page | siggib 
+12-28-2020 14:28:05 : Collections | page | siggib 
+12-28-2020 14:28:05 : My Values and beliefs | page | siggib 
+12-28-2020 14:28:05 : Values | nav_menu_item | siggib 
+12-28-2020 14:28:05 : Hello world! | post | siggib 
+12-28-2020 14:28:05 : The backup dilema | post | siggib 
+12-28-2020 14:28:05 : Congressional Reform Act of 2011 | post | siggib 
+12-28-2020 14:28:05 : The American Tourist and Mexican Fisherman by Heinrich Böll | post | siggib 
+12-28-2020 14:28:05 : The difficulties understanding a woman..... | post | siggib 
+12-28-2020 14:28:05 : The Lesbian, Gay, Bisexual and Transgender (LGBT) debate | post | siggib 
+12-28-2020 14:28:05 : A Diary of a Blonde | post | siggib 
+12-28-2020 14:28:05 : Bar stool economics | post | siggib 
+12-28-2020 14:28:05 : Proposed solution to our broken political system | post | siggib 
+12-28-2020 14:28:05 : Vanity where does it come from??? | post | siggib 
+12-28-2020 14:28:05 : Of self confidence, social programing and more | post | siggib 
+12-28-2020 14:28:05 : Death of online privacy due to SESTA and FOSTA | post | siggib 
+12-28-2020 14:28:05 : Guide on how to be a real man | post | siggib 
