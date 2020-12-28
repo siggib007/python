@@ -141,6 +141,26 @@ if "rss" in dictInput:
             objFileOut = open(strFileOut,"w",1)
             objFileOut.write(strContent)
             objFileOut.close()
+          if strPostType == "attachment":
+            strItemPath = strOutPath + strPostType
+            if strItemPath[-1:] != "/":
+              strItemPath += "/"
+            if not os.path.exists(strItemPath):
+              os.makedirs(strItemPath)
+              print("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
+                  strItemPath))
+            strFileOut = strItemPath + strPostTitle + ".txt"
+            strURL = dictItem["wp:attachment_url"]
+            iLoc = strURL.rfind("/")+1
+            strAttachment = strURL[iLoc:]
+            strContent = "{}\n{} by {}. Posted on {} GMT\nContent: {}\nURL: {}\nFilename:{}".format(dictItem["title"],
+             strPostType[0].upper()+strPostType[1:], dictItem["dc:creator"],dictItem["wp:post_date_gmt"],
+             strContent, strURL, strAttachment)
+            objFileOut = open(strFileOut, "w", 1)
+            objFileOut.write(strContent)
+            objFileOut.close()
+
+
 
           print("{} | {} | {} ".format(
               dictItem["title"], strPostType, dictItem["dc:creator"]))
