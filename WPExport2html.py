@@ -98,6 +98,7 @@ strLogFile = strLogDir + strScriptName[:iLoc] + ISO + ".log"
 objLogOut = open(strLogFile, "w", 1)
 
 strFilein = ""
+dictMissing = {}
 sa = sys.argv
 lsa = len(sys.argv)
 if lsa > 1:
@@ -190,7 +191,7 @@ if "rss" in dictInput:
             objFileOut = open(strFileOut,"w",1)
             objFileOut.write(strContent)
             objFileOut.close()
-          if strPostType == "attachment":
+          elif strPostType == "attachment":
             strItemPath = strOutPath + strPostType
             if strItemPath[-1:] != "/":
               strItemPath += "/"
@@ -208,6 +209,9 @@ if "rss" in dictInput:
               objFileOut = open(strFileOut, "wb", 1)
               objFileOut.write(strContent)
               objFileOut.close()
+          else:
+            if strPostType not in dictMissing:
+              dictMissing[strPostType] = dictItem.keys()
 
           LogEntry("{} | {} | {} ".format(
               dictItem["title"], strPostType, dictItem["dc:creator"]))
@@ -220,3 +224,5 @@ if "rss" in dictInput:
     LogEntry ("No channel item")
 else:
   LogEntry ("No rss feed")
+
+LogEntry ("Done! Was missing ways to handle these types: {}".format(dictMissing))
