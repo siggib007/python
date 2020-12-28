@@ -183,7 +183,7 @@ if "rss" in dictInput:
             strPostTitle = "None"
           else:
             strPostTitle = CleanFileName (strPostTitle)
-          if strPostType == "post" or strPostType == "page":
+          if strPostType[:4] == "post" or strPostType == "page":
             strItemPath = strOutPath + strPostType
             if strItemPath[-1:] != "/":
               strItemPath += "/"
