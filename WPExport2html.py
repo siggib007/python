@@ -15,6 +15,7 @@ import sys
 import os
 import string
 import time
+import requests
 import xmltodict
 import urllib.parse as urlparse
 import subprocess as proc
@@ -30,6 +31,10 @@ except:
 
 # End imports
 
+#avoid insecure warning
+requests.urllib3.disable_warnings()
+
+#Define and initialize
 lstHTMLElements = ["</a>", "</p>", "</ol>",
                    "</li>", "</ul>", "</span>", "</div>"]
 
@@ -47,6 +52,20 @@ def IsHTML(strCheck):
     if strHTMLElement in strCheck:
       return True
   return False
+
+def FetchFile (strURL):
+  try:
+    WebRequest = requests.get(strURL, headers={}, verify=False)
+  except Exception as err:
+    print ("Issue with API call. {}".format(err))
+    return None
+
+  if isinstance(WebRequest, requests.models.Response) == False:
+    print ("response is unknown type")
+    return None
+  
+  return WebRequest.content
+
 
 strFilein = ""
 sa = sys.argv
@@ -149,18 +168,16 @@ if "rss" in dictInput:
               os.makedirs(strItemPath)
               print("\nPath '{0}' for the output files didn't exists, so I create it!\n".format(
                   strItemPath))
-            strFileOut = strItemPath + strPostTitle + ".txt"
             strURL = dictItem["wp:attachment_url"]
             iLoc = strURL.rfind("/")+1
-            strAttachment = strURL[iLoc:]
-            strContent = "{}\n{} by {}. Posted on {} GMT\nContent: {}\nURL: {}\nFilename:{}".format(dictItem["title"],
-             strPostType[0].upper()+strPostType[1:], dictItem["dc:creator"],dictItem["wp:post_date_gmt"],
-             strContent, strURL, strAttachment)
-            objFileOut = open(strFileOut, "w", 1)
-            objFileOut.write(strContent)
-            objFileOut.close()
-
-
+            strFileOut = strItemPath + strURL[iLoc:]
+            print ("Fetching URL: {}".format(strURL))
+            strContent = FetchFile(strURL)
+            if strContent is not None:
+              print ("Saving attachment to {}".format(strFileOut))
+              objFileOut = open(strFileOut, "wb", 1)
+              objFileOut.write(strContent)
+              objFileOut.close()
 
           print("{} | {} | {} ".format(
               dictItem["title"], strPostType, dictItem["dc:creator"]))
