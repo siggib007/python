@@ -1,10 +1,10 @@
 '''
-Qualys API Sample Script
-Author Siggi Bjarnason Copyright 2017
-Website http://www.ipcalc.us/ and http://www.icecomputing.com
+Wordpress Export Script
+Author Siggi Bjarnason Copyright 2020
+Website https://supergeek.us
 
 Description:
-This is script you can put in your specific Qualys API details and the script will save the raw response to a text as well as process it into a dict and write that to a file.
+This script will read an Wordpress export XML file, download all attachments and write all posts and pages to their own files.
 
 Following packages need to be installed as administrator
 pip install xmltodict
