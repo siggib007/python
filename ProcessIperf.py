@@ -146,7 +146,7 @@ def main():
         strOutFile, err), True)
   LogEntry("Output file {} created".format(strOutFile))
   objFileOut.write(
-      "Sys Info, Version, Remote Host, Remote Port, TimeStamp\n")
+      "Sys Info, Version, Remote Host, Remote Port, TimeStamp,Sent bps,Rcvd bps,Host CPU,Remote CPU\n")
 
   if strFileExt.lower() == "json":
     try:
@@ -182,7 +182,7 @@ def main():
         else:
           strVersion = "unknown version"
         if "system_info" in dictPerf["start"]:
-          strSysInfo = CSVClean (dictPerf["start"]["system_info"])
+          strSysInfo = CSVClean (dictPerf["start"]["system_info"],30)
         else:
           strSysInfo = "no system info"
         if "connecting_to" in dictPerf["start"]:
@@ -204,10 +204,41 @@ def main():
             strTimeStamp = "no time in timestamp"
         else:
           strTimeStamp = "no timestamp branch"
-      objFileOut.write("{},{},{},{},{}\n".format(
-          strSysInfo, strVersion, strRemoteHost, strRemotePort, strTimeStamp))
-      # LogEntry("{} Version:{} connected to {} port {} at {}".format(
-          # strSysInfo, strVersion, strRemoteHost, strRemotePort,strTimeStamp))
+      if "end" in dictPerf:
+        if "sum_sent" in dictPerf["end"]:
+          if "bits_per_second" in dictPerf["end"]["sum_sent"]:
+            iSumSentbps = dictPerf["end"]["sum_sent"]["bits_per_second"]
+          else:
+            iSumSentbps = -5
+        else:
+          iSumSentbps = -6
+        if "sum_received" in dictPerf["end"]:
+          if "bits_per_second" in dictPerf["end"]["sum_received"]:
+            iSumRcvdbps = dictPerf["end"]["sum_received"]["bits_per_second"]
+          else:
+            iSumRcvdbps = -5
+        else:
+          iSumRcvdbps = -6
+
+        if "cpu_utilization_percent" in dictPerf["end"]:
+          if "host_total" in dictPerf["end"]["cpu_utilization_percent"]:
+            iHostCPU = dictPerf["end"]["cpu_utilization_percent"]["host_total"]
+          else:
+            iHostCPU = -5
+        else:
+          iHostCPU = -6
+        if "cpu_utilization_percent" in dictPerf["end"]:
+          if "remote_total" in dictPerf["end"]["cpu_utilization_percent"]:
+            iRemoteCPU = dictPerf["end"]["cpu_utilization_percent"]["remote_total"]
+          else:
+            iRemoteCPU = -5
+        else:
+          iRemoteCPU = -6
+
+      objFileOut.write("{},{},{},{},{},{},{},{},{}\n".format(
+          strSysInfo, strVersion, strRemoteHost, strRemotePort, strTimeStamp,
+          iSumSentbps,iSumRcvdbps,iHostCPU,iRemoteCPU))
+
     iInstance += 1
   
   objFileIn.close()
