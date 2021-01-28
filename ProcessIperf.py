@@ -1,5 +1,5 @@
 '''
-iPerf processing Script. 
+iPerf processing Script.
 Author Siggi Bjarnason Copyright 2021
 Website https://supergeek.us
 
@@ -24,6 +24,19 @@ except:
 
 # End imports
 
+
+def CSVClean(strText, iLimit=350):
+  if strText is None:
+    return ""
+  else:
+    strTemp = str(strText)
+    strTemp = strTemp.encode("ascii", "ignore")
+    strTemp = strTemp.decode("ascii", "ignore")
+    strTemp = strTemp.replace(",", "")
+    strTemp = strTemp.replace("\n", " ")
+    strTemp = strTemp.replace("\r", " ")
+    return strTemp[:iLimit]
+
 def getInput(strPrompt):
   if sys.version_info[0] > 2:
     return input(strPrompt)
@@ -31,14 +44,26 @@ def getInput(strPrompt):
     print("please upgrade to python 3")
     sys.exit(5)
 
-def LogEntry(strMsg):
-	strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
-	objLogOut.write("{0} : {1}\n".format(strTimeStamp, strMsg))
-	print(strMsg)
+def CleanExit(strCause):
+  try:
+    objLogOut.close()
+    objFileOut.close()
+    objFileIn.close()
+  except:
+    pass
+  sys.exit(9)
 
+def LogEntry(strMsg, bAbort=False):
+  strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
+  objLogOut.write("{0} : {1}\n".format(strTimeStamp, strMsg))
+  print(strMsg)
+  if bAbort:
+    CleanExit("")
 
 def main():
   global objLogOut
+  global objFileOut
+  global objFileIn
 
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
 
@@ -70,13 +95,13 @@ def main():
   strVersion = "{0}.{1}.{2}".format(
       sys.version_info[0], sys.version_info[1], sys.version_info[2])
 
-  print("This is a script process json file from iperf and generate a csv file "
+  LogEntry ("This is a script process json file from iperf and generate a csv file "
           " that is easier to analyze and chart. "
           "This is running under Python Version {}".format(strVersion))
-  print("Running from: {}".format(strRealPath))
+  LogEntry ("Running from: {}".format(strRealPath))
   dtNow = time.asctime()
-  print("The time now is {}".format(dtNow))
-  print("Logs saved to {}".format(strLogFile))
+  LogEntry ("The time now is {}".format(dtNow))
+  LogEntry ("Logs saved to {}".format(strLogFile))
 
   strFilein = ""
   sa = sys.argv
@@ -86,7 +111,7 @@ def main():
 
   if strFilein == "":
     if btKinterOK:
-      print("File name to be processed is missing. Opening up a file open dialog box, "
+      LogEntry ("File name to be processed is missing. Opening up a file open dialog box, "
               " please select the file you wish to process.")
       root = tk.Tk()
       root.withdraw()
@@ -97,38 +122,98 @@ def main():
           "Please provide full path and filename for the WP Export file to be processed: ")
 
   if strFilein == "":
-    print("No filename provided unable to continue")
-    sys.exit(9)
+    LogEntry ("No filename provided unable to continue",True)
 
   if os.path.isfile(strFilein):
-    print("OK found {}".format(strFilein))
+    LogEntry ("OK found {}".format(strFilein))
   else:
-    print("Can't find WP export file {}".format(strFilein))
-    sys.exit(4)
+    LogEntry ("Can't find iperf json file {}".format(strFilein),True)
 
   iLoc = strFilein.rfind(".")
   strFileExt = strFilein[iLoc+1:]
   iLoc = strFilein.find(".")
   strOutFile = strFilein[:iLoc] + ".csv"
+  # strFixedjason = strFilein[:iLoc] + "-fixed.json"
 
   LogEntry ("CSV results will be written to {}".format(strOutFile))
+  try:
+    objFileOut = open(strOutFile, "w")
+  except PermissionError:
+    LogEntry("unable to open output file {} for writing, "
+             "permission denied.".format(strOutFile),True)
+  except Exception as err:
+    LogEntry("Unexpected error while attempting to open {} for writing. Error Details: {}".format(
+        strOutFile, err), True)
+  LogEntry("Output file {} created".format(strOutFile))
+  objFileOut.write(
+      "Sys Info, Version, Remote Host, Remote Port, TimeStamp\n")
 
   if strFileExt.lower() == "json":
-    objFileIn = open(strFilein, "r", encoding='utf-8')
+    try:
+      objFileIn = open(strFilein, "r")
+    except Exception as err:
+      LogEntry("Unexpected error while opening input file {}. Error details {}".format(strFilein,err))
   else:
     LogEntry(
-        "only able to process json files. Unable to process {} files".format(strFileExt))
-    sys.exit(5)
+        "only able to process json files. Unable to process {} files".format(strFileExt),True)
 
+  LogEntry ("Input file {} opened and ready for reading.".format(strFilein))
   strJson = objFileIn.read()
+  strJson = "[" + strJson + "]"
+  strJson = strJson.replace("}\n{", "},\n{")
+  # objFileOut = open(strFixedjason,"w")
+  # objFileOut.write(strJson)
+  # objFileOut.close()
 
   try:
-      dictInput = json.loads(strJson)
+      lstInput = json.loads(strJson)
   except Exception as err:
-      LogEntry("json Error: {}\n".format(err))
-      sys.exit(9)
+      LogEntry("json Error: {}\n".format(err),True)
 
-  LogEntry ("top level is {} with {} entries.".format(type(dictInput),len(dictInput)))
+  LogEntry ("top level is {} with {} entries.".format(type(lstInput),len(lstInput)))
+  iInstance = 0
+  for dictPerf in lstInput:
+    if "error" in dictPerf:
+      LogEntry ("Entry {}: {}".format (iInstance, dictPerf["error"]))
+    else:
+      if "start" in dictPerf:
+        if "version" in dictPerf["start"]:
+          strVersion = CSVClean (dictPerf["start"]["version"])
+        else:
+          strVersion = "unknown version"
+        if "system_info" in dictPerf["start"]:
+          strSysInfo = CSVClean (dictPerf["start"]["system_info"])
+        else:
+          strSysInfo = "no system info"
+        if "connecting_to" in dictPerf["start"]:
+          if "host" in dictPerf["start"]["connecting_to"]:
+            strRemoteHost = CSVClean (dictPerf["start"]["connecting_to"]["host"])
+          else:
+            strRemoteHost = "unknown remote host"
+          if "port" in dictPerf["start"]["connecting_to"]:
+            strRemotePort = CSVClean (dictPerf["start"]["connecting_to"]["port"])
+          else:
+            strRemotePort = "unknown remote port"
+        else:
+          strRemoteHost = "no connecting to branch"
+          strRemotePort = "no connecting to branch"
+        if "timestamp" in dictPerf["start"]:
+          if "time" in dictPerf["start"]["timestamp"]:
+            strTimeStamp = CSVClean (dictPerf["start"]["timestamp"]["time"])
+          else:
+            strTimeStamp = "no time in timestamp"
+        else:
+          strTimeStamp = "no timestamp branch"
+      objFileOut.write("{},{},{},{},{}\n".format(
+          strSysInfo, strVersion, strRemoteHost, strRemotePort, strTimeStamp))
+      # LogEntry("{} Version:{} connected to {} port {} at {}".format(
+          # strSysInfo, strVersion, strRemoteHost, strRemotePort,strTimeStamp))
+    iInstance += 1
+  
+  objFileIn.close()
+  objFileOut.close()
+  objLogOut.close()
+
 
 if __name__ == '__main__':
   main()
