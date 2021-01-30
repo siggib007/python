@@ -103,7 +103,7 @@ def main():
   LogEntry ("The time now is {}".format(dtNow))
   LogEntry ("Logs saved to {}".format(strLogFile))
 
-  strFilein = ""
+  strFilein = "C:/Users/siggi/OneDrive/iperf/iperf.json"
   sa = sys.argv
   lsa = len(sys.argv)
   if lsa > 1:
@@ -235,12 +235,14 @@ def main():
         else:
           iRemoteCPU = -6
 
+      LogEntry("processed entry to {} on {}".format(
+          strRemoteHost, strTimeStamp))
       objFileOut.write("{},{},{},{},{},{},{},{},{}\n".format(
           strSysInfo, strVersion, strRemoteHost, strRemotePort, strTimeStamp,
           iSumSentbps,iSumRcvdbps,iHostCPU,iRemoteCPU))
 
     iInstance += 1
-  
+  LogEntry("Done")
   objFileIn.close()
   objFileOut.close()
   objLogOut.close()
