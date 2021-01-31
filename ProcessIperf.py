@@ -24,7 +24,6 @@ except:
 
 # End imports
 
-
 def CSVClean(strText, iLimit=350):
   if strText is None:
     return ""
@@ -133,7 +132,6 @@ def main():
   strFileExt = strFilein[iLoc+1:]
   iLoc = strFilein.find(".")
   strOutFile = strFilein[:iLoc] + ".csv"
-  # strFixedjason = strFilein[:iLoc] + "-fixed.json"
 
   LogEntry ("CSV results will be written to {}".format(strOutFile))
   try:
@@ -146,7 +144,8 @@ def main():
         strOutFile, err), True)
   LogEntry("Output file {} created".format(strOutFile))
   objFileOut.write(
-      "Sys Info, Version, Remote Host, Remote Port, TimeStamp,Sent bps,Rcvd bps,Host CPU,Remote CPU\n")
+      "Sys Info,Version,Remote Host,Remote Port,TimeStamp,Sent bps,Rcvd bps,"
+      "Host CPU,Remote CPU,Sent Mbps,Rcvd Mbps\n")
 
   if strFileExt.lower() == "json":
     try:
@@ -161,9 +160,6 @@ def main():
   strJson = objFileIn.read()
   strJson = "[" + strJson + "]"
   strJson = strJson.replace("}\n{", "},\n{")
-  # objFileOut = open(strFixedjason,"w")
-  # objFileOut.write(strJson)
-  # objFileOut.close()
 
   try:
       lstInput = json.loads(strJson)
@@ -237,16 +233,15 @@ def main():
 
       LogEntry("processed entry to {} on {}".format(
           strRemoteHost, strTimeStamp))
-      objFileOut.write("{},{},{},{},{},{},{},{},{}\n".format(
+      objFileOut.write("{},{},{},{},{},{},{},{},{},{},{}\n".format(
           strSysInfo, strVersion, strRemoteHost, strRemotePort, strTimeStamp,
-          iSumSentbps,iSumRcvdbps,iHostCPU,iRemoteCPU))
+          iSumSentbps,iSumRcvdbps,iHostCPU,iRemoteCPU,iSumSentbps/1e6,iSumRcvdbps/1e6))
 
     iInstance += 1
   LogEntry("Done")
   objFileIn.close()
   objFileOut.close()
   objLogOut.close()
-
 
 if __name__ == '__main__':
   main()
