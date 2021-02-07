@@ -144,7 +144,7 @@ def main():
         strOutFile, err), True)
   LogEntry("Output file {} created".format(strOutFile))
   objFileOut.write(
-      "Sys Info,Version,Remote Host,Remote Port,TimeStamp,Sent bps,Rcvd bps,"
+      "Sys Info,Version,Remote Host,Remote Port,Text Time Stamp,Excel Time Stamp,"
       "Host CPU,Remote CPU,Sent Mbps,Rcvd Mbps\n")
 
   if strFileExt.lower() == "json":
@@ -161,6 +161,17 @@ def main():
   strJson = "[" + strJson + "]"
   strJson = strJson.replace("}\n{", "},\n{")
 
+  lstInput = []
+  strRemoteHost = ""
+  strTimeStamp = ""
+  iExcelTime = 0
+  strSysInfo = ""
+  strRemotePort = ""
+  iSumSentbps = ""
+  iSumRcvdbps = ""
+  iHostCPU = ""
+  iRemoteCPU = ""
+
   try:
       lstInput = json.loads(strJson)
   except Exception as err:
@@ -171,6 +182,7 @@ def main():
   for dictPerf in lstInput:
     if "error" in dictPerf:
       LogEntry ("Entry {}: {}".format (iInstance, dictPerf["error"]))
+      objFileOut.write("{}\n".format(dictPerf["error"]))
     else:
       if "start" in dictPerf:
         if "version" in dictPerf["start"]:
@@ -198,6 +210,11 @@ def main():
             strTimeStamp = CSVClean (dictPerf["start"]["timestamp"]["time"])
           else:
             strTimeStamp = "no time in timestamp"
+          if "timesecs" in dictPerf["start"]["timestamp"]:
+            iExcelTime = int(dictPerf["start"]["timestamp"]["timesecs"])
+            iExcelTime = iExcelTime/86400+25569
+          else:
+            iExcelTime = "no time in timestamp"
         else:
           strTimeStamp = "no timestamp branch"
       if "end" in dictPerf:
@@ -233,9 +250,9 @@ def main():
 
       LogEntry("processed entry to {} on {}".format(
           strRemoteHost, strTimeStamp))
-      objFileOut.write("{},{},{},{},{},{},{},{},{},{},{}\n".format(
+      objFileOut.write("{},{},{},{},{},{},{},{},{},{}\n".format(
           strSysInfo, strVersion, strRemoteHost, strRemotePort, strTimeStamp,
-          iSumSentbps,iSumRcvdbps,iHostCPU,iRemoteCPU,iSumSentbps/1e6,iSumRcvdbps/1e6))
+          iExcelTime, iHostCPU,iRemoteCPU,iSumSentbps/1e6,iSumRcvdbps/1e6))
 
     iInstance += 1
   LogEntry("Done")
