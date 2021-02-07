@@ -143,9 +143,7 @@ def main():
     LogEntry("Unexpected error while attempting to open {} for writing. Error Details: {}".format(
         strOutFile, err), True)
   LogEntry("Output file {} created".format(strOutFile))
-  objFileOut.write(
-      "Sys Info,Version,Remote Host,Remote Port,Text Time Stamp,Excel Time Stamp,"
-      "Host CPU,Remote CPU,Sent Mbps,Rcvd Mbps\n")
+
 
   if strFileExt.lower() == "json":
     try:
@@ -179,6 +177,9 @@ def main():
 
   LogEntry ("top level is {} with {} entries.".format(type(lstInput),len(lstInput)))
   iInstance = 0
+  strCCSVHeader = ("Sys Info,Version,Remote Host,Remote Port,Text Time Stamp,Excel Time Stamp," 
+                "Host CPU,Remote CPU,Sent Mbps,Rcvd Mbps")
+  objFileOut.write(strCCSVHeader + "\n")
   for dictPerf in lstInput:
     if "error" in dictPerf:
       LogEntry ("Entry {}: {}".format (iInstance, dictPerf["error"]))
