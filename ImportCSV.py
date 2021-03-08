@@ -207,8 +207,6 @@ for strLine in strLines:
 			bTruncateTable = strValue.lower() == "true"
 		if strVarName == "ConvertBool":
 			bConvertBool = strValue.lower() == "true"
-		if strVarName == "RecordStats":
-			bRecordStats = strValue.lower() == "true"
 		if strVarName == "FieldDelim":
 			strDelim = strValue
 		if strVarName == "CSVFileName":

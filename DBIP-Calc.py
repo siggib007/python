@@ -28,7 +28,6 @@ def DotDecGen (iDecValue):
 	strTemp = str(int(HexValue[2:4],16)) + "." + str(int(HexValue[4:6],16)) + "."
 	strTemp = strTemp + str(int(HexValue[6:8],16)) + "." + str(int(HexValue[8:10],16))
 	return strTemp
-# End Function
 
 def DotDec2Int (strValue):
 	strHex = ""
@@ -44,12 +43,7 @@ def DotDec2Int (strValue):
 	# next
 
 	return int(strHex,16)
-# end function
 
-# Function ValidateIP
-# Takes in a string and validates that it follows standard IP address format
-# Should be four parts with period deliniation
-# Each nubmer should be a number from 0 to 255.
 def ValidateIP(strToCheck):
 	Quads = strToCheck.split(".")
 	if len(Quads) != 4:
@@ -68,10 +62,7 @@ def ValidateIP(strToCheck):
 		# end if
 
 	return True
-# end function
 
-# Function IPCalc
-# This function takes in a string of IP address and does the actual final colculation
 def IPCalc (strIPAddress):
 	strIPAddress=strIPAddress.strip()
 	strIPAddress=strIPAddress.replace("\t"," ")
@@ -107,8 +98,6 @@ def IPCalc (strIPAddress):
 		dictIPInfo['IPError'] = "'" + strIPAddress + "' is not a valid IP!"
 	# End if
 	return dictIPInfo
-# end function
-
 
 def SQLConn (strServer,strDBUser,strDBPWD,strInitialDB):
 	try:
@@ -180,7 +169,6 @@ def FindMask(iDecSubID,iDecBroad):
 		if iDecBroad < dictIPInfo['iDecBroad']:
 			return "Partial match:{}".format(strSubnet)
 	return "{}/{}".format(strIPAddress,32)
-
 
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 strSQL = ("SELECT iBlockID,vcSubnet FROM Qualys_Portal.tblNetBlocks;")
