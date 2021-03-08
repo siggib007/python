@@ -1,8 +1,7 @@
 '''
 Script to import CSV files
-Version: 3.6
-Author Siggi Bjarnason Copyright 2017
-Website http://www.ipcalc.us/ and http://www.icecomputing.com
+Author Siggi Bjarnason Copyright 2017,2021
+Website https://supergeek.us/ 
 
 Following packages need to be installed as administrator
 pip install pymysql
@@ -29,108 +28,13 @@ except:
 bTruncateTable = True   # Truncate the table prior to insert
 bConvertBool = True     # Convert strings true/false into 1 and 0 for insert into database boolean field.
 bRecordStats = True     # Log events and record stats in the database.
-
-# Initialize stuff
 strDelim = ","          # what is the field seperate in the input file
-strCSVName = ""
-iLoc = sys.argv[0].rfind(".")
-strConf_File = sys.argv[0][:iLoc] + ".ini"
-strScriptName = os.path.basename(sys.argv[0])
-localtime = time.localtime(time.time())
-gmt_time = time.gmtime()
-iGMTOffset = (time.mktime(localtime) - time.mktime(gmt_time))/3600
-
-#Start doing stuff
-print ("This is a script to import csv files. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
-now = time.asctime()
-print ("The time now is {}".format(now))
-
-if os.path.isfile(strConf_File):
-	print ("Configuration File exists")
-else:
-	print ("Can't find configuration file {}, make sure it is the same directory as this script".format(strConf_File))
-	sys.exit(4)
-
-strLine = "  "
-print ("Reading in configuration")
-objINIFile = open(strConf_File,"r")
-strLines = objINIFile.readlines()
-objINIFile.close()
-
-for strLine in strLines:
-	iCommentLoc = strLine.find("#")
-	if iCommentLoc > -1:
-		strLine = strLine[:iCommentLoc].strip()
-	else:
-		strLine = strLine.strip()
-	if "=" in strLine:
-		strConfParts = strLine.split("=")
-		strVarName = strConfParts[0].strip()
-		strValue = strConfParts[1].strip()
-		if strVarName == "APIBaseURL":
-			strBaseURL = strValue
-		if strVarName == "APIRequestHeader":
-			strHeadReq = strValue
-		if strVarName == "QUserID":
-			strUserName = strValue
-		if strVarName == "QUserPWD":
-			strPWD = strValue
-		if strVarName == "Server":
-			strServer = strValue
-		if strVarName == "dbUser":
-			strDBUser = strValue
-		if strVarName == "dbPWD":
-			strDBPWD = strValue
-		if strVarName == "InitialDB":
-			strInitialDB = strValue
-		if strVarName == "TableName":
-			strTableName = strValue
-		if strVarName == "TruncateTable":
-			bTruncateTable = strValue.lower() == "true"
-		if strVarName == "ConvertBool":
-			bConvertBool = strValue.lower() == "true"
-		if strVarName == "RecordStats":
-			bRecordStats = strValue.lower() == "true"
-		if strVarName == "FieldDelim":
-			strDelim = strValue
-		if strVarName == "CSVFileName":
-			strCSVName = strValue
-		if strVarName == "DateTimeFormat":
-			strDTFormat = strValue
-
-strScriptName = strScriptName[:-3] + "-" + strTableName
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
         return input(strPrompt)
     else:
         return raw_input(strPrompt)
-# end getInput
-
-sa = sys.argv
-
-lsa = len(sys.argv)
-if lsa > 1:
-	strCSVName = sa[1]
-
-if strCSVName == "":
-	if btKinterOK:
-		print ("File name to be imported is missing. Opening up a file open dialog box, please select the file you wish to import.")
-		root = tk.Tk()
-		root.withdraw()
-		strCSVName = filedialog.askopenfilename(title = "Select CSV file",filetypes = (("CSV files","*.csv"),("Text files","*.txt"),("all files","*.*")))
-	else:
-		strCSVName = getInput("Please provide full path and filename for the CSV file to be imported: ")
-
-if strCSVName == "":
-	print ("No filename provided unable to continue")
-	sys.exit()
-
-if os.path.isfile(strCSVName):
-	print ("OK found {}".format(strCSVName))
-else:
-	print ("Can't find CSV file {}".format(strCSVName))
-	sys.exit(4)
 
 def LogEntry(strMsg):
 	if bRecordStats:
@@ -245,32 +149,104 @@ def isInt (CheckValue):
 	else:
 		return False
 
+# Initialize stuff
+iLoc = sys.argv[0].rfind(".")
+strCSVName = ""
+strConf_File = sys.argv[0][:iLoc] + ".ini"
+strScriptName = os.path.basename(sys.argv[0])
+localtime = time.localtime(time.time())
+gmt_time = time.gmtime()
+iGMTOffset = (time.mktime(localtime) - time.mktime(gmt_time))/3600
+
+#Start doing stuff
+print ("This is a script to import csv files. This is running under Python Version {0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2]))
+now = time.asctime()
+print ("The time now is {}".format(now))
+
+if os.path.isfile(strConf_File):
+	print ("Configuration File exists")
+else:
+	print ("Can't find configuration file {}, make sure it is the same directory as this script".format(strConf_File))
+	sys.exit(4)
+
+strLine = "  "
+print ("Reading in configuration")
+objINIFile = open(strConf_File,"r")
+strLines = objINIFile.readlines()
+objINIFile.close()
+
+for strLine in strLines:
+	iCommentLoc = strLine.find("#")
+	if iCommentLoc > -1:
+		strLine = strLine[:iCommentLoc].strip()
+	else:
+		strLine = strLine.strip()
+	if "=" in strLine:
+		strConfParts = strLine.split("=")
+		strVarName = strConfParts[0].strip()
+		strValue = strConfParts[1].strip()
+		if strVarName == "APIBaseURL":
+			strBaseURL = strValue
+		if strVarName == "APIRequestHeader":
+			strHeadReq = strValue
+		if strVarName == "QUserID":
+			strUserName = strValue
+		if strVarName == "QUserPWD":
+			strPWD = strValue
+		if strVarName == "Server":
+			strServer = strValue
+		if strVarName == "dbUser":
+			strDBUser = strValue
+		if strVarName == "dbPWD":
+			strDBPWD = strValue
+		if strVarName == "InitialDB":
+			strInitialDB = strValue
+		if strVarName == "TableName":
+			strTableName = strValue
+		if strVarName == "TruncateTable":
+			bTruncateTable = strValue.lower() == "true"
+		if strVarName == "ConvertBool":
+			bConvertBool = strValue.lower() == "true"
+		if strVarName == "RecordStats":
+			bRecordStats = strValue.lower() == "true"
+		if strVarName == "FieldDelim":
+			strDelim = strValue
+		if strVarName == "CSVFileName":
+			strCSVName = strValue
+		if strVarName == "DateTimeFormat":
+			strDTFormat = strValue
+
+strScriptName = strScriptName[:-3] + "-" + strTableName
+
+sa = sys.argv
+
+lsa = len(sys.argv)
+if lsa > 1:
+	strCSVName = sa[1]
+
+if strCSVName == "":
+	if btKinterOK:
+		print ("File name to be imported is missing. Opening up a file open dialog box, please select the file you wish to import.")
+		root = tk.Tk()
+		root.withdraw()
+		strCSVName = filedialog.askopenfilename(title = "Select CSV file",filetypes = (("CSV files","*.csv"),("Text files","*.txt"),("all files","*.*")))
+	else:
+		strCSVName = getInput("Please provide full path and filename for the CSV file to be imported: ")
+
+if strCSVName == "":
+	print ("No filename provided unable to continue")
+	sys.exit()
+
+if os.path.isfile(strCSVName):
+	print ("OK found {}".format(strCSVName))
+else:
+	print ("Can't find CSV file {}".format(strCSVName))
+	sys.exit(4)
+
 lstFields = []
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 LogEntry("Starting the import of {} into database on {}".format(strCSVName,strServer))
 LogEntry("Date Time format set to: {}".format(strDTFormat))
-
-if bRecordStats:
-	strSQL = "INSERT INTO tblScriptExecuteList (vcScriptName,dtStartTime,iGMTOffset) VALUES('{}',now(),{});".format(strScriptName,iGMTOffset)
-	lstReturn = SQLQuery (strSQL,dbConn)
-	if not ValidReturn(lstReturn):
-		LogEntry ("Unexpected: {}".format(lstReturn))
-		sys.exit(9)
-	elif lstReturn[0] != 1:
-		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-
-	strSQL = "select iExecuteID from tblScriptExecuteList where dtStartTime = (select max(dtStartTime) from tblScriptExecuteList where vcScriptName = '{}');".format(strScriptName)
-	lstReturn = SQLQuery (strSQL,dbConn)
-	if not ValidReturn(lstReturn):
-		LogEntry ("Unexpected: {}".format(lstReturn))
-		sys.exit(9)
-	elif lstReturn[0] != 1:
-		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-		iEntryID = -10
-	else:
-		iEntryID = lstReturn[1][0][0]
-
-	LogEntry("Recorded start entry, ID {}".format(iEntryID))
 
 strSQL = "show columns from {};".format(strTableName)
 lstReturn = SQLQuery (strSQL,dbConn)
@@ -348,12 +324,4 @@ with open(strCSVName,newline="") as hCSV:
 		print ("imported {} records...".format(myReader.line_num),end="\r")
 
 LogEntry ("\n{} records imported. Except as noted above all records imported successfully".format(myReader.line_num))
-if bRecordStats:
-	LogEntry("Updating completion entry")
-	strSQL = "update tblScriptExecuteList set dtStopTime=now(), bComplete=1, iRowsUpdated={} where iExecuteID = {} ;".format(myReader.line_num,iEntryID)
-	lstReturn = SQLQuery (strSQL,dbConn)
-	if not ValidReturn(lstReturn):
-		LogEntry ("Unexpected: {}".format(lstReturn))
-	elif lstReturn[0] != 1:
-		LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
 LogEntry ("All Done!")
