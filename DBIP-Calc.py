@@ -98,7 +98,7 @@ def IPCalc (strIPAddress):
 def SQLConn (strServer,strDBUser,strDBPWD,strInitialDB):
   try:
     # Open database connection
-    return pymysql.connect(ost=strServer,user=strDBUser,password=strDBPWD,db=strInitialDB)
+    return pymysql.connect(host=strServer,user=strDBUser,password=strDBPWD,db=strInitialDB)
   except pymysql.err.InternalError as err:
     print ("Error: unable to connect: {}".format(err))
     sys.exit(5)
@@ -157,9 +157,9 @@ def FindMask(iDecSubID,iDecBroad):
   for x in range(1,32):
     strSubnet = "{}/{}".format(strIPAddress,x)
     dictIPInfo = IPCalc (strSubnet)
-    print (dictIPInfo)
-    print ("iDecBroad 1:{}".format(iDecBroad))
-    print ("iDecBroad 2:{}".format(dictIPInfo['iDecBroad']))
+    # print (dictIPInfo)
+    # print ("iDecBroad 1:{}".format(iDecBroad))
+    # print ("iDecBroad 2:{}".format(dictIPInfo['iDecBroad']))
     if iDecBroad == dictIPInfo['iDecBroad']:
       return strSubnet
     if iDecBroad < dictIPInfo['iDecBroad']:
@@ -262,12 +262,12 @@ for dbRow in lstSubnets[1]:
               " {BitMaskField} = {BitMaskValue} WHERE {IDField} = {IDValue};".format(
                 NetIDValue=iDecSubID, BroadcastValue=iDecBroad, HostCountValue=iHostcount,
                 IDValue=iSubnetID, db=strInitialDB, table=strTableName, NetIDField=strNetIDField,
-                BroadcastValue=strBroadCastField, iIPField=strIntIPField, IDField=strRecordID
+                BroadcastField=strBroadCastField, iIPField=strIntIPField, IDField=strRecordID,
                 HostCountField=strHostCountField, BitMaskField=strBitMaskField, BitMaskValue=iBitMask,
                 iIPValue=iDecIP))
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
       print ("Unexpected: {}".format(lstReturn))
       break
-    elif lstReturn[0] != 1:
-      print ("{} \n Records affected {}, expected 1 record affected".format(strSQL, lstReturn[0]))
+    # elif lstReturn[0] != 1:
+    #   print ("{} \n Records affected {}, expected 1 record affected".format(strSQL, lstReturn[0]))
