@@ -170,14 +170,7 @@ for strLine in strLines:
 		strConfParts = strLine.split("=")
 		strVarName = strConfParts[0].strip()
 		strValue = strConfParts[1].strip()
-		if strVarName == "APIBaseURL":
-			strBaseURL = strValue
-		if strVarName == "APIRequestHeader":
-			strHeadReq = strValue
-		if strVarName == "QUserID":
-			strUserName = strValue
-		if strVarName == "QUserPWD":
-			strPWD = strValue
+
 		if strVarName == "Server":
 			strServer = strValue
 		if strVarName == "dbUser":
