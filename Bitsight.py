@@ -14,6 +14,7 @@ import string
 import time
 import pymysql
 import csv
+import socket
 
 try:
 	import tkinter as tk
@@ -89,9 +90,9 @@ def DBClean(strText):
 	if strText.strip() == "":
 		return "NULL"
 	elif isInt(strText):
-		return int(strText)
+		return strText #int(strText)
 	elif isFloat(strText):
-		return float(strText)
+		return strText # float(strText)
 	else:
 		strTemp = strText.encode("ascii","ignore")
 		strTemp = strTemp.decode("ascii","ignore")
@@ -136,6 +137,94 @@ def isFloat (fValue):
   else:
     fTemp = "NULL"
   return fTemp != "NULL"
+
+def DotDecGen (iDecValue):
+  if iDecValue < 1 or iDecValue > 4294967295:
+    return "Invalid"
+  # end if
+
+  # Convert decimal to hex
+  HexValue = hex(iDecValue)
+
+  #Ensure the results is 8 hex digits long.
+  #IP's lower than 16.0.0.0 have trailing 0's that get trimmed off by hex function
+  HexValue = "0"*8+HexValue[2:]
+  HexValue = "0x"+HexValue[-8:]
+  # Convert Hex to dot dec
+  strTemp = str(int(HexValue[2:4],16)) + "." + str(int(HexValue[4:6],16)) + "."
+  strTemp = strTemp + str(int(HexValue[6:8],16)) + "." + str(int(HexValue[8:10],16))
+  return strTemp
+
+def DotDec2Int (strValue):
+  strHex = ""
+  if ValidateIP(strValue) == False:
+    return 0
+  # end if
+
+  Quads = strValue.split(".")
+  for Q in Quads:
+    QuadHex = hex(int(Q))
+    strwp = "00"+ QuadHex[2:]
+    strHex = strHex + strwp[-2:]
+  # next
+
+  return int(strHex,16)
+
+def ValidateIP(strToCheck):
+  Quads = strToCheck.split(".")
+  if len(Quads) != 4:
+    return False
+  # end if
+
+  for Q in Quads:
+    try:
+      iQuad = int(Q)
+    except ValueError:
+      return False
+    # end try
+
+    if iQuad > 255 or iQuad < 0:
+      return False
+    # end if
+
+  return True
+
+def IPCalc (strIPAddress):
+  strIPAddress=strIPAddress.strip()
+  strIPAddress=strIPAddress.replace("\t"," ")
+  strIPAddress=strIPAddress.replace("  "," ")
+  strIPAddress=strIPAddress.replace(" /","/")
+  dictIPInfo={}
+  iBitMask=0
+  if "/" in strIPAddress:
+    IPAddrParts = strIPAddress.split("/")
+    strIPAddress=IPAddrParts[0]
+    try:
+      iBitMask=int(IPAddrParts[1])
+    except ValueError:
+      iBitMask=32
+    # end try
+  else:
+    iBitMask = 32
+  # end if
+
+  if ValidateIP(strIPAddress):
+    dictIPInfo['IPAddr'] = strIPAddress
+    dictIPInfo['BitMask'] = str(iBitMask)
+    iHostcount = 2**(32 - iBitMask)
+    dictIPInfo['Hostcount'] = iHostcount
+    iDecIPAddr = DotDec2Int(strIPAddress)
+    dictIPInfo['DecIP'] = iDecIPAddr
+    iDecSubID = iDecIPAddr-(iDecIPAddr%iHostcount)
+    iDecBroad = iDecSubID + iHostcount - 1
+    dictIPInfo['iDecSubID'] = iDecSubID
+    dictIPInfo['iDecBroad'] = iDecBroad
+    dictIPInfo['Subnet'] = DotDecGen(iDecSubID)
+    dictIPInfo['Broadcast'] = DotDecGen(iDecBroad)
+  else:
+    dictIPInfo['IPError'] = "'" + strIPAddress + "' is not a valid IP!"
+  # End if
+  return dictIPInfo
 
 # Initialize stuff
 iLoc = sys.argv[0].rfind(".")
@@ -234,18 +323,29 @@ with open(strCSVName,newline="") as hCSV:
 	for lstLine in myReader :
 		if lstLine[0][:10] == "Disclaimer" or lstLine[0][:11] == "*IP address":
 			continue 
+		lstFindingParts = lstLine[1].split(":")
+		if ValidateIP(lstFindingParts[0]):
+			strIPAddress = "'{}'".format(lstFindingParts[0])
+		else:
+			try:
+				strDNS = socket.gethostbyname(lstFindingParts[0])
+			except Exception as err:
+				strDNS = err
+			strIPAddress = "'{}'".format(strDNS)
 		lstValues = []
 		iLine += 1
 		for strCSV in lstLine:
 			lstValues.append(DBClean(strCSV))
+		lstValues.append(strIPAddress)
 		strSQL = ("insert into tblbitsightvulns (vcRiskVector,vcFindingID,dtFirstSeen," 
 							"dtLastSeen,vcGrade,vcImpactRVG,iLifeTime,vcSeverity,vcDetails,iSrcPort,"
-							"iDstPort,vcPort,vcSrvType,vcSrvVer,vcRefresh) values ({});".format(",".join(lstValues)))
+							"iDstPort,vcPort,vcSrvType,vcSrvVer,vcRefresh,vcIPAddr) "
+							" values ({});".format(",".join(lstValues)))
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
 			print ("Unexpected: {}".format(lstReturn))
 			sys.exit(9)
 		else:
-			LogEntry ("Inserted {} record".format(lstReturn[0]))
+			print ("Inserted {} record".format(lstReturn[0]),end="\r")
 LogEntry("Done. Processed {} records".format(iLine))
 
