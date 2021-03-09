@@ -226,8 +226,8 @@ with open(strCSVName,newline="") as hCSV:
 		for strCSV in lstLine:
 			lstValues.append(DBClean(strCSV))
 		strSQL = ("insert into tblbitsightvulns (vcRiskVector,vcFindingID,dtFirstSeen," 
-							"dtLastSeen,iLifeTime,vcImpactRVG,vcSeverity,vcDetails,iSrcPort,"
-							"iDstPort,vcPort,vcSrvType,vcSrvVer) values ({});".format(",".join(lstValues)))
+							"dtLastSeen,vcGrade,vcImpactRVG,iLifeTime,vcSeverity,vcDetails,iSrcPort,"
+							"iDstPort,vcPort,vcSrvType,vcSrvVer,vcRefresh) values ({});".format(",".join(lstValues)))
 		lstReturn = SQLQuery (strSQL,dbConn)
 		if not ValidReturn(lstReturn):
 			print ("Unexpected: {}".format(lstReturn))
