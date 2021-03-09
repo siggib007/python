@@ -204,7 +204,6 @@ else:
 	print ("Can't find CSV file {}".format(strCSVName))
 	sys.exit(4)
 
-lstValues = []
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 LogEntry("Starting the import of {} into database on {}".format(strCSVName,strServer))
 LogEntry("Date Time format set to: {}".format(strDTFormat))
@@ -217,12 +216,17 @@ if not ValidReturn(lstReturn):
 else:
 	LogEntry ("Deleted {} old records".format(lstReturn[0]))
 
+iLine = 0
 with open(strCSVName,newline="") as hCSV:
 	myReader = csv.reader(hCSV, delimiter=strDelim)
 	lstLine = next(myReader)
 	LogEntry ("Starting import...")
 
 	for lstLine in myReader :
+		if lstLine[0][:10] == "Disclaimer" or lstLine[0][:11] == "*IP address":
+			continue 
+		lstValues = []
+		iLine += 1
 		for strCSV in lstLine:
 			lstValues.append(DBClean(strCSV))
 		strSQL = ("insert into tblbitsightvulns (vcRiskVector,vcFindingID,dtFirstSeen," 
@@ -234,4 +238,5 @@ with open(strCSVName,newline="") as hCSV:
 			sys.exit(9)
 		else:
 			LogEntry ("Inserted {} record".format(lstReturn[0]))
+LogEntry("Done. Processed {} records".format(iLine))
 
