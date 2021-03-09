@@ -27,7 +27,6 @@ except:
 #Default values, overwrite these in the ini file
 bTruncateTable = True   # Truncate the table prior to insert
 bConvertBool = True     # Convert strings true/false into 1 and 0 for insert into database boolean field.
-bRecordStats = True     # Log events and record stats in the database.
 strDelim = ","          # what is the field seperate in the input file
 
 def getInput(strPrompt):
@@ -37,26 +36,12 @@ def getInput(strPrompt):
         return raw_input(strPrompt)
 
 def LogEntry(strMsg):
-	if bRecordStats:
-		strTemp = ""
-		strDBMsg = DBClean(strMsg)
-		strSQL = "INSERT INTO tblLogs (dtTimestamp, vcScriptName, vcLogEntry) VALUES (now(),'{}',{});".format(strScriptName,strDBMsg)
-		if dbConn !="":
-			lstReturn = SQLQuery (strSQL,dbConn)
-			if not ValidReturn(lstReturn):
-				strTemp = ("   Unexpected issue inserting log entry to the database: {}\n{}".format(lstReturn,strSQL))
-			elif lstReturn[0] != 1:
-				strTemp = ("   Records affected {}, expected 1 record affected when inserting log entry to the database".format(lstReturn[0]))
-		else:
-			strTemp = ". Database connection not established yet"
-
-		strMsg += strTemp
 	print (strMsg)
 
 def SQLConn (strServer,strDBUser,strDBPWD,strInitialDB):
 	try:
 		# Open database connection
-		return pymysql.connect(strServer,strDBUser,strDBPWD,strInitialDB)
+		return pymysql.connect(host=strServer,user=strDBUser,password=strDBPWD,db=strInitialDB)
 	except pymysql.err.InternalError as err:
 		print ("Error: unable to connect: {}".format(err))
 		sys.exit(5)
@@ -311,14 +296,6 @@ with open(strCSVName,newline="") as hCSV:
 		else:
 			if lstReturn[0] != 1:
 				print ("\n{} row inserted, line {}".format(lstReturn[0],myReader.line_num))
-		if bRecordStats:
-			strSQL = "update tblScriptExecuteList set dtStopTime=now(), bComplete=0, iRowsUpdated={} where iExecuteID = {} ;".format(myReader.line_num,iEntryID)
-			lstReturn = SQLQuery (strSQL,dbConn)
-			if not ValidReturn(lstReturn):
-				LogEntry ("Unexpected: {}".format(lstReturn))
-			elif lstReturn[0] != 1:
-				LogEntry ("Records affected {}, expected 1 record affected".format(lstReturn[0]))
-
 		print ("imported {} records...".format(myReader.line_num),end="\r")
 
 LogEntry ("\n{} records imported. Except as noted above all records imported successfully".format(myReader.line_num))
