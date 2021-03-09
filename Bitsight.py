@@ -88,9 +88,9 @@ def SQLQuery (strSQL,db):
 def DBClean(strText):
 	if strText.strip() == "":
 		return "NULL"
-	elif isinstance(strText,int):
+	elif isInt(strText):
 		return int(strText)
-	elif isinstance(strText,float):
+	elif isFloat(strText):
 		return float(strText)
 	else:
 		strTemp = strText.encode("ascii","ignore")
@@ -98,10 +98,9 @@ def DBClean(strText):
 		strTemp = strTemp.replace("\\","\\\\")
 		strTemp = strTemp.replace("'","\\'")
 		try:
-			strTemp = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.mktime(time.strptime(strTemp,strDTFormat))))
+			strTemp = time.strftime("%Y-%m-%d",time.localtime(time.mktime(time.strptime(strTemp,strDTFormat))))
 		except ValueError:
 			pass
-
 		return "'" + strTemp + "'"
 
 def ValidReturn(lsttest):
@@ -127,6 +126,16 @@ def isInt (CheckValue):
 			return False
 	else:
 		return False
+
+def isFloat (fValue):
+  if isinstance(fValue,(float,int,str)):
+    try:
+      fTemp = float(fValue)
+    except ValueError:
+      fTemp = "NULL"
+  else:
+    fTemp = "NULL"
+  return fTemp != "NULL"
 
 # Initialize stuff
 iLoc = sys.argv[0].rfind(".")
