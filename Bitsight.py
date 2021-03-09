@@ -132,7 +132,6 @@ def isInt (CheckValue):
 iLoc = sys.argv[0].rfind(".")
 strCSVName = ""
 strConf_File = sys.argv[0][:iLoc] + ".ini"
-strScriptName = os.path.basename(sys.argv[0])
 localtime = time.localtime(time.time())
 
 #Start doing stuff
@@ -173,16 +172,12 @@ for strLine in strLines:
 			strDBPWD = strValue
 		if strVarName == "InitialDB":
 			strInitialDB = strValue
-		if strVarName == "TableName":
-			strTableName = strValue
 		if strVarName == "FieldDelim":
 			strDelim = strValue
 		if strVarName == "CSVFileName":
 			strCSVName = strValue
 		if strVarName == "DateTimeFormat":
 			strDTFormat = strValue
-
-strScriptName = strScriptName[:-3] + "-" + strTableName
 
 sa = sys.argv
 
@@ -209,7 +204,34 @@ else:
 	print ("Can't find CSV file {}".format(strCSVName))
 	sys.exit(4)
 
-lstFields = []
+lstValues = []
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 LogEntry("Starting the import of {} into database on {}".format(strCSVName,strServer))
 LogEntry("Date Time format set to: {}".format(strDTFormat))
+LogEntry ("Truncating exiting table")
+strSQL = "delete from tblbitsightvulns;"
+lstReturn = SQLQuery (strSQL,dbConn)
+if not ValidReturn(lstReturn):
+	print ("Unexpected: {}".format(lstReturn))
+	sys.exit(9)
+else:
+	LogEntry ("Deleted {} old records".format(lstReturn[0]))
+
+with open(strCSVName,newline="") as hCSV:
+	myReader = csv.reader(hCSV, delimiter=strDelim)
+	lstLine = next(myReader)
+	LogEntry ("Starting import...")
+
+	for lstLine in myReader :
+		for strCSV in lstLine:
+			lstValues.append(DBClean(strCSV))
+		strSQL = ("insert into tblbitsightvulns (vcRiskVector,vcFindingID,dtFirstSeen," 
+							"dtLastSeen,iLifeTime,vcImpactRVG,vcSeverity,vcDetails,iSrcPort,"
+							"iDstPort,vcPort,vcSrvType,vcSrvVer) values ({});".format(",".join(lstValues)))
+		lstReturn = SQLQuery (strSQL,dbConn)
+		if not ValidReturn(lstReturn):
+			print ("Unexpected: {}".format(lstReturn))
+			sys.exit(9)
+		else:
+			LogEntry ("Inserted {} record".format(lstReturn[0]))
+
