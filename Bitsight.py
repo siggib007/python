@@ -330,11 +330,11 @@ with open(strCSVName,newline="") as hCSV:
       try:
         strDNS = socket.gethostbyname(lstFindingParts[0])
       except Exception as err:
-        strDNS = err
+        strDNS = str(err)
       strIPAddress = strDNS
     
     lstValues = []
-    lstCustomer = []
+    lstBitMask = []
     lstDescr = []
     if strIPAddress[0] != "[":
       dictIPInfo = IPCalc(strIPAddress)
@@ -346,18 +346,18 @@ with open(strCSVName,newline="") as hCSV:
         print ("Unexpected: {}".format(lstReturn))
         sys.exit(9)
       else:
-        for dbRow in lstSubnets[1]:
+        for dbRow in lstReturn[1]:
           strCustomer = dbRow[0]
           strDescription = dbRow[1]
           iBitMask = int(dbRow[2])
           if iBitMask > 22:
+            lstBitMask.append(str(iBitMask))
             if strCustomer != "":
-              lstCustomer.append(strCustomer)
+              break
             if strDescription != "":
               lstDescr.append(strDescription)
-          if iBitMask = 32:
-            break
-    strCustomer = ";".join(lstCustomer)
+
+    strBitMask = ";".join(lstBitMask)
     strDescription = ";".join(lstDescr)
 
     iLine += 1
@@ -366,9 +366,10 @@ with open(strCSVName,newline="") as hCSV:
     lstValues.append( "'{}'".format(strIPAddress))
     lstValues.append( "'{}'".format(strCustomer))
     lstValues.append( "'{}'".format(strDescription))
+    lstValues.append( "'{}'".format(strBitMask))
     strSQL = ("insert into tblbitsightvulns (vcRiskVector,vcFindingID,dtFirstSeen," 
               "dtLastSeen,vcGrade,vcImpactRVG,iLifeTime,vcSeverity,vcDetails,iSrcPort,"
-              "iDstPort,vcPort,vcSrvType,vcSrvVer,vcRefresh,vcIPAddr,vcCustomer,vcNetDescr) "
+              "iDstPort,vcPort,vcSrvType,vcSrvVer,vcRefresh,vcIPAddr,vcCustomer,vcNetDescr,vcMatched) "
               " values ({});".format(",".join(lstValues)))
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
