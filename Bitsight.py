@@ -336,6 +336,7 @@ with open(strCSVName,newline="") as hCSV:
     lstValues = []
     lstBitMask = []
     lstDescr = []
+    strCustomer = ""
     if strIPAddress[0] != "[":
       dictIPInfo = IPCalc(strIPAddress)
       strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
@@ -350,7 +351,7 @@ with open(strCSVName,newline="") as hCSV:
           strCustomer = dbRow[0]
           strDescription = dbRow[1]
           iBitMask = int(dbRow[2])
-          if iBitMask > 22:
+          if iBitMask > 19:
             lstBitMask.append(str(iBitMask))
             if strDescription != "":
               lstDescr.append(strDescription)
