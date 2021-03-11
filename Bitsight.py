@@ -352,10 +352,10 @@ with open(strCSVName,newline="") as hCSV:
           iBitMask = int(dbRow[2])
           if iBitMask > 22:
             lstBitMask.append(str(iBitMask))
-            if strCustomer != "":
-              break
             if strDescription != "":
               lstDescr.append(strDescription)
+            if strCustomer != "":
+              break
 
     strBitMask = ";".join(lstBitMask)
     strDescription = ";".join(lstDescr)
