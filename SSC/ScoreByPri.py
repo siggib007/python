@@ -1,6 +1,6 @@
 '''
-Tenable workbench download API Script
-Author Siggi Bjarnason Copyright 2020
+Security Score Card API Script. Downloads all issues for specific company filtered to a severity
+Author Siggi Bjarnason Copyright 2021
 
 Following packages need to be installed as administrator
 pip install requests
@@ -211,7 +211,7 @@ def processConf(strConf_File):
   return dictConfig
 
 def main():
-  global strFileout
+  global strFileOut
   global objFileOut
   global objLogOut
   global strScriptName
@@ -233,10 +233,9 @@ def main():
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
 
   dictParams = {}
-  dictParams["format"] = "csv"
-
+  
   strFormat = "%Y-%m-%dT%H:%M:%S"
-  strFileout = None
+  strFileOut = None
   bNotifyEnabled = False
 
   strBaseDir = os.path.dirname(sys.argv[0])
@@ -248,11 +247,8 @@ def main():
   if strBaseDir[-1:] != "/":
     strBaseDir += "/"
   strLogDir  = strBaseDir + "Logs/"
-  strOutDir  = strBaseDir + "out/"
   if strLogDir[-1:] != "/":
     strLogDir += "/"
-  if strOutDir[-1:] != "/":
-    strOutDir += "/"
 
   iLoc = sys.argv[0].rfind(".")
   strConf_File = sys.argv[0][:iLoc] + ".ini"
@@ -260,9 +256,6 @@ def main():
   if not os.path.exists (strLogDir) :
     os.makedirs(strLogDir)
     print ("\nPath '{0}' for log files didn't exists, so I create it!\n".format(strLogDir))
-  if not os.path.exists (strOutDir) :
-    os.makedirs(strOutDir)
-    print ("\nPath '{0}' for output files didn't exists, so I create it!\n".format(strOutDir))
 
   strScriptName = os.path.basename(sys.argv[0])
   iLoc = strScriptName.rfind(".")
@@ -282,10 +275,10 @@ def main():
 
   dictConfig = processConf(strConf_File)
 
-  if "AccessKey" in dictConfig and "Secret" in dictConfig:
+  if "AccessKey" in dictConfig:
     strHeader={
       'Content-type':'application/json',
-      'X-ApiKeys':'accessKey=' + dictConfig["AccessKey"] + ';secretKey=' + dictConfig["Secret"]}
+      'authorization': 'Token ' + dictConfig["AccessKey"]}
   else:
     LogEntry("API Keys not provided, exiting.",True)
 
@@ -312,8 +305,6 @@ def main():
 
   if "DateTimeFormat" in dictConfig:
     strFormat = dictConfig["DateTimeFormat"]
-  if "OutFile" in dictConfig:
-    strFileout = dictConfig["OutFile"]
 
   if "TimeOut" in dictConfig:
     if isInt(dictConfig["TimeOut"]):
@@ -333,14 +324,60 @@ def main():
     else:
       LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinQuiet))
 
-  if "ReportType" in dictConfig:
-    dictParams["report"] = dictConfig["ReportType"]
+  if "CompanyURL" in dictConfig:
+    strCompanyURL = dictConfig["CompanyURL"]
 
-  if "ReportChapter" in dictConfig:
-    dictParams["chapter"] = dictConfig["ReportChapter"]
+  if "Severity" in dictConfig:
+    dictParams["severity"] = dictConfig["Severity"]
 
-  if "DateRange" in dictConfig:
-    dictParams["date_range"] = dictConfig["DateRange"]
+  if "OutDir" in dictConfig:
+    strOutDir = dictConfig["OutDir"]
+
+
+  strOutDir = strOutDir.replace("\\", "/")
+
+  if strOutDir[-1:] != "/":
+    strOutDir += "/"
+  if not os.path.exists(strOutDir):
+    os.makedirs(strOutDir)
+    print("\nPath '{0}' for output files didn't exists, so I create it!\n".format(
+        strOutDir))
+  strFileOut = strOutDir + strCompanyURL + "-Sev-" + dictParams["severity"] + ".txt"
+  LogEntry("Output will be written to {}".format(strFileOut))
+
+  try:
+    objFileOut = open(strFileOut, "w")
+  except PermissionError:
+    LogEntry("unable to open output file {} for writing, "
+             "permission denied.".format(strFileout), True)
+
+  strMethod = "get"
+  strAPIFunction = "companies/{CompanyURL}/factors".format(CompanyURL=strCompanyURL)
+  strParams = urlparse.urlencode(dictParams)
+  strURL = strBaseURL + strAPIFunction + "?" + strParams
+  LogEntry("Submitting query request\n {} {}\n Payload{}".format(
+      strMethod, strURL, dictPayload))
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
+  if "entries" in APIResponse:
+    if isinstance(APIResponse["entries"],list):
+      iListCount = len(APIResponse["entries"])
+      LogEntry("Entries is a list with {} entries ".format(iListCount))
+    else:
+      LogEntry("Entries is not a list, it is: {}".format(
+          type(APIResponse["entries"])))
+      iListCount = -4
+  else:
+    LogEntry("Entries does not exists in API Response. {} ".format(APIResponse))
+    iListCount=-5
+  if "total" in APIResponse:
+    iListTotal = APIResponse["total"]
+    LogEntry("APIResponse[total]={}".format(iListTotal))
+  else:
+    LogEntry("No total in API response")
+
+
+
+
 
   print("\n")
   objFileOut.close()
