@@ -351,6 +351,9 @@ def main():
     LogEntry("unable to open output file {} for writing, "
              "permission denied.".format(strFileout), True)
 
+  dictIssueDet = {}
+  objFileOut.write("{} priority issues for {}\n".format(dictParams["severity"],strCompanyURL))
+  objFileOut.write("\nName,Score,Grade,Issue Count\n")
   strMethod = "get"
   strAPIFunction = "companies/{CompanyURL}/factors".format(CompanyURL=strCompanyURL)
   strParams = urlparse.urlencode(dictParams)
@@ -362,6 +365,14 @@ def main():
     if isinstance(APIResponse["entries"],list):
       iListCount = len(APIResponse["entries"])
       LogEntry("Entries is a list with {} entries ".format(iListCount))
+      for dictEntry in APIResponse["entries"]:
+        LogEntry("Name: {} Score: {} Grade: {} {} priority Issue Count: {}".format(
+            dictEntry["name"], dictEntry["score"], dictEntry["grade"], dictParams["severity"], len(dictEntry["issue_summary"])))
+        objFileOut.write("{},{},{},{}\n".format(
+            dictEntry["name"], dictEntry["score"], dictEntry["grade"], len(dictEntry["issue_summary"])))
+        for dictIssues in dictEntry["issue_summary"]:
+          LogEntry ("{},{}".format(dictIssues["type"],dictIssues["detail_url"]))
+          dictIssueDet[dictIssues["type"]] = dictIssues["detail_url"]
     else:
       LogEntry("Entries is not a list, it is: {}".format(
           type(APIResponse["entries"])))
@@ -375,14 +386,10 @@ def main():
   else:
     LogEntry("No total in API response")
 
-
-
-
-
-  print("\n")
   objFileOut.close()
   LogEntry("Done!")
   objLogOut.close()
+
 
 
 if __name__ == '__main__':
