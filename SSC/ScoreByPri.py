@@ -386,6 +386,20 @@ def main():
   else:
     LogEntry("No total in API response")
 
+  for strKey in dictIssueDet.keys():
+    LogEntry("Getting detail for {}".format(strKey))
+    APIResponse = MakeAPICall(dictIssueDet[strKey],strHeader,strMethod,dictPayload)
+    if "entries" in APIResponse:
+      if isinstance(APIResponse["entries"], list):
+        iListCount = len(APIResponse["entries"])
+        LogEntry("Entries is a list with {} entries ".format(iListCount))
+      else:
+        LogEntry("Entries is not a list, it is: {}".format(
+            type(APIResponse["entries"])))
+    else:
+      LogEntry("Entries does not exists in API Response. {} ".format(APIResponse))
+
+
   objFileOut.close()
   LogEntry("Done!")
   objLogOut.close()
