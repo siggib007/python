@@ -31,8 +31,8 @@ def getInput(strPrompt):
       print("Please upgrade to Python 3")
       sys.exit()
 
-def SendNotification (strMsg):
-  LogEntry (strMsg)
+def SendNotification(strMsg):
+  LogEntry(strMsg)
   if not bNotifyEnabled:
     return "notifications not enabled"
   dictNotify = {}
@@ -45,40 +45,40 @@ def SendNotification (strMsg):
   try:
     WebRequest = requests.get(strURL,timeout=iTimeOut)
   except Exception as err:
-    LogEntry ("Issue with sending notifications. {}".format(err))
+    LogEntry("Issue with sending notifications. {}".format(err))
   if isinstance(WebRequest,requests.models.Response)==False:
-    LogEntry ("response is unknown type")
+    LogEntry("response is unknown type")
   else:
     dictResponse = json.loads(WebRequest.text)
     if isinstance(dictResponse,dict):
       if "ok" in dictResponse:
         bStatus = dictResponse["ok"]
-        LogEntry ("Successfully sent slack notification\n{} ".format(strMsg))
+        LogEntry("Successfully sent slack notification\n{} ".format(strMsg))
     if not bStatus or WebRequest.status_code != 200:
-      LogEntry ("Problme: Status Code:[] API Response OK={}")
-      LogEntry (WebRequest.text)
+      LogEntry("Problme: Status Code:[] API Response OK={}")
+      LogEntry(WebRequest.text)
 
 def CleanExit(strCause):
   SendNotification("{} is exiting abnormally on {} {}".format(strScriptName,
     strScriptHost, strCause))
   objLogOut.close()
-  print ("objLogOut closed")
+  print("objLogOut closed")
   if objFileOut is not None:
     objFileOut.close()
-    print ("objFileOut closed")
+    print("objFileOut closed")
   else:
-    print ("objFileOut is not defined yet")
+    print("objFileOut is not defined yet")
   sys.exit(9)
 
 def LogEntry(strMsg,bAbort=False):
   strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
   objLogOut.write("{0} : {1}\n".format(strTimeStamp,strMsg))
-  print (strMsg)
+  print(strMsg)
   if bAbort:
     SendNotification("{} on {}: {}".format (strScriptName,strScriptHost,strMsg[:99]))
     CleanExit("")
 
-def isInt (CheckValue):
+def isInt(CheckValue):
   # function to safely check if a value can be interpreded as an int
   if isinstance(CheckValue,int):
     return True
@@ -90,7 +90,7 @@ def isInt (CheckValue):
   else:
     return False
 
-def ConvertFloat (fValue):
+def ConvertFloat(fValue):
   if isinstance(fValue,(float,int,str)):
     try:
       fTemp = float(fValue)
@@ -104,14 +104,14 @@ def formatUnixDate(iDate):
   structTime = time.localtime(iDate)
   return time.strftime(strFormat,structTime)
 
-def MakeAPICall (strURL, strHeader, strMethod,  dictPayload=""):
+def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
   global tLastCall
   global iTotalSleep
 
   fTemp = time.time()
   fDelta = fTemp - tLastCall
-  # LogEntry ("It's been {} seconds since last API call".format(fDelta))
+  # LogEntry("It's been {} seconds since last API call".format(fDelta))
   if fDelta > iMinQuiet:
     tLastCall = time.time()
   else:
@@ -124,29 +124,29 @@ def MakeAPICall (strURL, strHeader, strMethod,  dictPayload=""):
   iErrCode = ""
   iErrText = ""
 
-  # LogEntry ("Doing a {} to URL: \n {}\n".format(strMethod,strURL))
+  # LogEntry("Doing a {} to URL: \n {}\n".format(strMethod,strURL))
   try:
     if strMethod.lower() == "get":
       WebRequest = requests.get(strURL, headers=strHeader, verify=False)
-      # LogEntry ("get executed")
+      # LogEntry("get executed")
     if strMethod.lower() == "post":
       if dictPayload != "":
         WebRequest = requests.post(strURL, json= dictPayload, headers=strHeader, verify=False)
       else:
         WebRequest = requests.post(strURL, headers=strHeader, verify=False)
-      # LogEntry ("post executed")
+      # LogEntry("post executed")
   except Exception as err:
-    LogEntry ("Issue with API call. {}".format(err))
-    CleanExit ("due to issue with API, please check the logs")
+    LogEntry("Issue with API call. {}".format(err))
+    CleanExit("due to issue with API, please check the logs")
 
   if isinstance(WebRequest,requests.models.Response)==False:
-    LogEntry ("response is unknown type")
+    LogEntry("response is unknown type")
     iErrCode = "ResponseErr"
     iErrText = "response is unknown type"
 
-  # LogEntry ("call resulted in status code {}".format(WebRequest.status_code))
+  # LogEntry("call resulted in status code {}".format(WebRequest.status_code))
   if WebRequest.status_code != 200:
-    # LogEntry (WebRequest.text)
+    # LogEntry(WebRequest.text)
     iErrCode = WebRequest.status_code
     iErrText = WebRequest.text
 
@@ -156,16 +156,16 @@ def MakeAPICall (strURL, strHeader, strMethod,  dictPayload=""):
     try:
       return WebRequest.json()
     except Exception as err:
-      LogEntry ("Issue with converting response to json. "
+      LogEntry("Issue with converting response to json. "
         "Here are the first 99 character of the response: {}".format(WebRequest.text[:99]))
 
 def processConf(strConf_File):
 
-  LogEntry ("Looking for configuration file: {}".format(strConf_File))
+  LogEntry("Looking for configuration file: {}".format(strConf_File))
   if os.path.isfile(strConf_File):
-    LogEntry ("Configuration File exists")
+    LogEntry("Configuration File exists")
   else:
-    LogEntry ("Can't find configuration file {}, make sure it is the same directory "
+    LogEntry("Can't find configuration file {}, make sure it is the same directory "
       "as this script and named the same with ini extension".format(strConf_File))
     LogEntry("{} on {}: Exiting.".format (strScriptName,strScriptHost))
     objLogOut.close()
@@ -173,7 +173,7 @@ def processConf(strConf_File):
 
   strLine = "  "
   dictConfig = {}
-  LogEntry ("Reading in configuration")
+  LogEntry("Reading in configuration")
   objINIFile = open(strConf_File,"r")
   strLines = objINIFile.readlines()
   objINIFile.close()
@@ -191,7 +191,7 @@ def processConf(strConf_File):
       strValue = strConfParts[1].strip()
       dictConfig[strVarName] = strValue
       if strVarName == "include":
-        LogEntry ("Found include directive: {}".format(strValue))
+        LogEntry("Found include directive: {}".format(strValue))
         strValue = strValue.replace("\\","/")
         if strValue[:1] == "/" or strValue[1:3] == ":/":
           LogEntry("include directive is absolute path, using as is")
@@ -200,14 +200,14 @@ def processConf(strConf_File):
           LogEntry("include directive is relative path,"
             " appended base directory. {}".format(strValue))
         if os.path.isfile(strValue):
-          LogEntry ("file is valid")
+          LogEntry("file is valid")
           objINIFile = open(strValue,"r")
           strLines += objINIFile.readlines()
           objINIFile.close()
         else:
-          LogEntry ("invalid file in include directive")
+          LogEntry("invalid file in include directive")
 
-  LogEntry ("Done processing configuration, moving on")
+  LogEntry("Done processing configuration, moving on")
   return dictConfig
 
 def main():
@@ -255,7 +255,7 @@ def main():
 
   if not os.path.exists (strLogDir) :
     os.makedirs(strLogDir)
-    print ("\nPath '{0}' for log files didn't exists, so I create it!\n".format(strLogDir))
+    print("\nPath '{0}' for log files didn't exists, so I create it!\n".format(strLogDir))
 
   strScriptName = os.path.basename(sys.argv[0])
   iLoc = strScriptName.rfind(".")
@@ -264,12 +264,12 @@ def main():
   dictPayload = {}
   strScriptHost = platform.node().upper()
 
-  print ("This is a script to download results of a Tenable workbench query via API. "
+  print("This is a script to download results of a Tenable workbench query via API. "
     "This is running under Python Version {}".format(strVersion))
-  print ("Running from: {}".format(strRealPath))
+  print("Running from: {}".format(strRealPath))
   dtNow = time.asctime()
-  print ("The time now is {}".format(dtNow))
-  print ("Logs saved to {}".format(strLogFile))
+  print("The time now is {}".format(dtNow))
+  print("Logs saved to {}".format(strLogFile))
   objLogOut = open(strLogFile,"w",1)
   objFileOut = None
 
@@ -353,7 +353,8 @@ def main():
 
   dictIssueDet = {}
   objFileOut.write("{} priority issues for {}\n".format(dictParams["severity"],strCompanyURL))
-  objFileOut.write("\nName,Score,Grade,Issue Count\n")
+  objFileOut.write("\nFactor - Score - Grade\n    - Issue Type - Count\n")
+  objFileOut.write("--------------------------------------------------------------------------------\n")
   strMethod = "get"
   strAPIFunction = "companies/{CompanyURL}/factors".format(CompanyURL=strCompanyURL)
   strParams = urlparse.urlencode(dictParams)
@@ -368,11 +369,15 @@ def main():
       for dictEntry in APIResponse["entries"]:
         LogEntry("Name: {} Score: {} Grade: {} {} priority Issue Count: {}".format(
             dictEntry["name"], dictEntry["score"], dictEntry["grade"], dictParams["severity"], len(dictEntry["issue_summary"])))
-        objFileOut.write("{},{},{},{}\n".format(
-            dictEntry["name"], dictEntry["score"], dictEntry["grade"], len(dictEntry["issue_summary"])))
+        objFileOut.write("{} - {} - {}\n".format(
+            dictEntry["name"], dictEntry["score"], dictEntry["grade"]))
         for dictIssues in dictEntry["issue_summary"]:
           LogEntry ("{},{}".format(dictIssues["type"],dictIssues["detail_url"]))
+          objFileOut.write("    - {} - {}\n".format(dictIssues["type"],dictIssues["count"]))
           dictIssueDet[dictIssues["type"]] = dictIssues["detail_url"]
+        if len(dictEntry["issue_summary"]) == 0:
+          objFileOut.write(
+              "    - No {} severity issues\n".format(dictParams["severity"]))
     else:
       LogEntry("Entries is not a list, it is: {}".format(
           type(APIResponse["entries"])))
@@ -386,13 +391,33 @@ def main():
   else:
     LogEntry("No total in API response")
 
+
+  objFileOut.write("--------------------------------------------------------------------------------\n")
+
   for strKey in dictIssueDet.keys():
     LogEntry("Getting detail for {}".format(strKey))
+    objFileOut.write("\nDetails for {}\n".format(strKey))
     APIResponse = MakeAPICall(dictIssueDet[strKey],strHeader,strMethod,dictPayload)
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
+        lstKeys = APIResponse["entries"][0].keys()
+        strKeys = ",".join(lstKeys)
+        objFileOut.write(strKeys+"\n")
+        LogEntry(strKeys)
         iListCount = len(APIResponse["entries"])
         LogEntry("Entries is a list with {} entries ".format(iListCount))
+        for dictIssue in APIResponse["entries"]:
+          lstLine = []
+          for strItem in dictIssue.keys():
+            if isinstance(dictIssue[strItem], str):
+              strTemp = dictIssue[strItem].replace(",",";")
+              lstLine.append(strTemp)
+            elif isinstance(dictIssue[strItem],int):
+              lstLine.append(str(dictIssue[strItem]))
+            else:
+              lstLine.append(str(type(dictIssue[strItem])))
+          strLine = ",".join(lstLine)
+          objFileOut.write(strLine +"\n")
       else:
         LogEntry("Entries is not a list, it is: {}".format(
             type(APIResponse["entries"])))
