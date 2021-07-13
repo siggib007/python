@@ -356,9 +356,6 @@ def main():
              "permission denied.".format(strFileOut), True)
 
   dictIssueDet = {}
-  objFileOut.write("Improvement plan to increase the score of {} by {} points\n".format(strCompanyURL,iTargetImprovement))
-  objFileOut.write("\nFactor - Title - severity - Remediations\n")
-  objFileOut.write("--------------------------------------------------------------------------------\n")
   strMethod = "get"
   strAPIFunction = "companies/{CompanyURL}".format(CompanyURL=strCompanyURL)
   # strParams = urlparse.urlencode(dictParams)
@@ -366,9 +363,25 @@ def main():
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
   APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
-  
+  if "name" in APIResponse:
+    strName = APIResponse["name"]
+  else:
+    strName = "unknown"
+  if "score" in APIResponse:
+    if isInt(APIResponse["score"]):
+      iScore = int(APIResponse["score"])
+    else:
+      CleanExit("Could not retrieve a valid current score, can't proceed")
+  else:
+    CleanExit("No score in API response, can't proceed")
+
+  iTargetScore = iScore + iTargetImprovement
+  objFileOut.write("Improvement plan to increase the score of {} by {} points. From {} to {}\n".format(
+            strName,iTargetImprovement,iScore,iTargetScore))
+  objFileOut.write("\nFactor - Title - severity - Remediations\n")
+  objFileOut.write("--------------------------------------------------------------------------------\n")
   strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
-                    CompanyURL=strCompanyURL,TargetScore=iTargetImprovement)
+                    CompanyURL=strCompanyURL,TargetScore=iTargetScore)
   # strParams = urlparse.urlencode(dictParams)
   strURL = strBaseURL + strAPIFunction 
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
@@ -378,25 +391,18 @@ def main():
     if isinstance(APIResponse["entries"],list):
       iListCount = len(APIResponse["entries"])
       LogEntry("Entries is a list with {} entries ".format(iListCount))
+      objFileOut.write("This plan contains {} types of issues to be addressed.".format(iListCount))
       for dictEntry in APIResponse["entries"]:
-        LogEntry("Name: {} Score: {} Grade: {} {} priority Issue Count: {}".format(
-            dictEntry["name"], dictEntry["score"], dictEntry["grade"], dictParams["severity"], len(dictEntry["issue_summary"])))
-        objFileOut.write("{} - {} - {}\n".format(
-            dictEntry["name"], dictEntry["score"], dictEntry["grade"]))
-        for dictIssues in dictEntry["issue_summary"]:
-          LogEntry ("{},{}".format(dictIssues["type"],dictIssues["detail_url"]))
-          objFileOut.write("    - {} - {}\n".format(dictIssues["type"],dictIssues["count"]))
-          dictIssueDet[dictIssues["type"]] = dictIssues["detail_url"]
-        if len(dictEntry["issue_summary"]) == 0:
-          objFileOut.write(
-              "    - No {} severity issues\n".format(dictParams["severity"]))
+        LogEntry("Factor: {} Issue Type: {} Severity: {} {} Remediation count: {}".format(
+            dictEntry["factor"], dictEntry["title"], dictEntry["severity"], dictParams["remediations"]))
+        objFileOut.write("{} - {} - {} - {}\n".format(
+            dictEntry["factor"], dictEntry["title"], dictEntry["severity"],dictEntry["remediations"]))
+        dictIssueDet[dictEntry["issue_type"]] = dictEntry["title"]
     else:
       LogEntry("Entries is not a list, it is: {}".format(
           type(APIResponse["entries"])))
-      iListCount = -4
   else:
     LogEntry("Entries does not exists in API Response. {} ".format(APIResponse))
-    iListCount=-5
   if "total" in APIResponse:
     iListTotal = APIResponse["total"]
     LogEntry("APIResponse[total]={}".format(iListTotal))
@@ -404,12 +410,17 @@ def main():
     LogEntry("No total in API response")
 
 
-  objFileOut.write("--------------------------------------------------------------------------------\n")
+  objFileOut.write("--------------------------------------------------------------------------------\n\n")
 
   for strKey in dictIssueDet.keys():
-    LogEntry("Getting detail for {}".format(strKey))
-    objFileOut.write("\nDetails for {}\n".format(strKey))
-    APIResponse = MakeAPICall(dictIssueDet[strKey],strHeader,strMethod,dictPayload)
+    strAPIFunction = "companies/{CompanyURL}/issue-context/{IssueType}".format(
+                      CompanyURL=strCompanyURL,IssueType=strKey)
+    # strParams = urlparse.urlencode(dictParams)
+    strURL = strBaseURL + strAPIFunction 
+
+    LogEntry("Getting detail for {} via ".format(dictIssueDet[strKey],strURL))
+    objFileOut.write("\nDetails for {}\n".format(dictIssueDet[strKey]))
+    APIResponse = MakeAPICall(strURL,strHeader,strMethod,dictPayload)
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
         lstKeys = APIResponse["entries"][0].keys()
