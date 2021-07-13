@@ -393,8 +393,8 @@ def main():
       LogEntry("Entries is a list with {} entries ".format(iListCount))
       objFileOut.write("This plan contains {} types of issues to be addressed.".format(iListCount))
       for dictEntry in APIResponse["entries"]:
-        LogEntry("Factor: {} Issue Type: {} Severity: {} {} Remediation count: {}".format(
-            dictEntry["factor"], dictEntry["title"], dictEntry["severity"], dictParams["remediations"]))
+        LogEntry("Factor: {} Issue Type: {} Severity: {} Remediation count: {}".format(
+            dictEntry["factor"], dictEntry["title"], dictEntry["severity"], dictEntry["remediations"]))
         objFileOut.write("{} - {} - {} - {}\n".format(
             dictEntry["factor"], dictEntry["title"], dictEntry["severity"],dictEntry["remediations"]))
         dictIssueDet[dictEntry["issue_type"]] = dictEntry["title"]
