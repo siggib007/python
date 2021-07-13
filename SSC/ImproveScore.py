@@ -226,10 +226,12 @@ def main():
   global iMinQuiet
   global iTimeOut
 
-  #Define few things
+  #Define few Defaults
   iTimeOut = 120 # Max time in seconds to wait for network response
   iMinQuiet = 2 # Minimum time in seconds between API calls
   iSecSleep = 60 # Time to wait between check if ready
+  iTargetImprovement = 10 # What is the target score improvement
+
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
 
   dictParams = {}
@@ -264,7 +266,7 @@ def main():
   dictPayload = {}
   strScriptHost = platform.node().upper()
 
-  print("This is a script to download all Security Scorecard issues of specific priority via API. "
+  print("This is a script to download results of a Tenable workbench query via API. "
     "This is running under Python Version {}".format(strVersion))
   print("Running from: {}".format(strRealPath))
   dtNow = time.asctime()
@@ -327,12 +329,14 @@ def main():
   if "CompanyURL" in dictConfig:
     strCompanyURL = dictConfig["CompanyURL"]
 
-  if "Severity" in dictConfig:
-    dictParams["severity"] = dictConfig["Severity"]
+  if "TargetImprove" in dictConfig:
+    if isInt(dictConfig["TargetImprove"]):
+      iTargetImprovement = int(dictConfig["TargetImprove"])
+    else:
+      LogEntry("Invalid TargetImprove, setting to defaults of {}".format(iTargetImprovement))
 
   if "OutDir" in dictConfig:
     strOutDir = dictConfig["OutDir"]
-
 
   strOutDir = strOutDir.replace("\\", "/")
 
@@ -342,7 +346,7 @@ def main():
     os.makedirs(strOutDir)
     print("\nPath '{0}' for output files didn't exists, so I create it!\n".format(
         strOutDir))
-  strFileOut = strOutDir + strCompanyURL + "-Sev-" + dictParams["severity"] + ".txt"
+  strFileOut = strOutDir + strCompanyURL + "-ImprovementPlan.txt"
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -352,13 +356,21 @@ def main():
              "permission denied.".format(strFileOut), True)
 
   dictIssueDet = {}
-  objFileOut.write("{} priority issues for {}\n".format(dictParams["severity"],strCompanyURL))
-  objFileOut.write("\nFactor - Score - Grade\n    - Issue Type - Count\n")
+  objFileOut.write("Improvement plan to increase the score of {} by {} points\n".format(strCompanyURL,iTargetImprovement))
+  objFileOut.write("\nFactor - Title - severity - Remediations\n")
   objFileOut.write("--------------------------------------------------------------------------------\n")
   strMethod = "get"
-  strAPIFunction = "companies/{CompanyURL}/factors".format(CompanyURL=strCompanyURL)
-  strParams = urlparse.urlencode(dictParams)
-  strURL = strBaseURL + strAPIFunction + "?" + strParams
+  strAPIFunction = "companies/{CompanyURL}".format(CompanyURL=strCompanyURL)
+  # strParams = urlparse.urlencode(dictParams)
+  strURL = strBaseURL + strAPIFunction 
+  LogEntry("Submitting query request\n {} {}\n Payload{}".format(
+      strMethod, strURL, dictPayload))
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
+  
+  strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
+                    CompanyURL=strCompanyURL,TargetScore=iTargetImprovement)
+  # strParams = urlparse.urlencode(dictParams)
+  strURL = strBaseURL + strAPIFunction 
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
   APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
