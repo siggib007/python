@@ -391,7 +391,7 @@ def main():
     if isinstance(APIResponse["entries"],list):
       iListCount = len(APIResponse["entries"])
       LogEntry("Entries is a list with {} entries ".format(iListCount))
-      objFileOut.write("This plan contains {} types of issues to be addressed.".format(iListCount))
+      objFileOut.write("This plan contains {} types of issues to be addressed.\n".format(iListCount))
       for dictEntry in APIResponse["entries"]:
         LogEntry("Factor: {} Issue Type: {} Severity: {} Remediation count: {}".format(
             dictEntry["factor"], dictEntry["title"], dictEntry["severity"], dictEntry["remediations"]))
@@ -403,22 +403,17 @@ def main():
           type(APIResponse["entries"])))
   else:
     LogEntry("Entries does not exists in API Response. {} ".format(APIResponse))
-  if "total" in APIResponse:
-    iListTotal = APIResponse["total"]
-    LogEntry("APIResponse[total]={}".format(iListTotal))
-  else:
-    LogEntry("No total in API response")
 
 
   objFileOut.write("--------------------------------------------------------------------------------\n\n")
 
   for strKey in dictIssueDet.keys():
-    strAPIFunction = "companies/{CompanyURL}/issue-context/{IssueType}".format(
+    strAPIFunction = "companies/{CompanyURL}/issues/{IssueType}".format(
                       CompanyURL=strCompanyURL,IssueType=strKey)
     # strParams = urlparse.urlencode(dictParams)
     strURL = strBaseURL + strAPIFunction 
 
-    LogEntry("Getting detail for {} via ".format(dictIssueDet[strKey],strURL))
+    LogEntry("Getting detail for {} via {}".format(dictIssueDet[strKey],strURL))
     objFileOut.write("\nDetails for {}\n".format(dictIssueDet[strKey]))
     APIResponse = MakeAPICall(strURL,strHeader,strMethod,dictPayload)
     if "entries" in APIResponse:
