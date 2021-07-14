@@ -104,6 +104,10 @@ def formatUnixDate(iDate):
   structTime = time.localtime(iDate)
   return time.strftime(strFormat,structTime)
 
+def TitleCase(strConvert):
+  strTemp = strConvert.replace("_", " ")
+  return strTemp.title()
+
 def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
   global tLastCall
@@ -376,11 +380,10 @@ def main():
     CleanExit("No score in API response, can't proceed")
 
   iTargetScore = iScore + iTargetImprovement
-  objFileOut.write("# Improvement plan to increase the score of {} by {} points.\n\n ### From {} to {}\n\n".format(
-            strName,iTargetImprovement,iScore,iTargetScore))
+  objFileOut.write("# Improvement plan to increase the score of {} by {} points.\n\n".format(
+            strName,iTargetImprovement))
   objFileOut.write(
-      "\n--------------------------------------------------------------------------------\n")
-  objFileOut.write("## Summary Action Plan\n\n")
+      "## Summary Action Plan to bring the score from {} to {}\n\n".format(iScore, iTargetScore))
   strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
                     CompanyURL=strCompanyURL,TargetScore=iTargetScore)
   # strParams = urlparse.urlencode(dictParams)
@@ -399,7 +402,7 @@ def main():
         LogEntry("Factor: {} Issue Type: {} Severity: {} Remediation count: {}".format(
             dictEntry["factor"], dictEntry["title"], dictEntry["severity"], dictEntry["remediations"]))
         objFileOut.write("|{} | {} | {} | {}|\n".format(
-            dictEntry["factor"], dictEntry["title"], dictEntry["severity"],dictEntry["remediations"]))
+            TitleCase(dictEntry["factor"]), dictEntry["title"], dictEntry["severity"],dictEntry["remediations"]))
         dictIssueDet[dictEntry["issue_type"]] = dictEntry["title"]
     else:
       LogEntry("Entries is not a list, it is: {}".format(
@@ -420,10 +423,12 @@ def main():
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
         lstKeys = APIResponse["entries"][0].keys()
-        strKeys = "|".join(lstKeys)
+        strKeys = TitleCase ("|".join(lstKeys))
+
         objFileOut.write("|"+strKeys+"|\n|")
         for strTemp in lstKeys:
           objFileOut.write("----|")
+        objFileOut.write("\n")
         LogEntry(strKeys)
         iListCount = len(APIResponse["entries"])
         LogEntry("Entries is a list with {} entries ".format(iListCount))
@@ -438,7 +443,8 @@ def main():
             else:
               lstLine.append(str(type(dictIssue[strItem])))
           strLine = "|".join(lstLine)
-          objFileOut.write("|"+strLine +"!\n")
+          objFileOut.write("|"+strLine +"|\n")
+        objFileOut.write("\n\n")
       else:
         LogEntry("Entries is not a list, it is: {}".format(
             type(APIResponse["entries"])))
