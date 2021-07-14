@@ -178,7 +178,7 @@ def processConf(strConf_File):
   strLine = "  "
   dictConfig = {}
   LogEntry("Reading in configuration")
-  objINIFile = open(strConf_File,"r")
+  objINIFile = open(strConf_File, "r", encoding='utf8')
   strLines = objINIFile.readlines()
   objINIFile.close()
 
