@@ -380,7 +380,9 @@ def main():
     CleanExit("No score in API response, can't proceed")
 
   iTargetScore = iScore + iTargetImprovement
-  objFileOut.write("# Improvement plan to increase the score of {} by {} points.\n\n".format(
+  objFileOut.write(
+      "![Advania Logo](https://advania.is/library/Template/logo_o.png)\n")
+  objFileOut.write("# Improvement plan to increase the security score of {} by {} points.\n\n".format(
             strName,iTargetImprovement))
   objFileOut.write(
       "## Summary Action Plan to bring the score from {} to {}\n\n".format(iScore, iTargetScore))
