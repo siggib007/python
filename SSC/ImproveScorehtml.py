@@ -394,7 +394,7 @@ def main():
   objFileOut.write("<h1>Improvement plan to increase the security score of {} by {} points.</h1>\n".format(
             strName,iTargetImprovement))
   objFileOut.write(
-      "<h2> Summary Action Plan to bring the score from {} to {}</h2>\n".format(iScore, iTargetScore))
+      "<h2> Summary Action Plan to bring the score from {} to around {}</h2>\n".format(iScore, iTargetScore))
   strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
                     CompanyURL=strCompanyURL,TargetScore=iTargetScore)
   # strParams = urlparse.urlencode(dictParams)
@@ -402,12 +402,16 @@ def main():
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
   APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
+  if "projected_total_score" in APIResponse:
+    strProjectedScore = APIResponse["projected_total_score"]
+  else:
+    strProjectedScore = "unknown"
   if "entries" in APIResponse:
     if isinstance(APIResponse["entries"],list):
       iListCount = len(APIResponse["entries"])
       LogEntry("Entries is a list with {} entries ".format(iListCount))
       objFileOut.write("<b><i>This plan contains {} types of issues to be addressed.</i></b>\n".format(iListCount))
-      objFileOut.write("<table border=1>\n<tr>\n")
+      objFileOut.write("<p>\n<table border=1>\n<tr>\n")
       objFileOut.write(
           "<th>Factor</th><th>Title</th><th>severity</th><th>Remediations</th>\n")
       objFileOut.write("</tr>\n")
@@ -417,7 +421,8 @@ def main():
         objFileOut.write("<tr>\n<td>{}</td><td>{}</td><td>{}</td><td>{}</td>\n</tr>\n".format(
             TitleCase(dictEntry["factor"]), dictEntry["title"], dictEntry["severity"],dictEntry["remediations"]))
         dictIssueDet[dictEntry["issue_type"]] = dictEntry["title"]
-      objFileOut.write("</table>\n")
+      objFileOut.write("</table>\n</p>\n")
+      objFileOut.write("<p>This plan should bring the score to about {}</p>\n".format(strProjectedScore))
     else:
       LogEntry("Entries is not a list, it is: {}".format(
           type(APIResponse["entries"])))
