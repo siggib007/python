@@ -437,9 +437,10 @@ def main():
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
         lstKeys = APIResponse["entries"][0].keys()
-        strKeys = TitleCase("</th><th>".join(lstKeys))
+        strKeys = TitleCase(",".join(lstKeys))
+        strKeys = strKeys.replace(",", "</th><th>")
         objFileOut.write("<p><table border=1>\n<tr>\n")
-        objFileOut.write("<th>"+strKeys+"</th\n|")
+        objFileOut.write("<th>"+strKeys+"</th>\n|")
         objFileOut.write("</tr>\n")
         LogEntry(strKeys)
         iListCount = len(APIResponse["entries"])
@@ -452,8 +453,15 @@ def main():
               lstLine.append(strTemp)
             elif isinstance(dictIssue[strItem],int):
               lstLine.append(str(dictIssue[strItem]))
+            elif isinstance(dictIssue[strItem],dict):
+              lstLine.append("dictionary of {} items".format(len(dictIssue[strItem])))
+            elif isinstance(dictIssue[strItem], list):
+              lstLine.append("list of {} items".format(
+                  len(dictIssue[strItem])))
             else:
-              lstLine.append(str(type(dictIssue[strItem])))
+              strTemp = str(type(dictIssue[strItem]))
+              strTemp = strTemp.replace("<class '", "")
+              lstLine.append(strTemp.replace("'>"," object"))
           strLine = "</td><td>".join(lstLine)
           objFileOut.write("<tr>\n<td>" + strLine + "</td>\n</tr>\n")
         objFileOut.write("</table></p>")
