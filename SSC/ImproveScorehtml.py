@@ -111,7 +111,7 @@ def TitleCase(strConvert):
 
 def dict2HTMLTable(dictTable):
   if isinstance(dictTable,dict):
-    strTable = "<table>\n"
+    strTable = "<table border=1>\n"
     strHead = ""
     strTD = ""
     for strKey in dictTable.keys():
@@ -475,7 +475,8 @@ def main():
             elif isinstance(dictIssue[strItem],int):
               lstLine.append(str(dictIssue[strItem]))
             elif isinstance(dictIssue[strItem],dict):
-              lstLine.append("dictionary of {} items".format(len(dictIssue[strItem])))
+              # lstLine.append("dictionary of {} items".format(len(dictIssue[strItem])))
+              lstTemp.append(dict2HTMLTable(dictIssue[strItem]))
             elif isinstance(dictIssue[strItem], list):
               # lstLine.append("list of {} items".format(len(dictIssue[strItem])))
               for Temp in dictIssue[strItem]:
