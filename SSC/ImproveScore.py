@@ -332,6 +332,13 @@ def main():
 
   if "CompanyURL" in dictConfig:
     strCompanyURL = dictConfig["CompanyURL"]
+  else:
+    CleanExit("Company URL is required but not provided, sorry have to bail")
+
+  if "CompanyName" in dictConfig:
+    strName = dictConfig["CompanyName"]
+  else:
+    strName = ""
 
   if "TargetImprove" in dictConfig:
     if isInt(dictConfig["TargetImprove"]):
@@ -367,10 +374,11 @@ def main():
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
   APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
-  if "name" in APIResponse:
-    strName = APIResponse["name"]
-  else:
-    strName = "unknown"
+  if strName == "":
+    if "name" in APIResponse:
+      strName = APIResponse["name"]
+    else:
+      strName = "unknown"
   if "score" in APIResponse:
     if isInt(APIResponse["score"]):
       iScore = int(APIResponse["score"])
