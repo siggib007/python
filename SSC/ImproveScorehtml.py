@@ -254,8 +254,6 @@ def main():
   
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
 
-  dictParams = {}
-  
   strFormat = "%Y-%m-%dT%H:%M:%S"
   strFileOut = None
   bNotifyEnabled = False
@@ -385,7 +383,6 @@ def main():
   dictIssueDet = {}
   strMethod = "get"
   strAPIFunction = "companies/{CompanyURL}".format(CompanyURL=strCompanyURL)
-  # strParams = urlparse.urlencode(dictParams)
   strURL = strBaseURL + strAPIFunction 
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
@@ -404,6 +401,7 @@ def main():
     CleanExit("No score in API response, can't proceed")
 
   iTargetScore = iScore + iTargetImprovement
+  objFileOut.write("<style type=\"text/css\">\n @media print {\n  table {page-break-after: always;}\n}\n</style>")
   objFileOut.write(
       "<img src=https://advania.is/library/Template/logo_o.png />\n")
   objFileOut.write("<h1>Improvement plan to increase the security score of {} by {} points.</h1>\n".format(
@@ -412,7 +410,6 @@ def main():
       "<h2> Summary Action Plan to bring the score from {} to around {}</h2>\n".format(iScore, iTargetScore))
   strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
                     CompanyURL=strCompanyURL,TargetScore=iTargetScore)
-  # strParams = urlparse.urlencode(dictParams)
   strURL = strBaseURL + strAPIFunction 
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
@@ -425,7 +422,9 @@ def main():
     if isinstance(APIResponse["entries"],list):
       iListCount = len(APIResponse["entries"])
       LogEntry("Entries is a list with {} entries ".format(iListCount))
-      objFileOut.write("<b><i>This plan contains {} types of issues to be addressed.</i></b>\n".format(iListCount))
+      objFileOut.write("<p>This plan contains {} types of issues to be addressed.<br/>\n".format(iListCount))
+      objFileOut.write("It should bring the score to about {}</p>\n".format(strProjectedScore))
+ 
       objFileOut.write("<p>\n<table border=1>\n<tr>\n")
       objFileOut.write(
           "<th>Factor</th><th>Title</th><th>severity</th><th>Remediations</th>\n")
@@ -437,7 +436,6 @@ def main():
             TitleCase(dictEntry["factor"]), dictEntry["title"], dictEntry["severity"],dictEntry["remediations"]))
         dictIssueDet[dictEntry["issue_type"]] = dictEntry["title"]
       objFileOut.write("</table>\n</p>\n")
-      objFileOut.write("<p>This plan should bring the score to about {}</p>\n".format(strProjectedScore))
     else:
       LogEntry("Entries is not a list, it is: {}".format(
           type(APIResponse["entries"])))
@@ -448,7 +446,6 @@ def main():
   for strKey in dictIssueDet.keys():
     strAPIFunction = "companies/{CompanyURL}/issues/{IssueType}".format(
                       CompanyURL=strCompanyURL,IssueType=strKey)
-    # strParams = urlparse.urlencode(dictParams)
     strURL = strBaseURL + strAPIFunction 
 
     LogEntry("Getting detail for {} via {}".format(dictIssueDet[strKey],strURL))
@@ -475,17 +472,14 @@ def main():
             elif isinstance(dictIssue[strItem],int):
               lstLine.append(str(dictIssue[strItem]))
             elif isinstance(dictIssue[strItem],dict):
-              # lstLine.append("dictionary of {} items".format(len(dictIssue[strItem])))
-              lstTemp.append(dict2HTMLTable(dictIssue[strItem]))
+              lstLine.append(dict2HTMLTable(dictIssue[strItem]))
             elif isinstance(dictIssue[strItem], list):
-              # lstLine.append("list of {} items".format(len(dictIssue[strItem])))
               for Temp in dictIssue[strItem]:
                 if isinstance(Temp,str):
                   lstTemp.append(Temp)
                 elif isinstance(Temp,(int,float)):
                   lstTemp.append(str(Temp))
                 elif isinstance(Temp,dict):
-                  # lstTemp.append("dictionary of {} items".format(len(Temp)))
                   lstTemp.append(dict2HTMLTable(Temp))
                 elif isinstance(Temp, list):
                   lstTemp.append("list of {} items".format(len(Temp)))
