@@ -15,6 +15,8 @@ import time
 import urllib.parse as urlparse
 import json
 import platform
+import subprocess as proc
+
 # End imports
 
 #avoid insecure warning
@@ -235,6 +237,9 @@ def main():
   iMinQuiet = 2 # Minimum time in seconds between API calls
   iSecSleep = 60 # Time to wait between check if ready
   iTargetImprovement = 10 # What is the target score improvement
+  strOrigionalFormat = "markdown"
+  strConvert2 = "pdf"
+
 
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
 
@@ -358,6 +363,7 @@ def main():
     print("\nPath '{0}' for output files didn't exists, so I create it!\n".format(
         strOutDir))
   strFileOut = strOutDir + strCompanyURL + "-ImprovementPlan.md"
+  strFileConv = strOutDir + strCompanyURL + "-ImprovementPlan." + strConvert2
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -461,8 +467,13 @@ def main():
     else:
       LogEntry("Entries does not exists in API Response. {} ".format(APIResponse))
 
-
   objFileOut.close()
+
+  strCmdLine = "pandoc {} -f {} -t {} -o {}".format(
+      strFileOut, strOrigionalFormat, strConvert2, strFileConv)
+  LogEntry ("executing {}".format(strCmdLine))
+  proc.Popen(strCmdLine)
+
   LogEntry("Done!")
   objLogOut.close()
 
