@@ -346,7 +346,7 @@ def main():
     os.makedirs(strOutDir)
     print("\nPath '{0}' for output files didn't exists, so I create it!\n".format(
         strOutDir))
-  strFileOut = strOutDir + strCompanyURL + "-ImprovementPlan.txt"
+  strFileOut = strOutDir + strCompanyURL + "-ImprovementPlan.md"
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -376,10 +376,11 @@ def main():
     CleanExit("No score in API response, can't proceed")
 
   iTargetScore = iScore + iTargetImprovement
-  objFileOut.write("Improvement plan to increase the score of {} by {} points. From {} to {}\n".format(
+  objFileOut.write("# Improvement plan to increase the score of {} by {} points.\n\n ### From {} to {}\n\n".format(
             strName,iTargetImprovement,iScore,iTargetScore))
-  objFileOut.write("\nFactor - Title - severity - Remediations\n")
-  objFileOut.write("--------------------------------------------------------------------------------\n")
+  objFileOut.write(
+      "\n--------------------------------------------------------------------------------\n")
+  objFileOut.write("## Summary Action Plan\n\n")
   strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
                     CompanyURL=strCompanyURL,TargetScore=iTargetScore)
   # strParams = urlparse.urlencode(dictParams)
@@ -391,11 +392,13 @@ def main():
     if isinstance(APIResponse["entries"],list):
       iListCount = len(APIResponse["entries"])
       LogEntry("Entries is a list with {} entries ".format(iListCount))
-      objFileOut.write("This plan contains {} types of issues to be addressed.\n".format(iListCount))
+      objFileOut.write("***This plan contains {} types of issues to be addressed.***\n".format(iListCount))
+      objFileOut.write("|Factor | Title | severity | Remediations|\n")
+      objFileOut.write("|------|--------|----------|-------------|\n")
       for dictEntry in APIResponse["entries"]:
         LogEntry("Factor: {} Issue Type: {} Severity: {} Remediation count: {}".format(
             dictEntry["factor"], dictEntry["title"], dictEntry["severity"], dictEntry["remediations"]))
-        objFileOut.write("{} - {} - {} - {}\n".format(
+        objFileOut.write("|{} | {} | {} | {}|\n".format(
             dictEntry["factor"], dictEntry["title"], dictEntry["severity"],dictEntry["remediations"]))
         dictIssueDet[dictEntry["issue_type"]] = dictEntry["title"]
     else:
@@ -405,8 +408,6 @@ def main():
     LogEntry("Entries does not exists in API Response. {} ".format(APIResponse))
 
 
-  objFileOut.write("--------------------------------------------------------------------------------\n\n")
-
   for strKey in dictIssueDet.keys():
     strAPIFunction = "companies/{CompanyURL}/issues/{IssueType}".format(
                       CompanyURL=strCompanyURL,IssueType=strKey)
@@ -414,13 +415,15 @@ def main():
     strURL = strBaseURL + strAPIFunction 
 
     LogEntry("Getting detail for {} via {}".format(dictIssueDet[strKey],strURL))
-    objFileOut.write("\nDetails for {}\n".format(dictIssueDet[strKey]))
+    objFileOut.write("\n## Details for {}\n\n".format(dictIssueDet[strKey]))
     APIResponse = MakeAPICall(strURL,strHeader,strMethod,dictPayload)
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
         lstKeys = APIResponse["entries"][0].keys()
-        strKeys = ",".join(lstKeys)
-        objFileOut.write(strKeys+"\n")
+        strKeys = "|".join(lstKeys)
+        objFileOut.write("|"+strKeys+"|\n|")
+        for strTemp in lstKeys:
+          objFileOut.write("----|")
         LogEntry(strKeys)
         iListCount = len(APIResponse["entries"])
         LogEntry("Entries is a list with {} entries ".format(iListCount))
@@ -434,8 +437,8 @@ def main():
               lstLine.append(str(dictIssue[strItem]))
             else:
               lstLine.append(str(type(dictIssue[strItem])))
-          strLine = ",".join(lstLine)
-          objFileOut.write(strLine +"\n")
+          strLine = "|".join(lstLine)
+          objFileOut.write("|"+strLine +"!\n")
       else:
         LogEntry("Entries is not a list, it is: {}".format(
             type(APIResponse["entries"])))
