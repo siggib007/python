@@ -109,6 +109,21 @@ def TitleCase(strConvert):
   strTemp = strConvert.replace("_", " ")
   return strTemp.title()
 
+def dict2HTMLTable(dictTable):
+  if isinstance(dictTable,dict):
+    strTable = "<table>\n"
+    strHead = ""
+    strTD = ""
+    for strKey in dictTable.keys():
+      strHead += "<th>{}</th>".format(strKey)
+      strTD += "<td>{}</td>".format(dictTable[strKey])
+    strTable = strTable + "<tr>" + strHead + "</tr>\n"
+    strTable = strTable + "<tr>" + strTD + "</tr>\n"
+    strTable += "</table>\n"
+    return strTable
+  else:
+    return dictTable
+
 def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
   global tLastCall
@@ -453,6 +468,7 @@ def main():
         for dictIssue in APIResponse["entries"]:
           lstLine = []
           for strItem in dictIssue.keys():
+            lstTemp = []
             if isinstance(dictIssue[strItem], str):
               strTemp = dictIssue[strItem].replace(",",";")
               lstLine.append(strTemp)
@@ -461,8 +477,18 @@ def main():
             elif isinstance(dictIssue[strItem],dict):
               lstLine.append("dictionary of {} items".format(len(dictIssue[strItem])))
             elif isinstance(dictIssue[strItem], list):
-              lstLine.append("list of {} items".format(
-                  len(dictIssue[strItem])))
+              # lstLine.append("list of {} items".format(len(dictIssue[strItem])))
+              for Temp in dictIssue[strItem]:
+                if isinstance(Temp,str):
+                  lstTemp.append(Temp)
+                elif isinstance(Temp,(int,float)):
+                  lstTemp.append(str(Temp))
+                elif isinstance(Temp,dict):
+                  # lstTemp.append("dictionary of {} items".format(len(Temp)))
+                  lstTemp.append(dict2HTMLTable(Temp))
+                elif isinstance(Temp, list):
+                  lstTemp.append("list of {} items".format(len(Temp)))
+              lstLine.append(",".join(lstTemp))
             else:
               strTemp = str(type(dictIssue[strItem]))
               strTemp = strTemp.replace("<class '", "")
