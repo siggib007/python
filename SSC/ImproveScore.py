@@ -469,10 +469,10 @@ def main():
 
   objFileOut.close()
 
-  strCmdLine = "pandoc {} -f {} -t {} -o {}".format(
-      strFileOut, strOrigionalFormat, strConvert2, strFileConv)
-  LogEntry ("executing {}".format(strCmdLine))
-  proc.Popen(strCmdLine)
+  # strCmdLine = "pandoc {} -f {} -t {} -o {}".format(
+  #     strFileOut, strOrigionalFormat, strConvert2, strFileConv)
+  # LogEntry ("executing {}".format(strCmdLine))
+  # proc.Popen(strCmdLine)
 
   LogEntry("Done!")
   objLogOut.close()
