@@ -474,7 +474,7 @@ def main():
   # LogEntry ("executing {}".format(strCmdLine))
   # proc.Popen(strCmdLine)
 
-  LogEntry("Done!")
+  LogEntry("Done! Output savet to {}".format(strFileOut))
   objLogOut.close()
 
 
