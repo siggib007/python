@@ -499,7 +499,7 @@ def main():
 
   objFileOut.close()
 
-  LogEntry("Done!")
+  LogEntry("Done! Output saved to {}".format(strFileOut))
   objLogOut.close()
 
 
