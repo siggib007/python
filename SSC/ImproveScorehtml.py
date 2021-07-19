@@ -401,7 +401,7 @@ def main():
     CleanExit("No score in API response, can't proceed")
 
   iTargetScore = iScore + iTargetImprovement
-  objFileOut.write("<style type=\"text/css\">\n @media print {\n  table {page-break-after: always;}\n}\n</style>")
+  objFileOut.write("<style type=\"text/css\">\n @media print {\n  table {page-break-after: always;}\n}\n</style>\n")
   objFileOut.write(
       "<img src=https://advania.is/library/Template/logo_o.png />\n")
   objFileOut.write("<h1>Improvement plan to increase the security score of {} by {} points.</h1>\n".format(
