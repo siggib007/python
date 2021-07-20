@@ -374,6 +374,10 @@ with open(strCSVName,newline="") as hCSV:
       print ("Unexpected: {}".format(lstReturn))
       sys.exit(9)
     else:
-      print ("Inserted {} record".format(lstReturn[0]),end="\r")
+      # print ("Inserted {} record".format(iLine),end="\r")
+      if lstReturn[0] != 1:
+        LogEntry("\nExpected 1 affected record, but got back {} records affected!".format(lstReturn[0]))
+      print ("processed {} record".format(iLine),end="\r")
+print ("")
 LogEntry("Done. Processed {} records".format(iLine))
 
