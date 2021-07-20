@@ -348,7 +348,11 @@ with open(strCSVName,newline="") as hCSV:
     else:
       for dbRow in lstReturn[1]:
         strCustomer = dbRow[0]
+        if strCustomer is None:
+          strCustomer = ""
         strDescription = dbRow[1]
+        if strDescription is None:
+          strDescription = ""
         iBitMask = int(dbRow[2])
         if iBitMask > 19:
           lstBitMask.append(str(iBitMask))
