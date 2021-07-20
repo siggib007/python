@@ -324,55 +324,43 @@ with open(strCSVName,newline="") as hCSV:
   LogEntry ("Starting import...")
 
   for lstLine in myReader :
-    # if lstLine[0][:10] == "Disclaimer" or lstLine[0][:11] == "*IP address":
-    #   continue 
-    # lstFindingParts = lstLine[1].split(":")
-    # if ValidateIP(lstFindingParts[0]):
-    #   strIPAddress = lstFindingParts[0]
-    # else:
-    #   try:
-    #     strDNS = socket.gethostbyname(lstFindingParts[0])
-    #   except Exception as err:
-    #     strDNS = str(err)
-    #   strIPAddress = strDNS
-    
-    
-    strIPAddress = lstLine[1]
     lstValues = []
     lstBitMask = []
     lstDescr = []
     strCustomer = ""
-    if strIPAddress != "[":
-      dictIPInfo = IPCalc(strIPAddress)
-      strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
-                " WHERE iNetID <= {0} AND iBroadcast >= {0} "
-                " ORDER BY iHostCount;".format(dictIPInfo["DecIP"]))
-      lstReturn = SQLQuery (strSQL,dbConn)
-      if not ValidReturn(lstReturn):
-        print ("Unexpected: {}".format(lstReturn))
-        sys.exit(9)
-      else:
-        for dbRow in lstReturn[1]:
-          strCustomer = dbRow[0]
-          strDescription = dbRow[1]
-          iBitMask = int(dbRow[2])
-          if iBitMask > 19:
-            lstBitMask.append(str(iBitMask))
-            if strDescription != "":
-              lstDescr.append(strDescription)
-            if strCustomer != "":
-              break
+    if "-" in lstLine[1]:
+      lstIPRange = lstLine[1].split("-")
+      dictIPInfo = IPCalc(lstIPRange[0])
+      strIPStart = dictIPInfo["iDecSubID"]
+      dictIPInfo = IPCalc(lstIPRange[1])
+      strIPEnd = dictIPInfo["iDecBroad"]
+    else:
+      dictIPInfo = IPCalc(lstLine[1])
+      strIPStart = dictIPInfo["DecIP"]
+      strIPEnd = strIPStart
+    strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
+              " WHERE iNetID <= {} AND iBroadcast >= {} "
+              " ORDER BY iHostCount;".format(strIPStart,strIPEnd))
+    lstReturn = SQLQuery (strSQL,dbConn)
+    if not ValidReturn(lstReturn):
+      print ("Unexpected: {}".format(lstReturn))
+      sys.exit(9)
+    else:
+      for dbRow in lstReturn[1]:
+        strCustomer = dbRow[0]
+        strDescription = dbRow[1]
+        iBitMask = int(dbRow[2])
+        if iBitMask > 19:
+          lstBitMask.append(str(iBitMask))
+          if strDescription != "":
+            lstDescr.append(strDescription)
+          if strCustomer != "":
+            break
 
     strBitMask = ";".join(lstBitMask)
     strDescription = ";".join(lstDescr)
 
     iLine += 1
-    for strCSV in lstLine:
-      lstValues.append(DBClean(strCSV))
-    lstValues.append( "'{}'".format(strIPAddress))
-    lstValues.append( "'{}'".format(strCustomer))
-    lstValues.append( "'{}'".format(strDescription))
-    lstValues.append( "'{}'".format(strBitMask))
     strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr," 
               "vcCountry,vcCustomer,vcNetDescr,vcMatched) "
               " values ('{}','{}','{}','{}','{}','{}','{}');".format(strTableName, strCompanyURL, lstLine[0], lstLine[1], lstLine[3],
