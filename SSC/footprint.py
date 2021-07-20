@@ -304,11 +304,14 @@ else:
   print ("Can't find CSV file {}".format(strCSVName))
   sys.exit(4)
 
+strCompanyURL,strext = os.path.splitext(os.path.basename(strCSVName))
+strCompanyURL = strCompanyURL.replace(".footprint","")
+
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 LogEntry("Starting the import of {} into database on {}".format(strCSVName,strServer))
 LogEntry("Date Time format set to: {}".format(strDTFormat))
 LogEntry ("Truncating exiting table")
-strSQL = "delete from {};".format(strTableName)
+strSQL = "delete from {} where vcCompanyURL = '{}';".format(strTableName,strCompanyURL)
 lstReturn = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstReturn):
   print ("Unexpected: {}".format(lstReturn))
@@ -316,7 +319,6 @@ if not ValidReturn(lstReturn):
 else:
   LogEntry ("Deleted {} old records".format(lstReturn[0]))
 
-strCompanyURL,strext = os.path.splitext(os.path.basename(strCSVName))
 iLine = 0
 with open(strCSVName,newline="") as hCSV:
   myReader = csv.reader(hCSV, delimiter=strDelim)
