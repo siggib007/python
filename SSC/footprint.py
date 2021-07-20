@@ -270,6 +270,8 @@ for strLine in strLines:
       strDBPWD = strValue
     if strVarName == "InitialDB":
       strInitialDB = strValue
+    if strVarName == "TableName":
+      strTableName = strValue
     if strVarName == "FieldDelim":
       strDelim = strValue
     if strVarName == "CSVFileName":
@@ -306,7 +308,7 @@ dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
 LogEntry("Starting the import of {} into database on {}".format(strCSVName,strServer))
 LogEntry("Date Time format set to: {}".format(strDTFormat))
 LogEntry ("Truncating exiting table")
-strSQL = "delete from tblbitsightvulns;"
+strSQL = "delete from {};".format(strTableName)
 lstReturn = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstReturn):
   print ("Unexpected: {}".format(lstReturn))
@@ -314,6 +316,7 @@ if not ValidReturn(lstReturn):
 else:
   LogEntry ("Deleted {} old records".format(lstReturn[0]))
 
+strCompanyURL,strext = os.path.splitext(os.path.basename(strCSVName))
 iLine = 0
 with open(strCSVName,newline="") as hCSV:
   myReader = csv.reader(hCSV, delimiter=strDelim)
@@ -321,23 +324,25 @@ with open(strCSVName,newline="") as hCSV:
   LogEntry ("Starting import...")
 
   for lstLine in myReader :
-    if lstLine[0][:10] == "Disclaimer" or lstLine[0][:11] == "*IP address":
-      continue 
-    lstFindingParts = lstLine[1].split(":")
-    if ValidateIP(lstFindingParts[0]):
-      strIPAddress = lstFindingParts[0]
-    else:
-      try:
-        strDNS = socket.gethostbyname(lstFindingParts[0])
-      except Exception as err:
-        strDNS = str(err)
-      strIPAddress = strDNS
+    # if lstLine[0][:10] == "Disclaimer" or lstLine[0][:11] == "*IP address":
+    #   continue 
+    # lstFindingParts = lstLine[1].split(":")
+    # if ValidateIP(lstFindingParts[0]):
+    #   strIPAddress = lstFindingParts[0]
+    # else:
+    #   try:
+    #     strDNS = socket.gethostbyname(lstFindingParts[0])
+    #   except Exception as err:
+    #     strDNS = str(err)
+    #   strIPAddress = strDNS
     
+    
+    strIPAddress = lstLine[1]
     lstValues = []
     lstBitMask = []
     lstDescr = []
     strCustomer = ""
-    if strIPAddress[0] != "[":
+    if strIPAddress != "[":
       dictIPInfo = IPCalc(strIPAddress)
       strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
                 " WHERE iNetID <= {0} AND iBroadcast >= {0} "
@@ -368,10 +373,10 @@ with open(strCSVName,newline="") as hCSV:
     lstValues.append( "'{}'".format(strCustomer))
     lstValues.append( "'{}'".format(strDescription))
     lstValues.append( "'{}'".format(strBitMask))
-    strSQL = ("insert into tblbitsightvulns (vcRiskVector,vcFindingID,dtFirstSeen," 
-              "dtLastSeen,vcGrade,vcImpactRVG,iLifeTime,vcSeverity,vcDetails,iSrcPort,"
-              "iDstPort,vcPort,vcSrvType,vcSrvVer,vcRefresh,vcIPAddr,vcCustomer,vcNetDescr,vcMatched) "
-              " values ({});".format(",".join(lstValues)))
+    strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr," 
+              "vcCountry,vcCustomer,vcNetDescr,vcMatched) "
+              " values ('{}','{}','{}','{}','{}','{}','{}');".format(strTableName, strCompanyURL, lstLine[0], lstLine[1], lstLine[3],
+              strCustomer,strDescription,strBitMask ))
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
       print ("Unexpected: {}".format(lstReturn))
