@@ -249,7 +249,7 @@ else:
 	LogEntry ("{} has no fields, aborting.".format(lstFields))
 	sys.exit()
 
-with open(strCSVName,newline="") as hCSV:
+with open(strCSVName,newline="", encoding='utf8') as hCSV:
 	myReader = csv.reader(hCSV, delimiter=strDelim)
 	lstLine = next(myReader)
 	if len(lstFields) != len(lstLine):
