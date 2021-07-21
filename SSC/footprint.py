@@ -41,6 +41,10 @@ def getInput(strPrompt):
 def LogEntry(strMsg):
   print (strMsg)
 
+def CleanExit(strMsg):
+  print (strMsg)
+  sys.exit(9)
+
 def SQLConn (strServer,strDBUser,strDBPWD,strInitialDB):
   try:
     # Open database connection
@@ -230,9 +234,9 @@ def IPCalc (strIPAddress):
   # End if
   return dictIPInfo
 
-def QueryARIN (strIPAddress):
+def QueryNCC (strIPAddress):
   #execute Whois Query against ARIN.
-  dictARINResp={}
+  dictResp={}
   strURL="http://whois.arin.net/rest/ip/"+strIPAddress
   strHeader={'Accept': 'application/json'}
   try:
@@ -253,12 +257,13 @@ def QueryARIN (strIPAddress):
   if "net" not in jsonWebResult:
     return "ARIN Response not a Net Object"
 
-  dictARINResp['Org'] = jsonWebResult['net']['orgRef']['@name']
-  dictARINResp['Handle'] = jsonWebResult['net']['orgRef']['@handle']
-  dictARINResp['Ref'] = jsonWebResult['net']['ref']['$']
-  dictARINResp['Name'] = jsonWebResult['net']['name']['$']
+  dictResp['Org'] = jsonWebResult['net']['orgRef']['@name']
+  dictResp['Handle'] = jsonWebResult['net']['orgRef']['@handle']
+  dictResp['Ref'] = jsonWebResult['net']['ref']['$']
+  dictResp['Name'] = jsonWebResult['net']['name']['$']
   
-  if dictARINResp['Org'] == "RIPE Network Coordination Centre":
+  if dictResp['Org'] == "RIPE Network Coordination Centre":
+    #execute Whois Query against RIPE.
     strURL = "https://rest.db.ripe.net/search.json?query-string="+strIPAddress
     try:
       WebRequest = requests.get(strURL, headers=strHeader)
@@ -275,25 +280,81 @@ def QueryARIN (strIPAddress):
     except:
       return "Failed to decode the response from RIPE"
     try:
-      dictARINResp['Org'] = jsonWebResult['objects']['object'][0]['attributes']['attribute'][1]["value"]
+      dictResp['Org'] = jsonWebResult['objects']['object'][0]['attributes']['attribute'][1]["value"]
       for dictObject in jsonWebResult['objects']['object'][0]['attributes']['attribute']:
         if dictObject["name"] == "remarks":
-          dictARINResp['Handle'] = dictObject["value"]
+          dictResp['Handle'] = dictObject["value"]
       for dictObject in jsonWebResult['objects']['object'][1]['attributes']['attribute']:
         if dictObject["name"] == "mnt-by":
-          dictARINResp['Name'] = dictObject["value"]
+          dictResp['Name'] = dictObject["value"]
       if len(jsonWebResult['objects']['object']) > 2:
-        dictARINResp['Ref'] = jsonWebResult['objects']['object'][2]['attributes']['attribute'][1]["value"]
+        dictResp['Ref'] = jsonWebResult['objects']['object'][2]['attributes']['attribute'][1]["value"]
     except Exception as err:
       print ("Error when parsing RIPE response for {}. Error: {}".format(strIPAddress,err))
 
-  return dictARINResp
+  return dictResp
+
+def processConf(strConf_File):
+
+  LogEntry("Looking for configuration file: {}".format(strConf_File))
+  if os.path.isfile(strConf_File):
+    LogEntry("Configuration File exists")
+  else:
+    LogEntry("Can't find configuration file {}, make sure it is the same directory "
+      "as this script and named the same with ini extension".format(strConf_File))
+    sys.exit(9)
+
+  strLine = "  "
+  dictConfig = {}
+  LogEntry("Reading in configuration")
+  objINIFile = open(strConf_File, "r", encoding='utf8')
+  strLines = objINIFile.readlines()
+  objINIFile.close()
+
+  for strLine in strLines:
+    strLine = strLine.strip()
+    iCommentLoc = strLine.find("#")
+    if iCommentLoc > -1:
+      strLine = strLine[:iCommentLoc].strip()
+    else:
+      strLine = strLine.strip()
+    if "=" in strLine:
+      strConfParts = strLine.split("=")
+      strVarName = strConfParts[0].strip()
+      strValue = strConfParts[1].strip()
+      dictConfig[strVarName] = strValue
+      if strVarName == "include":
+        LogEntry("Found include directive: {}".format(strValue))
+        strValue = strValue.replace("\\","/")
+        if strValue[:1] == "/" or strValue[1:3] == ":/":
+          LogEntry("include directive is absolute path, using as is")
+        else:
+          strValue = strBaseDir + strValue
+          LogEntry("include directive is relative path,"
+            " appended base directory. {}".format(strValue))
+        if os.path.isfile(strValue):
+          LogEntry("file is valid")
+          objINIFile = open(strValue,"r")
+          strLines += objINIFile.readlines()
+          objINIFile.close()
+        else:
+          LogEntry("invalid file in include directive")
+
+  LogEntry("Done processing configuration, moving on")
+  return dictConfig
+
 
 # Initialize stuff
 iLoc = sys.argv[0].rfind(".")
 strCSVName = ""
 strConf_File = sys.argv[0][:iLoc] + ".ini"
 localtime = time.localtime(time.time())
+strBaseDir = os.path.dirname(sys.argv[0])
+iLoc = sys.argv[0].rfind(".")
+strConf_File = sys.argv[0][:iLoc] + ".ini"
+strDBUser = ""
+strDBPWD = ""
+
 
 #Start doing stuff
 print ("This is a script to import Security Scorecard footprint export. "
@@ -302,45 +363,47 @@ print ("This is a script to import Security Scorecard footprint export. "
 now = time.asctime()
 print ("The time now is {}".format(now))
 
-if os.path.isfile(strConf_File):
-  print ("Configuration File exists")
+dictConfig = processConf(strConf_File)
+
+if "Server" in dictConfig:
+  strServer = dictConfig["Server"]
 else:
-  print ("Can't find configuration file {}, make sure it is the same directory as this script".format(strConf_File))
-  sys.exit(4)
+  CleanExit("No database server info provided, that is required so I'm bailing.")
 
-strLine = "  "
-print ("Reading in configuration")
-objINIFile = open(strConf_File,"r")
-strLines = objINIFile.readlines()
-objINIFile.close()
+if "dbUser" in dictConfig:
+  strDBUser = dictConfig["dbUser"]
+else:
+  CleanExit("No dbUser info provided, that is required so I'm bailing.")
 
-for strLine in strLines:
-  iCommentLoc = strLine.find("#")
-  if iCommentLoc > -1:
-    strLine = strLine[:iCommentLoc].strip()
-  else:
-    strLine = strLine.strip()
-  if "=" in strLine:
-    strConfParts = strLine.split("=")
-    strVarName = strConfParts[0].strip()
-    strValue = strConfParts[1].strip()
+if "dbPWD" in dictConfig:
+  strDBPWD = dictConfig["dbPWD"]
+else:
+  CleanExit("No dbPWD info provided, that is required so I'm bailing.")
 
-    if strVarName == "Server":
-      strServer = strValue
-    if strVarName == "dbUser":
-      strDBUser = strValue
-    if strVarName == "dbPWD":
-      strDBPWD = strValue
-    if strVarName == "InitialDB":
-      strInitialDB = strValue
-    if strVarName == "TableName":
-      strTableName = strValue
-    if strVarName == "FieldDelim":
-      strDelim = strValue
-    if strVarName == "CSVFileName":
-      strCSVName = strValue
-    if strVarName == "DateTimeFormat":
-      strDTFormat = strValue
+if "TableName" in dictConfig:
+  strTableName = dictConfig["TableName"]
+else:
+  CleanExit("No TableName info provided, that is required so I'm bailing.")
+
+if "CSVFileName" in dictConfig:
+  strCSVName = dictConfig["CSVFileName"]
+else:
+  strCSVName = ""
+
+if "FieldDelim" in dictConfig:
+  strDelim = dictConfig["FieldDelim"]
+else:
+  strDelim = ","
+
+if "InitialDB" in dictConfig:
+  strInitialDB = dictConfig["InitialDB"]
+else:
+  strInitialDB = "mysql"
+
+if "DateTimeFormat" in dictConfig:
+  strDTFormat = dictConfig["DateTimeFormat"]
+else:
+  strDTFormat = "%Y-%m-%d"
 
 sa = sys.argv
 
@@ -399,12 +462,12 @@ with open(strCSVName,newline="") as hCSV:
       strIPStart = dictIPInfo["iDecSubID"]
       dictIPInfo = IPCalc(lstIPRange[1])
       strIPEnd = dictIPInfo["iDecBroad"]
-      dictARIN = QueryARIN(lstIPRange[0])
+      dictNCC = QueryNCC(lstIPRange[0])
     else:
       dictIPInfo = IPCalc(lstLine[1])
       strIPStart = dictIPInfo["DecIP"]
       strIPEnd = strIPStart
-      dictARIN = QueryARIN(lstLine[1])
+      dictNCC = QueryNCC(lstLine[1])
     strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
               " WHERE iNetID <= {} AND iBroadcast >= {} "
               " ORDER BY iHostCount;".format(strIPStart,strIPEnd))
@@ -436,7 +499,7 @@ with open(strCSVName,newline="") as hCSV:
                 "vcMatched,vcOrg,vcName,vcHandle,vcRef) "
               " values ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}');".format(
                 strTableName, strCompanyURL,lstLine[0], lstLine[1], lstLine[3],strCustomer,
-                strDescription,strBitMask,dictARIN["Org"],dictARIN["Name"],dictARIN["Handle"],dictARIN["Ref"] ))
+                strDescription,strBitMask,dictNCC["Org"],dictNCC["Name"],dictNCC["Handle"],dictNCC["Ref"] ))
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
       print ("Unexpected: {}".format(lstReturn))
