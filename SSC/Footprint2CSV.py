@@ -243,8 +243,6 @@ def main():
   global objLogOut
   global strScriptName
   global strScriptHost
-  global tLastCall
-  global iTotalSleep
   global strBaseDir
   global strBaseURL
   global dictConfig
@@ -354,11 +352,6 @@ def main():
   else:
     CleanExit("Company URL is required but not provided, sorry have to bail")
 
-  if "CompanyName" in dictConfig:
-    strName = dictConfig["CompanyName"]
-  else:
-    strName = ""
-
   if "OutDir" in dictConfig:
     strOutDir = dictConfig["OutDir"]
 
@@ -414,6 +407,7 @@ def main():
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
   APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload,"text")
+  APIResponse = APIResponse.replace("\r\n","\n")
   objFileOut.write(APIResponse)
 
   objFileOut.close()
