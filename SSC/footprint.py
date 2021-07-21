@@ -5,16 +5,20 @@ Website https://supergeek.us/
 
 Following packages need to be installed as administrator
 pip install pymysql
+pip install requests
+pip install jason
+
 
 '''
 # Import libraries
 import sys
 import os
-import string
 import time
 import pymysql
 import csv
-import socket
+from pymysql.err import Error
+import requests
+import json
 
 try:
   import tkinter as tk
@@ -226,6 +230,60 @@ def IPCalc (strIPAddress):
   # End if
   return dictIPInfo
 
+def QueryARIN (strIPAddress):
+  #execute Whois Query against ARIN.
+  dictARINResp={}
+  strURL="http://whois.arin.net/rest/ip/"+strIPAddress
+  strHeader={'Accept': 'application/json'}
+  try:
+    WebRequest = requests.get(strURL, headers=strHeader)
+  except:
+    return "Failed to connect to ARIN"
+  
+  if WebRequest.status_code !=200:
+    return "ARIN returned error code " + str(WebRequest.status_code)
+  if isinstance(WebRequest,requests.models.Response)==False:
+    return "ARIN response is unknown type"
+
+  try:
+    jsonWebResult = json.loads(WebRequest.text)
+  except:
+    return "Failed to decode the response from ARIN"
+
+  if "net" not in jsonWebResult:
+    return "ARIN Response not a Net Object"
+
+  dictARINResp['Org'] = jsonWebResult['net']['orgRef']['@name']
+  dictARINResp['Handle'] = jsonWebResult['net']['orgRef']['@handle']
+  dictARINResp['Ref'] = jsonWebResult['net']['ref']['$']
+  dictARINResp['Name'] = jsonWebResult['net']['name']['$']
+  
+  if dictARINResp['Org'] == "RIPE Network Coordination Centre":
+    strURL = "https://rest.db.ripe.net/search.json?query-string="+strIPAddress
+    try:
+      WebRequest = requests.get(strURL, headers=strHeader)
+    except:
+      return "Failed to connect to RIPE"
+    
+    if WebRequest.status_code !=200:
+      return "RIPE returned error code " + str(WebRequest.status_code)
+    if isinstance(WebRequest,requests.models.Response)==False:
+      return "RIPE response is unknown type"
+
+    try:
+      jsonWebResult = json.loads(WebRequest.text)
+    except:
+      return "Failed to decode the response from RIPE"
+    try:
+      dictARINResp['Org'] = jsonWebResult['objects']['object'][0]['attributes']['attribute'][1]["value"]
+      dictARINResp['Handle'] = jsonWebResult['objects']['object'][0]['attributes']['attribute'][9]["value"]
+      dictARINResp['Ref'] = jsonWebResult['objects']['object'][2]['attributes']['attribute'][1]["value"]
+      dictARINResp['Name'] = jsonWebResult['objects']['object'][1]['attributes']['attribute'][7]["value"]
+    except Exception as err:
+      print ("Error when parsing RIPE response for {}. Error: {}".format(strIPAddress,err))
+
+  return dictARINResp
+
 # Initialize stuff
 iLoc = sys.argv[0].rfind(".")
 strCSVName = ""
@@ -336,10 +394,12 @@ with open(strCSVName,newline="") as hCSV:
       strIPStart = dictIPInfo["iDecSubID"]
       dictIPInfo = IPCalc(lstIPRange[1])
       strIPEnd = dictIPInfo["iDecBroad"]
+      dictARIN = QueryARIN(lstIPRange[0])
     else:
       dictIPInfo = IPCalc(lstLine[1])
       strIPStart = dictIPInfo["DecIP"]
       strIPEnd = strIPStart
+      dictARIN = QueryARIN(lstLine[1])
     strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
               " WHERE iNetID <= {} AND iBroadcast >= {} "
               " ORDER BY iHostCount;".format(strIPStart,strIPEnd))
@@ -356,7 +416,7 @@ with open(strCSVName,newline="") as hCSV:
         if strDescription is None:
           strDescription = ""
         iBitMask = int(dbRow[2])
-        if iBitMask > 19:
+        if iBitMask > 6:
           lstBitMask.append(str(iBitMask))
           if strDescription != "":
             lstDescr.append(strDescription)
@@ -368,9 +428,9 @@ with open(strCSVName,newline="") as hCSV:
 
     iLine += 1
     strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr," 
-              "vcCountry,vcCustomer,vcNetDescr,vcMatched) "
-              " values ('{}','{}','{}','{}','{}','{}','{}');".format(strTableName, strCompanyURL, lstLine[0], lstLine[1], lstLine[3],
-              strCustomer,strDescription,strBitMask ))
+              "vcCountry,vcCustomer,vcNetDescr,vcMatched,vcOrg,vcName) "
+              " values ('{}','{}','{}','{}','{}','{}','{}','{}','{}');".format(strTableName, strCompanyURL, lstLine[0], lstLine[1], lstLine[3],
+              strCustomer,strDescription,strBitMask,dictARIN["Org"],dictARIN["Name"] ))
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
       print ("Unexpected: {}".format(lstReturn))
