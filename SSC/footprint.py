@@ -276,9 +276,14 @@ def QueryARIN (strIPAddress):
       return "Failed to decode the response from RIPE"
     try:
       dictARINResp['Org'] = jsonWebResult['objects']['object'][0]['attributes']['attribute'][1]["value"]
-      dictARINResp['Handle'] = jsonWebResult['objects']['object'][0]['attributes']['attribute'][9]["value"]
-      dictARINResp['Ref'] = jsonWebResult['objects']['object'][2]['attributes']['attribute'][1]["value"]
-      dictARINResp['Name'] = jsonWebResult['objects']['object'][1]['attributes']['attribute'][7]["value"]
+      for dictObject in jsonWebResult['objects']['object'][0]['attributes']['attribute']:
+        if dictObject["name"] == "remarks":
+          dictARINResp['Handle'] = dictObject["value"]
+      for dictObject in jsonWebResult['objects']['object'][1]['attributes']['attribute']:
+        if dictObject["name"] == "mnt-by":
+          dictARINResp['Name'] = dictObject["value"]
+      if len(jsonWebResult['objects']['object']) > 2:
+        dictARINResp['Ref'] = jsonWebResult['objects']['object'][2]['attributes']['attribute'][1]["value"]
     except Exception as err:
       print ("Error when parsing RIPE response for {}. Error: {}".format(strIPAddress,err))
 
@@ -427,10 +432,11 @@ with open(strCSVName,newline="") as hCSV:
     strDescription = ";".join(lstDescr)
 
     iLine += 1
-    strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr," 
-              "vcCountry,vcCustomer,vcNetDescr,vcMatched,vcOrg,vcName) "
-              " values ('{}','{}','{}','{}','{}','{}','{}','{}','{}');".format(strTableName, strCompanyURL, lstLine[0], lstLine[1], lstLine[3],
-              strCustomer,strDescription,strBitMask,dictARIN["Org"],dictARIN["Name"] ))
+    strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr,vcCountry,vcCustomer,vcNetDescr,"
+                "vcMatched,vcOrg,vcName,vcHandle,vcRef) "
+              " values ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}');".format(
+                strTableName, strCompanyURL,lstLine[0], lstLine[1], lstLine[3],strCustomer,
+                strDescription,strBitMask,dictARIN["Org"],dictARIN["Name"],dictARIN["Handle"],dictARIN["Ref"] ))
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
       print ("Unexpected: {}".format(lstReturn))
