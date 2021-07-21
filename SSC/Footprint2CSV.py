@@ -124,7 +124,7 @@ def dict2HTMLTable(dictTable):
   else:
     return dictTable
 
-def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
+def MakeAPICall(strURL, strHeader, strMethod,  dictPayload="", strFormat="json"):
 
   global tLastCall
   global iTotalSleep
@@ -173,11 +173,18 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
   if iErrCode != "" or WebRequest.status_code !=200:
     return "There was a problem with your request. Error {}: {}".format(iErrCode,iErrText)
   else:
-    try:
-      return WebRequest.json()
-    except Exception as err:
-      LogEntry("Issue with converting response to json. "
-        "Here are the first 99 character of the response: {}".format(WebRequest.text[:99]))
+    if strFormat == "json":
+      try:
+        return WebRequest.json()
+      except Exception as err:
+        LogEntry("Issue with converting response to json. "
+          "Here are the first 99 character of the response: {}".format(WebRequest.text[:99]))
+    elif strFormat == "text":
+      return WebRequest.text
+    elif strFormat == "raw":
+      return WebRequest.raw
+    else:
+      LogEntry("unknown format {} in MakeAPICall".format(strFormat),True)
 
 def processConf(strConf_File):
 
@@ -280,7 +287,6 @@ def main():
   iLoc = strScriptName.rfind(".")
   strLogFile = strLogDir + strScriptName[:iLoc] + ISO + ".log"
   strVersion = "{0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2])
-  dictPayload = {}
   strScriptHost = platform.node().upper()
 
   print("This is a script to download footprint details for a particular company from Security Score Card via API. "
@@ -373,7 +379,7 @@ def main():
     LogEntry("unable to open output file {} for writing, "
              "permission denied.".format(strFileOut), True)
 
-  dictIssueDet = {}
+  dictPayload = {}
   strMethod = "post"
   strAPIFunction = "reports/scorecard-footprint"
   strURL = strBaseURL + strAPIFunction 
@@ -382,11 +388,6 @@ def main():
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
   APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
-  if strName == "":
-    if "name" in APIResponse:
-      strName = APIResponse["name"]
-    else:
-      strName = "unknown"
   if "id" in APIResponse:
     strReportID = APIResponse["id"]
   else:
@@ -394,6 +395,26 @@ def main():
   
   LogEntry("Report request submitted, request ID: {}".format(strReportID))
 
+  dictPayload = {}
+  strMethod = "get"
+  strAPIFunction = "reports/recent"
+  strURL = strBaseURL + strAPIFunction 
+  LogEntry("Submitting query request\n {} {}\n Payload{}".format(
+      strMethod, strURL, dictPayload))
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
+  if "entries" in APIResponse:
+    if isinstance(APIResponse["entries"],list):
+      for dictEntry in APIResponse["entries"]:
+        if dictEntry["id"] == strReportID:
+          strURL = dictEntry["download_url"]
+    else:
+      LogEntry("Entries is not a list, no idea what to do so bailing.",True)
+  else:
+    LogEntry("No entries collection, abort, abort !!!!")
+  LogEntry("Submitting query request\n {} {}\n Payload{}".format(
+      strMethod, strURL, dictPayload))
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload,"text")
+  objFileOut.write(APIResponse)
 
   objFileOut.close()
 
