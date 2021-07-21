@@ -183,6 +183,8 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload="", strFormat="json")
       return WebRequest.text
     elif strFormat == "raw":
       return WebRequest.raw
+    elif strFormat == "content":
+      return WebRequest.content
     else:
       LogEntry("unknown format {} in MakeAPICall".format(strFormat),True)
 
@@ -373,7 +375,7 @@ def main():
     os.makedirs(strOutDir)
     print("\nPath '{0}' for output files didn't exists, so I create it!\n".format(
         strOutDir))
-  strFileOut = strOutDir + strCompanyURL + "-footprint.csv"
+  strFileOut = "{}{}-{}.{}".format(strOutDir,strCompanyURL,strReportType,strOutputFormat)
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -420,9 +422,13 @@ def main():
     LogEntry("No entries collection, abort, abort !!!!")
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
-  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload,"raw")
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload,"content")
   # APIResponse = APIResponse.replace("\r\n","\n")
-  objFileOut.write(APIResponse)
+  LogEntry("Done downloading. Received a {}".format(type(APIResponse)))
+  if isinstance(APIResponse,str):
+    LogEntry("Response is string, which is unexpected. Here is what I got back. {}".format(APIResponse))
+  else:
+    objFileOut.write(APIResponse)
 
   objFileOut.close()
 
