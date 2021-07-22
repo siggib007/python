@@ -343,10 +343,116 @@ def processConf(strConf_File):
   LogEntry("Done processing configuration, moving on")
   return dictConfig
 
+def MakeAPICall(strURL, strHeader, strMethod,  dictPayload="", strFormat="json"):
+
+  global tLastCall
+  global iTotalSleep
+
+  fTemp = time.time()
+  fDelta = fTemp - tLastCall
+  # LogEntry("It's been {} seconds since last API call".format(fDelta))
+  if fDelta > iMinQuiet:
+    tLastCall = time.time()
+  else:
+    iDelta = int(fDelta)
+    iAddWait = iMinQuiet - iDelta
+    LogEntry ("It has been less than {} seconds since last API call, "
+      "waiting {} seconds".format(iMinQuiet,iAddWait))
+    iTotalSleep += iAddWait
+    time.sleep(iAddWait)
+  iErrCode = ""
+  iErrText = ""
+
+  # LogEntry("Doing a {} to URL: \n {}\n".format(strMethod,strURL))
+  try:
+    if strMethod.lower() == "get":
+      WebRequest = requests.get(strURL, headers=strHeader, verify=False)
+      # LogEntry("get executed")
+    if strMethod.lower() == "post":
+      if dictPayload != "":
+        WebRequest = requests.post(strURL, json= dictPayload, headers=strHeader, verify=False)
+      else:
+        WebRequest = requests.post(strURL, headers=strHeader, verify=False)
+      # LogEntry("post executed")
+  except Exception as err:
+    LogEntry("Issue with API call. {}".format(err))
+    CleanExit("due to issue with API, please check the logs")
+
+  if isinstance(WebRequest,requests.models.Response)==False:
+    LogEntry("response is unknown type")
+    iErrCode = "ResponseErr"
+    iErrText = "response is unknown type"
+
+  # LogEntry("call resulted in status code {}".format(WebRequest.status_code))
+  if WebRequest.status_code != 200:
+    # LogEntry(WebRequest.text)
+    iErrCode = WebRequest.status_code
+    iErrText = WebRequest.text
+
+  if iErrCode != "" or WebRequest.status_code !=200:
+    return "There was a problem with your request. Error {}: {}".format(iErrCode,iErrText)
+  else:
+    if strFormat == "json":
+      try:
+        return WebRequest.json()
+      except Exception as err:
+        LogEntry("Issue with converting response to json. "
+          "Here are the first 99 character of the response: {}".format(WebRequest.text[:99]))
+    elif strFormat == "text":
+      return WebRequest.text
+    elif strFormat == "raw":
+      return WebRequest.raw
+    elif strFormat == "content":
+      return WebRequest.content
+    else:
+      LogEntry("unknown format {} in MakeAPICall".format(strFormat),True)
+
+def DownloadReport(strReportType, strOutputFormat, strDownloadType):
+  dictPayload = {}
+  strMethod = "post"
+  strAPIFunction = "reports/"+strReportType
+  strURL = strBaseURL + strAPIFunction 
+  dictPayload["format"] = strOutputFormat
+  dictPayload["scorecard_identifier"] = strCompanyURL
+  LogEntry("Submitting query request\n {} {}\n Payload{}".format(
+      strMethod, strURL, dictPayload))
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
+  if "id" in APIResponse:
+    strReportID = APIResponse["id"]
+  else:
+    CleanExit("No score in API response, can't proceed")
+  
+  LogEntry("Report request submitted, request ID: {}".format(strReportID))
+
+  dictPayload = {}
+  strMethod = "get"
+  strAPIFunction = "reports/recent"
+  strURL = strBaseURL + strAPIFunction 
+  LogEntry("Submitting query request\n {} {}\n Payload{}".format(
+      strMethod, strURL, dictPayload))
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
+  if "entries" in APIResponse:
+    if isinstance(APIResponse["entries"],list):
+      for dictEntry in APIResponse["entries"]:
+        if dictEntry["id"] == strReportID:
+          if "download_url" in dictEntry:
+            strURL = dictEntry["download_url"]
+            break
+          else:
+            LogEntry("No download URL in response, here is what I got: {}".format(dictEntry))
+    else:
+      LogEntry("Entries is not a list, no idea what to do so bailing.",True)
+  else:
+    LogEntry("No entries collection, abort, abort !!!!")
+  LogEntry("Submitting query request\n {} {}\n Payload{}".format(
+      strMethod, strURL, dictPayload))
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload, strDownloadType)
+  LogEntry("Done downloading. Received a {}".format(type(APIResponse)))
+  return APIResponse
+
 
 # Initialize stuff
 iLoc = sys.argv[0].rfind(".")
-strCSVName = ""
 strConf_File = sys.argv[0][:iLoc] + ".ini"
 localtime = time.localtime(time.time())
 strBaseDir = os.path.dirname(sys.argv[0])
@@ -354,6 +460,11 @@ iLoc = sys.argv[0].rfind(".")
 strConf_File = sys.argv[0][:iLoc] + ".ini"
 strDBUser = ""
 strDBPWD = ""
+tLastCall = 0
+iTotalSleep = 0
+iTimeOut = 120 # Max time in seconds to wait for network response
+iMinQuiet = 2 # Minimum time in seconds between API calls
+iSecSleep = 60 # Time to wait between check if ready
 
 
 #Start doing stuff
@@ -364,6 +475,43 @@ now = time.asctime()
 print ("The time now is {}".format(now))
 
 dictConfig = processConf(strConf_File)
+
+if "TimeOut" in dictConfig:
+  if isInt(dictConfig["TimeOut"]):
+    iTimeOut = int(dictConfig["TimeOut"])
+  else:
+    LogEntry("Invalid timeout, setting to defaults of {}".format(iTimeOut))
+
+if "SecondsBeetweenChecks" in dictConfig:
+  if isInt(dictConfig["SecondsBeetweenChecks"]):
+    iSecSleep = int(dictConfig["SecondsBeetweenChecks"])
+  else:
+    LogEntry("Invalid sleep time, setting to defaults of {}".format(iSecSleep))
+
+if "MinQuiet" in dictConfig:
+  if isInt(dictConfig["MinQuiet"]):
+    iMinQuiet = int(dictConfig["MinQuiet"])
+  else:
+    LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinQuiet))
+
+if "AccessKey" in dictConfig:
+  strHeader={
+    'Content-type':'application/json',
+    'authorization': 'Token ' + dictConfig["AccessKey"]}
+else:
+  LogEntry("API Keys not provided, exiting.",True)
+
+if "APIBaseURL" in dictConfig:
+  strBaseURL = dictConfig["APIBaseURL"]
+else:
+  CleanExit("No Base API provided")
+if strBaseURL[-1:] != "/":
+  strBaseURL += "/"
+
+if "CompanyURL" in dictConfig:
+  strCompanyURL = dictConfig["CompanyURL"]
+else:
+  CleanExit("Company URL is required but not provided, sorry have to bail")
 
 if "Server" in dictConfig:
   strServer = dictConfig["Server"]
@@ -385,11 +533,6 @@ if "TableName" in dictConfig:
 else:
   CleanExit("No TableName info provided, that is required so I'm bailing.")
 
-if "CSVFileName" in dictConfig:
-  strCSVName = dictConfig["CSVFileName"]
-else:
-  strCSVName = ""
-
 if "FieldDelim" in dictConfig:
   strDelim = dictConfig["FieldDelim"]
 else:
@@ -405,36 +548,8 @@ if "DateTimeFormat" in dictConfig:
 else:
   strDTFormat = "%Y-%m-%d"
 
-sa = sys.argv
-
-lsa = len(sys.argv)
-if lsa > 1:
-  strCSVName = sa[1]
-
-if strCSVName == "":
-  if btKinterOK:
-    print ("File name to be imported is missing. Opening up a file open dialog box, please select the file you wish to import.")
-    root = tk.Tk()
-    root.withdraw()
-    strCSVName = filedialog.askopenfilename(title = "Select CSV file",filetypes = (("CSV files","*.csv"),("Text files","*.txt"),("all files","*.*")))
-  else:
-    strCSVName = getInput("Please provide full path and filename for the CSV file to be imported: ")
-
-if strCSVName == "":
-  print ("No filename provided unable to continue")
-  sys.exit()
-
-if os.path.isfile(strCSVName):
-  print ("OK found {}".format(strCSVName))
-else:
-  print ("Can't find CSV file {}".format(strCSVName))
-  sys.exit(4)
-
-strCompanyURL,strext = os.path.splitext(os.path.basename(strCSVName))
-strCompanyURL = strCompanyURL.replace(".footprint","")
-
 dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
-LogEntry("Starting the import of {} into database on {}".format(strCSVName,strServer))
+LogEntry("Starting the import of {} into database on {} from API".format(strCompanyURL,strServer))
 LogEntry("Date Time format set to: {}".format(strDTFormat))
 LogEntry ("Truncating exiting table")
 strSQL = "delete from {} where vcCompanyURL = '{}';".format(strTableName,strCompanyURL)
@@ -444,52 +559,51 @@ if not ValidReturn(lstReturn):
   sys.exit(9)
 else:
   LogEntry ("Deleted {} old records".format(lstReturn[0]))
-
+strFootPrint = DownloadReport("scorecard-footprint","csv","text")
+lstFootPrint = strFootPrint.splitlines()
 iLine = 0
-with open(strCSVName,newline="") as hCSV:
-  myReader = csv.reader(hCSV, delimiter=strDelim)
-  lstLine = next(myReader)
-  LogEntry ("Starting import...")
+LogEntry ("Starting import...")
+for strLine in lstFootPrint:
+  lstLine = strLine.split(strDelim)
 
-  for lstLine in myReader :
-    lstValues = []
-    lstBitMask = []
-    lstDescr = []
-    strCustomer = ""
-    if "-" in lstLine[1]:
-      lstIPRange = lstLine[1].split("-")
-      dictIPInfo = IPCalc(lstIPRange[0])
-      strIPStart = dictIPInfo["iDecSubID"]
-      dictIPInfo = IPCalc(lstIPRange[1])
-      strIPEnd = dictIPInfo["iDecBroad"]
-      dictNCC = QueryNCC(lstIPRange[0])
-    else:
-      dictIPInfo = IPCalc(lstLine[1])
-      strIPStart = dictIPInfo["DecIP"]
-      strIPEnd = strIPStart
-      dictNCC = QueryNCC(lstLine[1])
-    strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
-              " WHERE iNetID <= {} AND iBroadcast >= {} "
-              " ORDER BY iHostCount;".format(strIPStart,strIPEnd))
-    lstReturn = SQLQuery (strSQL,dbConn)
-    if not ValidReturn(lstReturn):
-      print ("Unexpected: {}".format(lstReturn))
-      sys.exit(9)
-    else:
-      for dbRow in lstReturn[1]:
-        strCustomer = dbRow[0]
-        if strCustomer is None:
-          strCustomer = ""
-        strDescription = dbRow[1]
-        if strDescription is None:
-          strDescription = ""
-        iBitMask = int(dbRow[2])
-        if iBitMask > 6:
-          lstBitMask.append(str(iBitMask))
-          if strDescription != "":
-            lstDescr.append(strDescription)
-          if strCustomer != "":
-            break
+  lstValues = []
+  lstBitMask = []
+  lstDescr = []
+  strCustomer = ""
+  if "-" in lstLine[1]:
+    lstIPRange = lstLine[1].split("-")
+    dictIPInfo = IPCalc(lstIPRange[0])
+    strIPStart = dictIPInfo["iDecSubID"]
+    dictIPInfo = IPCalc(lstIPRange[1])
+    strIPEnd = dictIPInfo["iDecBroad"]
+    dictNCC = QueryNCC(lstIPRange[0])
+  else:
+    dictIPInfo = IPCalc(lstLine[1])
+    strIPStart = dictIPInfo["DecIP"]
+    strIPEnd = strIPStart
+    dictNCC = QueryNCC(lstLine[1])
+  strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
+            " WHERE iNetID <= {} AND iBroadcast >= {} "
+            " ORDER BY iHostCount;".format(strIPStart,strIPEnd))
+  lstReturn = SQLQuery (strSQL,dbConn)
+  if not ValidReturn(lstReturn):
+    print ("Unexpected: {}".format(lstReturn))
+    sys.exit(9)
+  else:
+    for dbRow in lstReturn[1]:
+      strCustomer = dbRow[0]
+      if strCustomer is None:
+        strCustomer = ""
+      strDescription = dbRow[1]
+      if strDescription is None:
+        strDescription = ""
+      iBitMask = int(dbRow[2])
+      if iBitMask > 6:
+        lstBitMask.append(str(iBitMask))
+        if strDescription != "":
+          lstDescr.append(strDescription)
+        if strCustomer != "":
+          break
 
     strBitMask = ";".join(lstBitMask)
     strDescription = ";".join(lstDescr)
