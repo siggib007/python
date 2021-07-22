@@ -436,8 +436,8 @@ def DownloadReport(strReportType, strOutputFormat, strDownloadType):
     CleanExit("No ID in API response, can't proceed")
   
   LogEntry("Report request submitted, request ID: {}".format(strReportID))
-  # LogEntry("Giving report 15 sec to generate")
-  # time.sleep(15)
+  LogEntry("Giving report 15 sec to generate")
+  time.sleep(15)
   dictPayload = {}
   strMethod = "get"
   strAPIFunction = "reports/recent"
@@ -585,6 +585,8 @@ for strLine in lstFootPrint:
   lstBitMask = []
   lstDescr = []
   strCustomer = ""
+  if lstLine[1] == "IP":
+    continue
   if "-" in lstLine[1]:
     lstIPRange = lstLine[1].split("-")
     dictIPInfo = IPCalc(lstIPRange[0])
@@ -637,7 +639,6 @@ for strLine in lstFootPrint:
       print ("Unexpected: {}".format(lstReturn))
       sys.exit(9)
     else:
-      # print ("Inserted {} record".format(iLine),end="\r")
       if lstReturn[0] != 1:
         LogEntry("\nExpected 1 affected record, but got back {} records affected!".format(lstReturn[0]))
       print ("processed {} record".format(iLine),end="\r")
