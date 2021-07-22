@@ -1,9 +1,31 @@
-	#OuterTable {
+#InnerTable {
+	font-family: Arial, Helvetica, sans-serif;
+	border-collapse: collapse;
+}
+
+#InnerTable td, #OuterTable th {
+	border: 1px solid #ddd;
+	padding: 8px;
+}
+
+#InnerTable tr {
+	background-color: aqua;
+}
+
+#InnerTable th {
+	padding-top: 12px;
+	padding-bottom: 12px;
+	text-align: left;
+	background-color:burlywood;
+	color:darkblue;
+}
+
+#OuterTable {
 	  font-family: Arial, Helvetica, sans-serif;
 	  border-collapse: collapse;
 	}
 
-	#OuterTable td, #customers th {
+	#OuterTable td, #OuterTable th {
 	  border: 1px solid #ddd;
 	  padding: 8px;
 	}

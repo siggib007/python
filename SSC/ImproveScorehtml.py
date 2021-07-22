@@ -111,7 +111,7 @@ def TitleCase(strConvert):
 
 def dict2HTMLTable(dictTable):
   if isinstance(dictTable,dict):
-    strTable = "<table border=1>\n"
+    strTable = "<table id=InnerTable>\n"
     strHead = ""
     strTD = ""
     for strKey in dictTable.keys():
@@ -402,6 +402,7 @@ def main():
 
   iTargetScore = iScore + iTargetImprovement
 
+  iLoc = sys.argv[0].rfind(".")
   strCSSFile = sys.argv[0][:iLoc] + ".css"
 
   if os.path.isfile(strCSSFile):
@@ -411,8 +412,8 @@ def main():
       "as this script and named the same with css extension. "
       "Report will generate without any formating".format(strConf_File))
 
-  objCSS = open(strConf_File, "r", encoding='utf8')
-  strCSSCont = objCSS.readlines()
+  objCSS = open(strCSSFile, "r", encoding='utf8')
+  strCSSCont = objCSS.read()
   objCSS.close()
 
   objFileOut.write("<style type=\"text/css\">\n{}\n</style>\n".format(strCSSCont))
@@ -438,7 +439,7 @@ def main():
       objFileOut.write("<p>This plan contains {} types of issues to be addressed.<br/>\n".format(iListCount))
       objFileOut.write("It should bring the score to about {}</p>\n".format(strProjectedScore))
  
-      objFileOut.write("<p>\n<table  id=OuterTable>\n<tr>\n")
+      objFileOut.write("<p>\n<table id=OuterTable>\n<tr>\n")
       objFileOut.write(
           "<th>Factor</th><th>Title</th><th>severity</th><th>Remediations</th>\n")
       objFileOut.write("</tr>\n")
@@ -469,7 +470,7 @@ def main():
         lstKeys = APIResponse["entries"][0].keys()
         strKeys = TitleCase(",".join(lstKeys))
         strKeys = strKeys.replace(",", "</th><th>")
-        objFileOut.write("<p><table border=1>\n<tr>\n")
+        objFileOut.write("<p><table id=OuterTable>\n<tr>\n")
         objFileOut.write("<th>"+strKeys+"</th>\n|")
         objFileOut.write("</tr>\n")
         LogEntry(strKeys)
