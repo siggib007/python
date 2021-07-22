@@ -464,184 +464,196 @@ def DownloadReport(strReportType, strOutputFormat, strDownloadType):
   LogEntry("Done downloading. Received a {}".format(type(APIResponse)))
   return APIResponse
 
+def main():
+  global strDTFormat
+  global strBaseDir
+  global strBaseURL
+  global strCompanyURL
+  global strHeader
+  global iTimeOut
+  global iSecSleep
+  global iMinQuiet
 
-# Initialize stuff
-iLoc = sys.argv[0].rfind(".")
-strConf_File = sys.argv[0][:iLoc] + ".ini"
-localtime = time.localtime(time.time())
-strBaseDir = os.path.dirname(sys.argv[0])
-strRealPath = os.path.realpath(sys.argv[0])
-strRealPath = strRealPath.replace("\\","/")
-if strBaseDir == "":
-  iLoc = strRealPath.rfind("/")
-  strBaseDir = strRealPath[:iLoc]
-if strBaseDir[-1:] != "/":
-  strBaseDir += "/"
-iLoc = sys.argv[0].rfind(".")
-strConf_File = sys.argv[0][:iLoc] + ".ini"
+  # Initialize stuff
+  iLoc = sys.argv[0].rfind(".")
+  strConf_File = sys.argv[0][:iLoc] + ".ini"
+  localtime = time.localtime(time.time())
+  strBaseDir = os.path.dirname(sys.argv[0])
+  strRealPath = os.path.realpath(sys.argv[0])
+  strRealPath = strRealPath.replace("\\","/")
+  if strBaseDir == "":
+    iLoc = strRealPath.rfind("/")
+    strBaseDir = strRealPath[:iLoc]
+  if strBaseDir[-1:] != "/":
+    strBaseDir += "/"
+  iLoc = sys.argv[0].rfind(".")
+  strConf_File = sys.argv[0][:iLoc] + ".ini"
 
-#Start doing stuff
-print ("This is a script to import Security Scorecard footprint export. "
-        " This is running under Python Version {0}.{1}.{2}".format(
-            sys.version_info[0],sys.version_info[1],sys.version_info[2]))
-now = time.asctime()
-print ("The time now is {}".format(now))
+  #Start doing stuff
+  print ("This is a script to import Security Scorecard footprint export. "
+          " This is running under Python Version {0}.{1}.{2}".format(
+              sys.version_info[0],sys.version_info[1],sys.version_info[2]))
+  now = time.asctime()
+  print ("The time now is {}".format(now))
 
-dictConfig = processConf(strConf_File)
+  dictConfig = processConf(strConf_File)
 
-if "TimeOut" in dictConfig:
-  if isInt(dictConfig["TimeOut"]):
-    iTimeOut = int(dictConfig["TimeOut"])
+  if "TimeOut" in dictConfig:
+    if isInt(dictConfig["TimeOut"]):
+      iTimeOut = int(dictConfig["TimeOut"])
+    else:
+      LogEntry("Invalid timeout, setting to defaults of {}".format(iTimeOut))
+
+  if "SecondsBeetweenChecks" in dictConfig:
+    if isInt(dictConfig["SecondsBeetweenChecks"]):
+      iSecSleep = int(dictConfig["SecondsBeetweenChecks"])
+    else:
+      LogEntry("Invalid sleep time, setting to defaults of {}".format(iSecSleep))
+
+  if "MinQuiet" in dictConfig:
+    if isInt(dictConfig["MinQuiet"]):
+      iMinQuiet = int(dictConfig["MinQuiet"])
+    else:
+      LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinQuiet))
+
+  if "AccessKey" in dictConfig:
+    strHeader={
+      'Content-type':'application/json',
+      'authorization': 'Token ' + dictConfig["AccessKey"]}
   else:
-    LogEntry("Invalid timeout, setting to defaults of {}".format(iTimeOut))
+    LogEntry("API Keys not provided, exiting.",True)
 
-if "SecondsBeetweenChecks" in dictConfig:
-  if isInt(dictConfig["SecondsBeetweenChecks"]):
-    iSecSleep = int(dictConfig["SecondsBeetweenChecks"])
+  if "APIBaseURL" in dictConfig:
+    strBaseURL = dictConfig["APIBaseURL"]
   else:
-    LogEntry("Invalid sleep time, setting to defaults of {}".format(iSecSleep))
+    CleanExit("No Base API provided")
+  if strBaseURL[-1:] != "/":
+    strBaseURL += "/"
 
-if "MinQuiet" in dictConfig:
-  if isInt(dictConfig["MinQuiet"]):
-    iMinQuiet = int(dictConfig["MinQuiet"])
+  if "CompanyURL" in dictConfig:
+    strCompanyURL = dictConfig["CompanyURL"]
   else:
-    LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinQuiet))
+    CleanExit("Company URL is required but not provided, sorry have to bail")
 
-if "AccessKey" in dictConfig:
-  strHeader={
-    'Content-type':'application/json',
-    'authorization': 'Token ' + dictConfig["AccessKey"]}
-else:
-  LogEntry("API Keys not provided, exiting.",True)
-
-if "APIBaseURL" in dictConfig:
-  strBaseURL = dictConfig["APIBaseURL"]
-else:
-  CleanExit("No Base API provided")
-if strBaseURL[-1:] != "/":
-  strBaseURL += "/"
-
-if "CompanyURL" in dictConfig:
-  strCompanyURL = dictConfig["CompanyURL"]
-else:
-  CleanExit("Company URL is required but not provided, sorry have to bail")
-
-if "Server" in dictConfig:
-  strServer = dictConfig["Server"]
-else:
-  CleanExit("No database server info provided, that is required so I'm bailing.")
-
-if "dbUser" in dictConfig:
-  strDBUser = dictConfig["dbUser"]
-else:
-  CleanExit("No dbUser info provided, that is required so I'm bailing.")
-
-if "dbPWD" in dictConfig:
-  strDBPWD = dictConfig["dbPWD"]
-else:
-  CleanExit("No dbPWD info provided, that is required so I'm bailing.")
-
-if "TableName" in dictConfig:
-  strTableName = dictConfig["TableName"]
-else:
-  CleanExit("No TableName info provided, that is required so I'm bailing.")
-
-if "FieldDelim" in dictConfig:
-  strDelim = dictConfig["FieldDelim"]
-else:
-  strDelim = ","
-
-if "InitialDB" in dictConfig:
-  strInitialDB = dictConfig["InitialDB"]
-else:
-  strInitialDB = "mysql"
-
-if "DateTimeFormat" in dictConfig:
-  strDTFormat = dictConfig["DateTimeFormat"]
-else:
-  strDTFormat = "%Y-%m-%d"
-
-dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
-LogEntry("Starting the import of {} into database on {} from API".format(strCompanyURL,strServer))
-LogEntry("Date Time format set to: {}".format(strDTFormat))
-LogEntry ("Truncating exiting table")
-strSQL = "delete from {} where vcCompanyURL = '{}';".format(strTableName,strCompanyURL)
-lstReturn = SQLQuery (strSQL,dbConn)
-if not ValidReturn(lstReturn):
-  print ("Unexpected: {}".format(lstReturn))
-  sys.exit(9)
-else:
-  LogEntry ("Deleted {} old records".format(lstReturn[0]))
-strFootPrint = DownloadReport("scorecard-footprint","csv","text")
-lstFootPrint = strFootPrint.splitlines()
-lst1st = lstFootPrint[0].split(strDelim)
-LogEntry("Received {} lines from API, first line contains {} comma seperated values.".format(len(lstFootPrint), len(lst1st)))
-iLine = 0
-LogEntry ("Starting import...")
-for strLine in lstFootPrint:
-  lstLine = strLine.split(strDelim)
-
-  lstValues = []
-  lstBitMask = []
-  lstDescr = []
-  strCustomer = ""
-  if lstLine[1] == "IP":
-    continue
-  if "-" in lstLine[1]:
-    lstIPRange = lstLine[1].split("-")
-    dictIPInfo = IPCalc(lstIPRange[0])
-    strIPStart = dictIPInfo["iDecSubID"]
-    dictIPInfo = IPCalc(lstIPRange[1])
-    strIPEnd = dictIPInfo["iDecBroad"]
-    dictNCC = QueryNCC(lstIPRange[0])
+  if "Server" in dictConfig:
+    strServer = dictConfig["Server"]
   else:
-    dictIPInfo = IPCalc(lstLine[1])
-    if "IPError" in dictIPInfo:
-      LogEntry("Error during IP Calc on line '{}'. Error is: {}".format(strLine,dictIPInfo["IPError"]))
-      continue
-    strIPStart = dictIPInfo["DecIP"]
-    strIPEnd = strIPStart
-    dictNCC = QueryNCC(lstLine[1])
-  strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
-            " WHERE iNetID <= {} AND iBroadcast >= {} "
-            " ORDER BY iHostCount;".format(strIPStart,strIPEnd))
+    CleanExit("No database server info provided, that is required so I'm bailing.")
+
+  if "dbUser" in dictConfig:
+    strDBUser = dictConfig["dbUser"]
+  else:
+    CleanExit("No dbUser info provided, that is required so I'm bailing.")
+
+  if "dbPWD" in dictConfig:
+    strDBPWD = dictConfig["dbPWD"]
+  else:
+    CleanExit("No dbPWD info provided, that is required so I'm bailing.")
+
+  if "TableName" in dictConfig:
+    strTableName = dictConfig["TableName"]
+  else:
+    CleanExit("No TableName info provided, that is required so I'm bailing.")
+
+  if "FieldDelim" in dictConfig:
+    strDelim = dictConfig["FieldDelim"]
+  else:
+    strDelim = ","
+
+  if "InitialDB" in dictConfig:
+    strInitialDB = dictConfig["InitialDB"]
+  else:
+    strInitialDB = "mysql"
+
+  if "DateTimeFormat" in dictConfig:
+    strDTFormat = dictConfig["DateTimeFormat"]
+  else:
+    strDTFormat = "%Y-%m-%d"
+
+  dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
+  LogEntry("Starting the import of {} into database on {} from API".format(strCompanyURL,strServer))
+  LogEntry("Date Time format set to: {}".format(strDTFormat))
+  LogEntry ("Truncating exiting table")
+  strSQL = "delete from {} where vcCompanyURL = '{}';".format(strTableName,strCompanyURL)
   lstReturn = SQLQuery (strSQL,dbConn)
   if not ValidReturn(lstReturn):
     print ("Unexpected: {}".format(lstReturn))
     sys.exit(9)
   else:
-    for dbRow in lstReturn[1]:
-      strCustomer = dbRow[0]
-      if strCustomer is None:
-        strCustomer = ""
-      strDescription = dbRow[1]
-      if strDescription is None:
-        strDescription = ""
-      iBitMask = int(dbRow[2])
-      if iBitMask > 6:
-        lstBitMask.append(str(iBitMask))
-        if strDescription != "":
-          lstDescr.append(strDescription)
-        if strCustomer != "":
-          break
+    LogEntry ("Deleted {} old records".format(lstReturn[0]))
+  strFootPrint = DownloadReport("scorecard-footprint","csv","text")
+  lstFootPrint = strFootPrint.splitlines()
+  lst1st = lstFootPrint[0].split(strDelim)
+  LogEntry("Received {} lines from API, first line contains {} comma seperated values.".format(len(lstFootPrint), len(lst1st)))
+  iLine = 0
+  LogEntry ("Starting import...")
+  for strLine in lstFootPrint:
+    lstLine = strLine.split(strDelim)
 
-    strBitMask = ";".join(lstBitMask)
-    strDescription = ";".join(lstDescr)
-
-    iLine += 1
-    strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr,vcCountry,vcCustomer,vcNetDescr,"
-                "vcMatched,vcOrg,vcName,vcHandle,vcRef) "
-              " values ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}');".format(
-                strTableName, strCompanyURL,lstLine[0], lstLine[1], lstLine[2],strCustomer,
-                strDescription,strBitMask,dictNCC["Org"],dictNCC["Name"],dictNCC["Handle"],dictNCC["Ref"] ))
+    lstValues = []
+    lstBitMask = []
+    lstDescr = []
+    strCustomer = ""
+    if lstLine[1] == "IP":
+      continue
+    if "-" in lstLine[1]:
+      lstIPRange = lstLine[1].split("-")
+      dictIPInfo = IPCalc(lstIPRange[0])
+      strIPStart = dictIPInfo["iDecSubID"]
+      dictIPInfo = IPCalc(lstIPRange[1])
+      strIPEnd = dictIPInfo["iDecBroad"]
+      dictNCC = QueryNCC(lstIPRange[0])
+    else:
+      dictIPInfo = IPCalc(lstLine[1])
+      if "IPError" in dictIPInfo:
+        LogEntry("Error during IP Calc on line '{}'. Error is: {}".format(strLine,dictIPInfo["IPError"]))
+        continue
+      strIPStart = dictIPInfo["DecIP"]
+      strIPEnd = strIPStart
+      dictNCC = QueryNCC(lstLine[1])
+    strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
+              " WHERE iNetID <= {} AND iBroadcast >= {} "
+              " ORDER BY iHostCount;".format(strIPStart,strIPEnd))
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
       print ("Unexpected: {}".format(lstReturn))
       sys.exit(9)
     else:
-      if lstReturn[0] != 1:
-        LogEntry("\nExpected 1 affected record, but got back {} records affected!".format(lstReturn[0]))
-      print ("processed {} record".format(iLine),end="\r")
-print ("")
-LogEntry("Done. Processed {} records".format(iLine))
+      for dbRow in lstReturn[1]:
+        strCustomer = dbRow[0]
+        if strCustomer is None:
+          strCustomer = ""
+        strDescription = dbRow[1]
+        if strDescription is None:
+          strDescription = ""
+        iBitMask = int(dbRow[2])
+        if iBitMask > 6:
+          lstBitMask.append(str(iBitMask))
+          if strDescription != "":
+            lstDescr.append(strDescription)
+          if strCustomer != "":
+            break
 
+      strBitMask = ";".join(lstBitMask)
+      strDescription = ";".join(lstDescr)
+
+      iLine += 1
+      strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr,vcCountry,vcCustomer,vcNetDescr,"
+                  "vcMatched,vcOrg,vcName,vcHandle,vcRef) "
+                " values ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}');".format(
+                  strTableName, strCompanyURL,lstLine[0], lstLine[1], lstLine[2],strCustomer,
+                  strDescription,strBitMask,dictNCC["Org"],dictNCC["Name"],dictNCC["Handle"],dictNCC["Ref"] ))
+      lstReturn = SQLQuery (strSQL,dbConn)
+      if not ValidReturn(lstReturn):
+        print ("Unexpected: {}".format(lstReturn))
+        sys.exit(9)
+      else:
+        if lstReturn[0] != 1:
+          LogEntry("\nExpected 1 affected record, but got back {} records affected!".format(lstReturn[0]))
+        print ("processed {} record".format(iLine),end="\r")
+  print ("")
+  LogEntry("Done. Processed {} records".format(iLine))
+
+
+if __name__ == '__main__':
+    main()
