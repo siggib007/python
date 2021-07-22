@@ -603,6 +603,10 @@ def main():
       dictIPInfo = IPCalc(lstIPRange[1])
       strIPEnd = dictIPInfo["iDecBroad"]
       dictNCC = QueryNCC(lstIPRange[0])
+      if strIPEnd == strIPStart:
+        strIPAddr = lstIPRange[0]
+      else:
+        strIPAddr = lstLine[1]
     else:
       dictIPInfo = IPCalc(lstLine[1])
       if "IPError" in dictIPInfo:
@@ -611,6 +615,7 @@ def main():
       strIPStart = dictIPInfo["DecIP"]
       strIPEnd = strIPStart
       dictNCC = QueryNCC(lstLine[1])
+      strIPAddr = lstLine[1]
     strSQL = ("SELECT vcCustomer,vcDescription,iBitMask FROM tbl_ipam"
               " WHERE iNetID <= {} AND iBroadcast >= {} "
               " ORDER BY iHostCount;".format(strIPStart,strIPEnd))
@@ -641,7 +646,7 @@ def main():
       strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr,vcCountry,vcCustomer,vcNetDescr,"
                   "vcMatched,vcOrg,vcName,vcHandle,vcRef) "
                 " values ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}');".format(
-                  strTableName, strCompanyURL,lstLine[0], lstLine[1], lstLine[2],strCustomer,
+                  strTableName, strCompanyURL,lstLine[0], strIPAddr, lstLine[2],strCustomer,
                   strDescription,strBitMask,dictNCC["Org"],dictNCC["Name"],dictNCC["Handle"],dictNCC["Ref"] ))
       lstReturn = SQLQuery (strSQL,dbConn)
       if not ValidReturn(lstReturn):
