@@ -401,9 +401,22 @@ def main():
     CleanExit("No score in API response, can't proceed")
 
   iTargetScore = iScore + iTargetImprovement
-  objFileOut.write("<style type=\"text/css\">\n @media print {\n  table {page-break-after: always;}\n}\n</style>\n")
-  objFileOut.write(
-      "<img src=https://advania.is/library/Template/logo_o.png />\n")
+
+  strCSSFile = sys.argv[0][:iLoc] + ".css"
+
+  if os.path.isfile(strCSSFile):
+    LogEntry("CSS File exists")
+  else:
+    LogEntry("Can't find CSS file {}, make sure it is the same directory "
+      "as this script and named the same with css extension. "
+      "Report will generate without any formating".format(strConf_File))
+
+  objCSS = open(strConf_File, "r", encoding='utf8')
+  strCSSCont = objCSS.readlines()
+  objCSS.close()
+
+  objFileOut.write("<style type=\"text/css\">\n{}\n</style>\n".format(strCSSCont))
+  objFileOut.write("<img src=https://advania.is/library/Template/logo_o.png />\n")
   objFileOut.write("<h1>Improvement plan to increase the security score of {} by {} points.</h1>\n".format(
             strName,iTargetImprovement))
   objFileOut.write(
@@ -425,7 +438,7 @@ def main():
       objFileOut.write("<p>This plan contains {} types of issues to be addressed.<br/>\n".format(iListCount))
       objFileOut.write("It should bring the score to about {}</p>\n".format(strProjectedScore))
  
-      objFileOut.write("<p>\n<table border=1>\n<tr>\n")
+      objFileOut.write("<p>\n<table  id=OuterTable>\n<tr>\n")
       objFileOut.write(
           "<th>Factor</th><th>Title</th><th>severity</th><th>Remediations</th>\n")
       objFileOut.write("</tr>\n")
