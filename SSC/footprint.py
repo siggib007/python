@@ -31,6 +31,17 @@ except:
 
 #Default values, overwrite these in the ini file
 strDelim = ","          # what is the field seperate in the input file
+strDBUser = ""
+strDBPWD = ""
+tLastCall = 0
+iTotalSleep = 0
+iTimeOut = 120 # Max time in seconds to wait for network response
+iMinQuiet = 2 # Minimum time in seconds between API calls
+iSecSleep = 60 # Time to wait between check if ready
+
+#avoid insecure warning
+
+requests.urllib3.disable_warnings()
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -38,8 +49,10 @@ def getInput(strPrompt):
     else:
         return raw_input(strPrompt)
 
-def LogEntry(strMsg):
+def LogEntry(strMsg,bAbort=False):
   print (strMsg)
+  if bAbort:
+    sys.exit(9)
 
 def CleanExit(strMsg):
   print (strMsg)
@@ -420,10 +433,11 @@ def DownloadReport(strReportType, strOutputFormat, strDownloadType):
   if "id" in APIResponse:
     strReportID = APIResponse["id"]
   else:
-    CleanExit("No score in API response, can't proceed")
+    CleanExit("No ID in API response, can't proceed")
   
   LogEntry("Report request submitted, request ID: {}".format(strReportID))
-
+  # LogEntry("Giving report 15 sec to generate")
+  # time.sleep(15)
   dictPayload = {}
   strMethod = "get"
   strAPIFunction = "reports/recent"
@@ -456,16 +470,15 @@ iLoc = sys.argv[0].rfind(".")
 strConf_File = sys.argv[0][:iLoc] + ".ini"
 localtime = time.localtime(time.time())
 strBaseDir = os.path.dirname(sys.argv[0])
+strRealPath = os.path.realpath(sys.argv[0])
+strRealPath = strRealPath.replace("\\","/")
+if strBaseDir == "":
+  iLoc = strRealPath.rfind("/")
+  strBaseDir = strRealPath[:iLoc]
+if strBaseDir[-1:] != "/":
+  strBaseDir += "/"
 iLoc = sys.argv[0].rfind(".")
 strConf_File = sys.argv[0][:iLoc] + ".ini"
-strDBUser = ""
-strDBPWD = ""
-tLastCall = 0
-iTotalSleep = 0
-iTimeOut = 120 # Max time in seconds to wait for network response
-iMinQuiet = 2 # Minimum time in seconds between API calls
-iSecSleep = 60 # Time to wait between check if ready
-
 
 #Start doing stuff
 print ("This is a script to import Security Scorecard footprint export. "
@@ -561,6 +574,8 @@ else:
   LogEntry ("Deleted {} old records".format(lstReturn[0]))
 strFootPrint = DownloadReport("scorecard-footprint","csv","text")
 lstFootPrint = strFootPrint.splitlines()
+lst1st = lstFootPrint[0].split(strDelim)
+LogEntry("Received {} lines from API, first line contains {} comma seperated values.".format(len(lstFootPrint), len(lst1st)))
 iLine = 0
 LogEntry ("Starting import...")
 for strLine in lstFootPrint:
@@ -579,6 +594,9 @@ for strLine in lstFootPrint:
     dictNCC = QueryNCC(lstIPRange[0])
   else:
     dictIPInfo = IPCalc(lstLine[1])
+    if "IPError" in dictIPInfo:
+      LogEntry("Error during IP Calc on line '{}'. Error is: {}".format(strLine,dictIPInfo["IPError"]))
+      continue
     strIPStart = dictIPInfo["DecIP"]
     strIPEnd = strIPStart
     dictNCC = QueryNCC(lstLine[1])
@@ -612,7 +630,7 @@ for strLine in lstFootPrint:
     strSQL = ("insert into {} (vcCompanyURL,vcDomain,vcIPAddr,vcCountry,vcCustomer,vcNetDescr,"
                 "vcMatched,vcOrg,vcName,vcHandle,vcRef) "
               " values ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}');".format(
-                strTableName, strCompanyURL,lstLine[0], lstLine[1], lstLine[3],strCustomer,
+                strTableName, strCompanyURL,lstLine[0], lstLine[1], lstLine[2],strCustomer,
                 strDescription,strBitMask,dictNCC["Org"],dictNCC["Name"],dictNCC["Handle"],dictNCC["Ref"] ))
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
