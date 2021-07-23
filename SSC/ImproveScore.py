@@ -478,28 +478,31 @@ def main():
         LogEntry("Entries is a list with {} entries ".format(iListCount))
         for dictIssue in APIResponse["entries"]:
           lstLine = []
-          for strItem in dictIssue.keys():
+          for oEntry in dictIssue.keys():
             lstTemp = []
-            if isinstance(dictIssue[strItem], str):
-              strTemp = dictIssue[strItem].replace(",",";")
+            if isinstance(dictIssue[oEntry], str):
+              strTemp = dictIssue[oEntry].replace(",",";")
               lstLine.append(strTemp)
-            elif isinstance(dictIssue[strItem],int):
-              lstLine.append(str(dictIssue[strItem]))
-            elif isinstance(dictIssue[strItem],dict):
-              lstLine.append(dict2HTMLTable(dictIssue[strItem]))
-            elif isinstance(dictIssue[strItem], list):
-              for Temp in dictIssue[strItem]:
+            elif isinstance(dictIssue[oEntry],(int,float)):
+              lstLine.append(str(dictIssue[oEntry]))
+            elif isinstance(dictIssue[oEntry],dict):
+              lstLine.append(dict2HTMLTable(dictIssue[oEntry]))
+            elif isinstance(dictIssue[oEntry], list):
+              dictTemp = {}
+              for Temp in dictIssue[oEntry]:
                 if isinstance(Temp,str):
                   lstTemp.append(Temp)
                 elif isinstance(Temp,(int,float)):
                   lstTemp.append(str(Temp))
                 elif isinstance(Temp,dict):
-                  lstTemp.append(dict2HTMLTable(Temp))
+                  for strKey in Temp.keys():
+                    dictTemp[strKey] = Temp[strKey]
                 elif isinstance(Temp, list):
                   lstTemp.append("list of {} items".format(len(Temp)))
               lstLine.append(",".join(lstTemp))
+              lstLine.append(dict2HTMLTable(dictTemp))
             else:
-              strTemp = str(type(dictIssue[strItem]))
+              strTemp = str(type(dictIssue[oEntry]))
               strTemp = strTemp.replace("<class '", "")
               lstLine.append(strTemp.replace("'>"," object"))
           strLine = "</td><td>".join(lstLine)
