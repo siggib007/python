@@ -15,7 +15,6 @@ import time
 import urllib.parse as urlparse
 import json
 import platform
-import subprocess as proc
 
 # End imports
 
@@ -109,6 +108,21 @@ def formatUnixDate(iDate):
 def TitleCase(strConvert):
   strTemp = strConvert.replace("_", " ")
   return strTemp.title()
+
+def dict2HTMLTable(dictTable):
+  if isinstance(dictTable,dict):
+    strTable = "<table id=InnerTable>\n"
+    strHead = ""
+    strTD = ""
+    for strKey in dictTable.keys():
+      strHead += "<th>{}</th>".format(strKey)
+      strTD += "<td>{}</td>".format(dictTable[strKey])
+    strTable = strTable + "<tr>" + strHead + "</tr>\n"
+    strTable = strTable + "<tr>" + strTD + "</tr>\n"
+    strTable += "</table>\n"
+    return strTable
+  else:
+    return dictTable
 
 def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
@@ -237,14 +251,9 @@ def main():
   iMinQuiet = 2 # Minimum time in seconds between API calls
   iSecSleep = 60 # Time to wait between check if ready
   iTargetImprovement = 10 # What is the target score improvement
-  strOrigionalFormat = "markdown"
-  strConvert2 = "docx"
-
-
+  
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
 
-  dictParams = {}
-  
   strFormat = "%Y-%m-%dT%H:%M:%S"
   strFileOut = None
   bNotifyEnabled = False
@@ -362,8 +371,7 @@ def main():
     os.makedirs(strOutDir)
     print("\nPath '{0}' for output files didn't exists, so I create it!\n".format(
         strOutDir))
-  strFileOut = strOutDir + strCompanyURL + "-ImprovementPlan.md"
-  strFileConv = strOutDir + strCompanyURL + "-ImprovementPlan." + strConvert2
+  strFileOut = strOutDir + strCompanyURL + "-ImprovementPlan.html"
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -375,7 +383,6 @@ def main():
   dictIssueDet = {}
   strMethod = "get"
   strAPIFunction = "companies/{CompanyURL}".format(CompanyURL=strCompanyURL)
-  # strParams = urlparse.urlencode(dictParams)
   strURL = strBaseURL + strAPIFunction 
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
@@ -394,32 +401,55 @@ def main():
     CleanExit("No score in API response, can't proceed")
 
   iTargetScore = iScore + iTargetImprovement
-  objFileOut.write(
-      "![Advania Logo](https://advania.is/library/Template/logo_o.png)\n")
-  objFileOut.write("# Improvement plan to increase the security score of {} by {} points.\n\n".format(
+
+  iLoc = sys.argv[0].rfind(".")
+  strCSSFile = sys.argv[0][:iLoc] + ".css"
+
+  if os.path.isfile(strCSSFile):
+    LogEntry("CSS File exists")
+  else:
+    LogEntry("Can't find CSS file {}, make sure it is the same directory "
+      "as this script and named the same with css extension. "
+      "Report will generate without any formating".format(strConf_File))
+
+  objCSS = open(strCSSFile, "r", encoding='utf8')
+  strCSSCont = objCSS.read()
+  objCSS.close()
+
+  objFileOut.write("<style type=\"text/css\">\n{}\n</style>\n".format(strCSSCont))
+  objFileOut.write("<img src=https://advania.is/library/Template/logo_o.png />\n")
+  objFileOut.write("<h1>Improvement plan to increase the security score of {} by {} points.</h1>\n".format(
             strName,iTargetImprovement))
   objFileOut.write(
-      "## Summary Action Plan to bring the score from {} to {}\n\n".format(iScore, iTargetScore))
+      "<h2> Summary Action Plan to bring the score from {} to around {}</h2>\n".format(iScore, iTargetScore))
   strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
                     CompanyURL=strCompanyURL,TargetScore=iTargetScore)
-  # strParams = urlparse.urlencode(dictParams)
   strURL = strBaseURL + strAPIFunction 
   LogEntry("Submitting query request\n {} {}\n Payload{}".format(
       strMethod, strURL, dictPayload))
   APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictPayload)
+  if "projected_total_score" in APIResponse:
+    strProjectedScore = APIResponse["projected_total_score"]
+  else:
+    strProjectedScore = "unknown"
   if "entries" in APIResponse:
     if isinstance(APIResponse["entries"],list):
       iListCount = len(APIResponse["entries"])
       LogEntry("Entries is a list with {} entries ".format(iListCount))
-      objFileOut.write("***This plan contains {} types of issues to be addressed.***\n".format(iListCount))
-      objFileOut.write("|Factor | Title | severity | Remediations|\n")
-      objFileOut.write("|------|--------|----------|-------------|\n")
+      objFileOut.write("<p>This plan contains {} types of issues to be addressed.<br/>\n".format(iListCount))
+      objFileOut.write("It should bring the score to about {}</p>\n".format(strProjectedScore))
+ 
+      objFileOut.write("<p>\n<table id=OuterTable>\n<tr>\n")
+      objFileOut.write(
+          "<th>Factor</th><th>Title</th><th>severity</th><th>Remediations</th>\n")
+      objFileOut.write("</tr>\n")
       for dictEntry in APIResponse["entries"]:
         LogEntry("Factor: {} Issue Type: {} Severity: {} Remediation count: {}".format(
             dictEntry["factor"], dictEntry["title"], dictEntry["severity"], dictEntry["remediations"]))
-        objFileOut.write("|{} | {} | {} | {}|\n".format(
+        objFileOut.write("<tr>\n<td>{}</td><td>{}</td><td>{}</td><td>{}</td>\n</tr>\n".format(
             TitleCase(dictEntry["factor"]), dictEntry["title"], dictEntry["severity"],dictEntry["remediations"]))
         dictIssueDet[dictEntry["issue_type"]] = dictEntry["title"]
+      objFileOut.write("</table>\n</p>\n")
     else:
       LogEntry("Entries is not a list, it is: {}".format(
           type(APIResponse["entries"])))
@@ -430,37 +460,51 @@ def main():
   for strKey in dictIssueDet.keys():
     strAPIFunction = "companies/{CompanyURL}/issues/{IssueType}".format(
                       CompanyURL=strCompanyURL,IssueType=strKey)
-    # strParams = urlparse.urlencode(dictParams)
     strURL = strBaseURL + strAPIFunction 
 
     LogEntry("Getting detail for {} via {}".format(dictIssueDet[strKey],strURL))
-    objFileOut.write("\n## Details for {}\n\n".format(dictIssueDet[strKey]))
+    objFileOut.write("\n<h2> Details for {}</h2>\n".format(dictIssueDet[strKey]))
     APIResponse = MakeAPICall(strURL,strHeader,strMethod,dictPayload)
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
         lstKeys = APIResponse["entries"][0].keys()
-        strKeys = TitleCase ("|".join(lstKeys))
-
-        objFileOut.write("|"+strKeys+"|\n|")
-        for strTemp in lstKeys:
-          objFileOut.write("----|")
-        objFileOut.write("\n")
+        strKeys = TitleCase(",".join(lstKeys))
+        strKeys = strKeys.replace(",", "</th><th>")
+        objFileOut.write("<p><table id=OuterTable>\n<tr>\n")
+        objFileOut.write("<th>"+strKeys+"</th>\n|")
+        objFileOut.write("</tr>\n")
         LogEntry(strKeys)
         iListCount = len(APIResponse["entries"])
         LogEntry("Entries is a list with {} entries ".format(iListCount))
         for dictIssue in APIResponse["entries"]:
           lstLine = []
           for strItem in dictIssue.keys():
+            lstTemp = []
             if isinstance(dictIssue[strItem], str):
               strTemp = dictIssue[strItem].replace(",",";")
               lstLine.append(strTemp)
             elif isinstance(dictIssue[strItem],int):
               lstLine.append(str(dictIssue[strItem]))
+            elif isinstance(dictIssue[strItem],dict):
+              lstLine.append(dict2HTMLTable(dictIssue[strItem]))
+            elif isinstance(dictIssue[strItem], list):
+              for Temp in dictIssue[strItem]:
+                if isinstance(Temp,str):
+                  lstTemp.append(Temp)
+                elif isinstance(Temp,(int,float)):
+                  lstTemp.append(str(Temp))
+                elif isinstance(Temp,dict):
+                  lstTemp.append(dict2HTMLTable(Temp))
+                elif isinstance(Temp, list):
+                  lstTemp.append("list of {} items".format(len(Temp)))
+              lstLine.append(",".join(lstTemp))
             else:
-              lstLine.append(str(type(dictIssue[strItem])))
-          strLine = "|".join(lstLine)
-          objFileOut.write("|"+strLine +"|\n")
-        objFileOut.write("\n\n")
+              strTemp = str(type(dictIssue[strItem]))
+              strTemp = strTemp.replace("<class '", "")
+              lstLine.append(strTemp.replace("'>"," object"))
+          strLine = "</td><td>".join(lstLine)
+          objFileOut.write("<tr>\n<td>" + strLine + "</td>\n</tr>\n")
+        objFileOut.write("</table></p>")
       else:
         LogEntry("Entries is not a list, it is: {}".format(
             type(APIResponse["entries"])))
@@ -469,12 +513,7 @@ def main():
 
   objFileOut.close()
 
-  # strCmdLine = "pandoc {} -f {} -t {} -o {}".format(
-  #     strFileOut, strOrigionalFormat, strConvert2, strFileConv)
-  # LogEntry ("executing {}".format(strCmdLine))
-  # proc.Popen(strCmdLine)
-
-  LogEntry("Done! Output savet to {}".format(strFileOut))
+  LogEntry("Done! Output saved to {}".format(strFileOut))
   objLogOut.close()
 
 
