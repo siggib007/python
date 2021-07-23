@@ -109,17 +109,22 @@ def TitleCase(strConvert):
   strTemp = strConvert.replace("_", " ")
   return strTemp.title()
 
-def dict2HTMLTable(dictTable):
+def dict2HTMLTable(dictTable,strCont=""):
   if isinstance(dictTable,dict):
-    strTable = "<table id=InnerTable>\n"
+    if strCont == "":
+      strTable = "\n<table id=InnerTable>\n"
     strHead = ""
     strTD = ""
     for strKey in dictTable.keys():
-      strHead += "<th>{}</th>".format(strKey)
+      if strCont == "":
+        strHead += "<th>{}</th>".format(strKey)
       strTD += "<td>{}</td>".format(dictTable[strKey])
-    strTable = strTable + "<tr>" + strHead + "</tr>\n"
-    strTable = strTable + "<tr>" + strTD + "</tr>\n"
-    strTable += "</table>\n"
+    if strCont == "":
+      strTable += "<tr>" + strHead + "</tr>\n"
+      strTable += "<tr>" + strTD + "</tr>\n"
+    else:
+      strTable = strCont + "<tr>" + strTD + "</tr>\n"
+    # strTable += "</table>\n"
     return strTable
   else:
     return dictTable
@@ -421,7 +426,7 @@ def main():
   objFileOut.write("<h1>Improvement plan to increase the security score of {} by {} points.</h1>\n".format(
             strName,iTargetImprovement))
   objFileOut.write("<h2> Summary Action Plan to bring the score from {} to around {}</h2>\n".format(iScore, iTargetScore))
-  objFileOut.write("Report generated at {}".format(dtNow))
+  objFileOut.write("Report generated {}\n".format(dtNow))
   strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
                     CompanyURL=strCompanyURL,TargetScore=iTargetScore)
   strURL = strBaseURL + strAPIFunction 
@@ -478,31 +483,34 @@ def main():
         LogEntry("Entries is a list with {} entries ".format(iListCount))
         for dictIssue in APIResponse["entries"]:
           lstLine = []
-          for oEntry in dictIssue.keys():
+          for strEntryKey in dictIssue.keys():
             lstTemp = []
-            if isinstance(dictIssue[oEntry], str):
-              strTemp = dictIssue[oEntry].replace(",",";")
+            if isinstance(dictIssue[strEntryKey], str):
+              strTemp = dictIssue[strEntryKey].replace(",",";")
               lstLine.append(strTemp)
-            elif isinstance(dictIssue[oEntry],(int,float)):
-              lstLine.append(str(dictIssue[oEntry]))
-            elif isinstance(dictIssue[oEntry],dict):
-              lstLine.append(dict2HTMLTable(dictIssue[oEntry]))
-            elif isinstance(dictIssue[oEntry], list):
-              dictTemp = {}
-              for Temp in dictIssue[oEntry]:
+            elif isinstance(dictIssue[strEntryKey],(int,float)):
+              lstLine.append(str(dictIssue[strEntryKey]))
+            elif isinstance(dictIssue[strEntryKey],dict):
+              strTable = dict2HTMLTable(dictIssue[strEntryKey])
+              strTable += "</table>\n"
+              lstLine.append(strTable)
+            elif isinstance(dictIssue[strEntryKey], list):
+              strTable = ""
+              for Temp in dictIssue[strEntryKey]:
                 if isinstance(Temp,str):
                   lstTemp.append(Temp)
                 elif isinstance(Temp,(int,float)):
                   lstTemp.append(str(Temp))
                 elif isinstance(Temp,dict):
-                  for strKey in Temp.keys():
-                    dictTemp[strKey] = Temp[strKey]
+                  strTable = dict2HTMLTable(Temp,strTable)
                 elif isinstance(Temp, list):
                   lstTemp.append("list of {} items".format(len(Temp)))
+              if strTable != "":
+                strTable += "</table>\n"
+                lstLine.append(strTable)          
               lstLine.append(",".join(lstTemp))
-              lstLine.append(dict2HTMLTable(dictTemp))
             else:
-              strTemp = str(type(dictIssue[oEntry]))
+              strTemp = str(type(dictIssue[strEntryKey]))
               strTemp = strTemp.replace("<class '", "")
               lstLine.append(strTemp.replace("'>"," object"))
           strLine = "</td><td>".join(lstLine)
