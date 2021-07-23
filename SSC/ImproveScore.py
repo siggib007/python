@@ -420,8 +420,8 @@ def main():
   objFileOut.write("<img src=https://advania.is/library/Template/logo_o.png />\n")
   objFileOut.write("<h1>Improvement plan to increase the security score of {} by {} points.</h1>\n".format(
             strName,iTargetImprovement))
-  objFileOut.write(
-      "<h2> Summary Action Plan to bring the score from {} to around {}</h2>\n".format(iScore, iTargetScore))
+  objFileOut.write("<h2> Summary Action Plan to bring the score from {} to around {}</h2>\n".format(iScore, iTargetScore))
+  objFileOut.write("Report generated at {}".format(dtNow))
   strAPIFunction = "companies/{CompanyURL}/score-plans/by-target/{TargetScore}".format(
                     CompanyURL=strCompanyURL,TargetScore=iTargetScore)
   strURL = strBaseURL + strAPIFunction 
