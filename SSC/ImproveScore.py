@@ -112,7 +112,7 @@ def TitleCase(strConvert):
 def dict2HTMLTable(dictTable,strCont=""):
   if isinstance(dictTable,dict):
     if strCont == "":
-      strTable = "\n<table id=InnerTable>\n"
+      strTable = "\n<table class=InnerTable>\n"
     strHead = ""
     strTD = ""
     for strKey in dictTable.keys():
@@ -124,7 +124,6 @@ def dict2HTMLTable(dictTable,strCont=""):
       strTable += "<tr>" + strTD + "</tr>\n"
     else:
       strTable = strCont + "<tr>" + strTD + "</tr>\n"
-    # strTable += "</table>\n"
     return strTable
   else:
     return dictTable
@@ -241,8 +240,6 @@ def main():
   global objLogOut
   global strScriptName
   global strScriptHost
-  global tLastCall
-  global iTotalSleep
   global strBaseDir
   global strBaseURL
   global dictConfig
@@ -444,9 +441,8 @@ def main():
       objFileOut.write("<p>This plan contains {} types of issues to be addressed.<br/>\n".format(iListCount))
       objFileOut.write("It should bring the score to about {}</p>\n".format(strProjectedScore))
  
-      objFileOut.write("<p>\n<table id=OuterTable>\n<tr>\n")
-      objFileOut.write(
-          "<th>Factor</th><th>Title</th><th>severity</th><th>Remediations</th>\n")
+      objFileOut.write("<p>\n<table class=OuterTable>\n<tr>\n")
+      objFileOut.write("<th>Factor</th><th>Title</th><th>severity</th><th>Remediations</th>\n")
       objFileOut.write("</tr>\n")
       for dictEntry in APIResponse["entries"]:
         LogEntry("Factor: {} Issue Type: {} Severity: {} Remediation count: {}".format(
@@ -475,7 +471,7 @@ def main():
         lstKeys = APIResponse["entries"][0].keys()
         strKeys = TitleCase(",".join(lstKeys))
         strKeys = strKeys.replace(",", "</th><th>")
-        objFileOut.write("<p><table id=OuterTable>\n<tr>\n")
+        objFileOut.write("<p><table class=OuterTable>\n<tr>\n")
         objFileOut.write("<th>"+strKeys+"</th>\n|")
         objFileOut.write("</tr>\n")
         LogEntry(strKeys)
