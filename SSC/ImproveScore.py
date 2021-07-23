@@ -504,7 +504,8 @@ def main():
               if strTable != "":
                 strTable += "</table>\n"
                 lstLine.append(strTable)          
-              lstLine.append(",".join(lstTemp))
+              if len(lstTemp) > 0:
+                lstLine.append(",".join(lstTemp))
             else:
               strTemp = str(type(dictIssue[strEntryKey]))
               strTemp = strTemp.replace("<class '", "")

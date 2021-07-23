@@ -47,7 +47,7 @@
 	}	
 
 	@media print {
-		.OuterTable table {
+		.OuterTable  {
 			page-break-after: always;
 		}
 	}
