@@ -278,14 +278,6 @@ def main():
   if strLogDir[-1:] != "/":
     strLogDir += "/"
 
-  if iSysArgLen > 1:
-    strConf_File = lstSysArg[1]
-    LogEntry("Configuration file Argument provided, setting conf file to: {}".format(strConf_File))
-  else:
-    iLoc = lstSysArg[0].rfind(".")
-    strConf_File = lstSysArg[0][:iLoc] + ".ini"
-    LogEntry("No Argument found, setting conf file to: {}".format(strConf_File))
-
   if not os.path.exists (strLogDir) :
     os.makedirs(strLogDir)
     print("\nPath '{0}' for log files didn't exists, so I create it!\n".format(strLogDir))
@@ -304,6 +296,14 @@ def main():
   print("Logs saved to {}".format(strLogFile))
   objLogOut = open(strLogFile,"w",1)
   objFileOut = None
+
+  if iSysArgLen > 1:
+    strConf_File = lstSysArg[1]
+    LogEntry("Configuration file Argument provided, setting conf file to: {}".format(strConf_File))
+  else:
+    iLoc = lstSysArg[0].rfind(".")
+    strConf_File = lstSysArg[0][:iLoc] + ".ini"
+    LogEntry("No Argument found, setting conf file to: {}".format(strConf_File))
 
   dictConfig = processConf(strConf_File)
 
