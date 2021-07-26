@@ -356,6 +356,11 @@ def main():
   else:
     strName = ""
 
+  if "CSSFileName" in dictConfig:
+    strCSSFile = dictConfig["CSSFileName"]
+  else:
+    strCSSFile = ""
+
   if "TargetImprove" in dictConfig:
     if isInt(dictConfig["TargetImprove"]):
       iTargetImprovement = int(dictConfig["TargetImprove"])
@@ -382,6 +387,26 @@ def main():
     LogEntry("unable to open output file {} for writing, "
              "permission denied.".format(strFileOut), True)
 
+  strCSSFile = strCSSFile.replace("\\","/")
+  if strCSSFile[:1] == "/" or strCSSFile[1:3] == ":/":
+    LogEntry("Provided CSS Filename is absolute path, using as is")
+  else:
+    strCSSFile = strBaseDir + strCSSFile
+    LogEntry("Provided CSS Filename is relative path,"
+      " appended base directory. {}".format(strCSSFile))
+
+  if os.path.isfile(strCSSFile):
+    LogEntry("CSS File exists")
+    objCSS = open(strCSSFile, "r", encoding='utf8')
+    strCSSCont = objCSS.read()
+    objCSS.close()
+  else:
+    strCSSCont = ""
+    LogEntry("Can't find CSS file {}\n"
+      "Check that the filename and path provided in the ini is correct.\n"
+      "If you are only providing file name in ini file, make sure the file is in your script directory.\n"
+      "Report will generate without any formating".format(strCSSFile))
+
   dictIssueDet = {}
   strMethod = "get"
   strAPIFunction = "companies/{CompanyURL}".format(CompanyURL=strCompanyURL)
@@ -404,19 +429,7 @@ def main():
 
   iTargetScore = iScore + iTargetImprovement
 
-  iLoc = sys.argv[0].rfind(".")
-  strCSSFile = sys.argv[0][:iLoc] + ".css"
 
-  if os.path.isfile(strCSSFile):
-    LogEntry("CSS File exists")
-  else:
-    LogEntry("Can't find CSS file {}, make sure it is the same directory "
-      "as this script and named the same with css extension. "
-      "Report will generate without any formating".format(strConf_File))
-
-  objCSS = open(strCSSFile, "r", encoding='utf8')
-  strCSSCont = objCSS.read()
-  objCSS.close()
 
   objFileOut.write("<style type=\"text/css\">\n{}\n</style>\n".format(strCSSCont))
   objFileOut.write("<img src=https://advania.is/library/Template/logo_o.png />\n")
