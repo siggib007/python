@@ -257,7 +257,9 @@ def main():
   iTimeOut = 120 # Max time in seconds to wait for network response
   iMinQuiet = 2 # Minimum time in seconds between API calls
   iSecSleep = 60 # Time to wait between check if ready
-  
+  lstSysArg = sys.argv
+  iSysArgLen = len(lstSysArg)
+
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
 
   strFormat = "%Y-%m-%dT%H:%M:%S"
@@ -276,8 +278,13 @@ def main():
   if strLogDir[-1:] != "/":
     strLogDir += "/"
 
-  iLoc = sys.argv[0].rfind(".")
-  strConf_File = sys.argv[0][:iLoc] + ".ini"
+  if iSysArgLen > 1:
+    strConf_File = lstSysArg[1]
+    LogEntry("Configuration file Argument provided, setting conf file to: {}".format(strConf_File))
+  else:
+    iLoc = lstSysArg[0].rfind(".")
+    strConf_File = lstSysArg[0][:iLoc] + ".ini"
+    LogEntry("No Argument found, setting conf file to: {}".format(strConf_File))
 
   if not os.path.exists (strLogDir) :
     os.makedirs(strLogDir)
