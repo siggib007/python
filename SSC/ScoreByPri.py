@@ -104,6 +104,29 @@ def formatUnixDate(iDate):
   structTime = time.localtime(iDate)
   return time.strftime(strFormat,structTime)
 
+def TitleCase(strConvert):
+  strTemp = strConvert.replace("_", " ")
+  return strTemp.title()
+
+def dict2HTMLTable(dictTable,strCont=""):
+  if isinstance(dictTable,dict):
+    if strCont == "":
+      strTable = "\n<table class=InnerTable>\n"
+    strHead = ""
+    strTD = ""
+    for strKey in dictTable.keys():
+      if strCont == "":
+        strHead += "<th>{}</th>".format(strKey)
+      strTD += "<td>{}</td>".format(dictTable[strKey])
+    if strCont == "":
+      strTable += "<tr>" + strHead + "</tr>\n"
+      strTable += "<tr>" + strTD + "</tr>\n"
+    else:
+      strTable = strCont + "<tr>" + strTD + "</tr>\n"
+    return strTable
+  else:
+    return dictTable
+
 def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
   global tLastCall
@@ -425,7 +448,8 @@ def main():
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
         lstKeys = APIResponse["entries"][0].keys()
-        strKeys = ",".join(lstKeys)
+        strKeys = TitleCase(",".join(lstKeys))
+        strKeys = strKeys.replace(",", "</th><th>")
         objFileOut.write("<p><table class=OuterTable>\n<tr>\n")
         objFileOut.write("<th>"+strKeys+"</th>\n|")
         objFileOut.write("</tr>\n")
