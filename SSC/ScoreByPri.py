@@ -197,7 +197,7 @@ def processConf(strConf_File):
   strLine = "  "
   dictConfig = {}
   LogEntry("Reading in configuration")
-  objINIFile = open(strConf_File,"r")
+  objINIFile = open(strConf_File,"r", encoding='utf8')
   strLines = objINIFile.readlines()
   objINIFile.close()
 
@@ -224,7 +224,7 @@ def processConf(strConf_File):
             " appended base directory. {}".format(strValue))
         if os.path.isfile(strValue):
           LogEntry("file is valid")
-          objINIFile = open(strValue,"r")
+          objINIFile = open(strValue,"r", encoding='utf8')
           strLines += objINIFile.readlines()
           objINIFile.close()
         else:
@@ -347,6 +347,12 @@ def main():
 
   if "CompanyURL" in dictConfig:
     strCompanyURL = dictConfig["CompanyURL"]
+  
+  if "CompanyName" in dictConfig:
+    strName = dictConfig["CompanyName"]
+  else:
+    lstURLParts = strCompanyURL.split(".")
+    strName = lstURLParts[0]
 
   if "Severity" in dictConfig:
     dictParams["severity"] = dictConfig["Severity"]
@@ -371,7 +377,7 @@ def main():
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
-    objFileOut = open(strFileOut, "w")
+    objFileOut = open(strFileOut, "w", encoding='utf8')
   except PermissionError:
     LogEntry("unable to open output file {} for writing, "
              "permission denied.".format(strFileOut), True)
@@ -400,8 +406,9 @@ def main():
   objFileOut.write("<style type=\"text/css\">\n{}\n</style>\n".format(strCSSCont))
   objFileOut.write("<img src=https://advania.is/library/Template/logo_o.png />\n")
 
-  objFileOut.write("<h1>{} priority issues for {}</h1>\n".format(dictParams["severity"],strCompanyURL))
-  objFileOut.write("<h2>Factor - Score - Grade<br>\n    - Issue Type - Count</h2>\n")
+  objFileOut.write("<h1>{} Priority Issues for {}</h1>\n".format(TitleCase(dictParams["severity"]),strName))
+  objFileOut.write("<ul>\n<li>\n<h2>Factor - Score - Grade</h2>\n"
+                  "<ul>\n<li>\n<h3>Issue Type | Count</h3>\n</li>\n</ul>\n</li>\n</ul>\n")
   strMethod = "get"
   strAPIFunction = "companies/{CompanyURL}/factors".format(CompanyURL=strCompanyURL)
   strParams = urlparse.urlencode(dictParams)
@@ -413,18 +420,21 @@ def main():
     if isinstance(APIResponse["entries"],list):
       iListCount = len(APIResponse["entries"])
       LogEntry("Entries is a list with {} entries ".format(iListCount))
+      objFileOut.write("<ul>\n")
       for dictEntry in APIResponse["entries"]:
         LogEntry("Name: {} Score: {} Grade: {} {} priority Issue Count: {}".format(
             dictEntry["name"], dictEntry["score"], dictEntry["grade"], dictParams["severity"], len(dictEntry["issue_summary"])))
-        objFileOut.write("{} - {} - {}<br>\n".format(
+        objFileOut.write("<li>{} - {} - {}\n<ul>\n".format(
             dictEntry["name"], dictEntry["score"], dictEntry["grade"]))
         for dictIssues in dictEntry["issue_summary"]:
           LogEntry ("{},{}".format(dictIssues["type"],dictIssues["detail_url"]))
-          objFileOut.write("    - {} - {}<br>\n".format(dictIssues["type"],dictIssues["count"]))
+          objFileOut.write("<li>{} | {}</li>\n".format(TitleCase(dictIssues["type"]),dictIssues["count"]))
           dictIssueDet[dictIssues["type"]] = dictIssues["detail_url"]
         if len(dictEntry["issue_summary"]) == 0:
           objFileOut.write(
-              "    - No {} severity issues<br>\n".format(dictParams["severity"]))
+              "<li>No {} severity issues</li>\n".format(dictParams["severity"]))
+        objFileOut.write("</ul>\n</li>\n")
+      objFileOut.write("</ul>\n")
     else:
       LogEntry("Entries is not a list, it is: {}".format(
           type(APIResponse["entries"])))
@@ -443,7 +453,7 @@ def main():
 
   for strKey in dictIssueDet.keys():
     LogEntry("Getting detail for {}".format(strKey))
-    objFileOut.write("\n<h2>Details for {}</h2>\n".format(strKey))
+    objFileOut.write("\n<h2>Details for {}</h2>\n".format(TitleCase(strKey)))
     APIResponse = MakeAPICall(dictIssueDet[strKey],strHeader,strMethod,dictPayload)
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
@@ -459,13 +469,36 @@ def main():
         for dictIssue in APIResponse["entries"]:
           lstLine = []
           for strItem in dictIssue.keys():
+            lstTemp = []
             if isinstance(dictIssue[strItem], str):
               strTemp = dictIssue[strItem].replace(",",";")
               lstLine.append(strTemp)
-            elif isinstance(dictIssue[strItem],int):
+            elif isinstance(dictIssue[strItem],(int,float)):
               lstLine.append(str(dictIssue[strItem]))
+            elif isinstance(dictIssue[strItem],dict):
+              strTable = dict2HTMLTable(dictIssue[strItem])
+              strTable += "</table>\n"
+              lstLine.append(strTable)
+            elif isinstance(dictIssue[strItem], list):
+              strTable = ""
+              for Temp in dictIssue[strItem]:
+                if isinstance(Temp,str):
+                  lstTemp.append(Temp)
+                elif isinstance(Temp,(int,float)):
+                  lstTemp.append(str(Temp))
+                elif isinstance(Temp,dict):
+                  strTable = dict2HTMLTable(Temp,strTable)
+                elif isinstance(Temp, list):
+                  lstTemp.append("list of {} items".format(len(Temp)))
+              if strTable != "":
+                strTable += "</table>\n"
+                lstLine.append(strTable)          
+              if len(lstTemp) > 0:
+                lstLine.append(",".join(lstTemp))
             else:
-              lstLine.append(str(type(dictIssue[strItem])))
+              strTemp = str(type(dictIssue[strItem]))
+              strTemp = strTemp.replace("<class '", "")
+              lstLine.append(strTemp.replace("'>"," object"))
           strLine = "</td><td>".join(lstLine)
           objFileOut.write("<tr>\n<td>" + strLine + "</td>\n</tr>\n")
         objFileOut.write("</table></p>")
