@@ -216,8 +216,6 @@ def main():
   global objLogOut
   global strScriptName
   global strScriptHost
-  global tLastCall
-  global iTotalSleep
   global strBaseDir
   global strBaseURL
   global dictConfig
@@ -333,6 +331,10 @@ def main():
   if "OutDir" in dictConfig:
     strOutDir = dictConfig["OutDir"]
 
+  if "CSSFileName" in dictConfig:
+    strCSSFile = dictConfig["CSSFileName"]
+  else:
+    strCSSFile = ""
 
   strOutDir = strOutDir.replace("\\", "/")
 
@@ -342,7 +344,7 @@ def main():
     os.makedirs(strOutDir)
     print("\nPath '{0}' for output files didn't exists, so I create it!\n".format(
         strOutDir))
-  strFileOut = strOutDir + strCompanyURL + "-Sev-" + dictParams["severity"] + ".txt"
+  strFileOut = strOutDir + strCompanyURL + "-Sev-" + dictParams["severity"] + ".html"
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -351,10 +353,32 @@ def main():
     LogEntry("unable to open output file {} for writing, "
              "permission denied.".format(strFileOut), True)
 
+  strCSSFile = strCSSFile.replace("\\","/")
+  if strCSSFile[:1] == "/" or strCSSFile[1:3] == ":/":
+    LogEntry("Provided CSS Filename is absolute path, using as is")
+  else:
+    strCSSFile = strBaseDir + strCSSFile
+    LogEntry("Provided CSS Filename is relative path,"
+      " appended base directory. {}".format(strCSSFile))
+
+  if os.path.isfile(strCSSFile):
+    LogEntry("CSS File exists")
+    objCSS = open(strCSSFile, "r", encoding='utf8')
+    strCSSCont = objCSS.read()
+    objCSS.close()
+  else:
+    strCSSCont = ""
+    LogEntry("Can't find CSS file {}\n"
+      "Check that the filename and path provided in the ini is correct.\n"
+      "If you are only providing file name in ini file, make sure the file is in your script directory.\n"
+      "Report will generate without any formating".format(strCSSFile))
+
   dictIssueDet = {}
-  objFileOut.write("{} priority issues for {}\n".format(dictParams["severity"],strCompanyURL))
-  objFileOut.write("\nFactor - Score - Grade\n    - Issue Type - Count\n")
-  objFileOut.write("--------------------------------------------------------------------------------\n")
+  objFileOut.write("<style type=\"text/css\">\n{}\n</style>\n".format(strCSSCont))
+  objFileOut.write("<img src=https://advania.is/library/Template/logo_o.png />\n")
+
+  objFileOut.write("<h1>{} priority issues for {}</h1>\n".format(dictParams["severity"],strCompanyURL))
+  objFileOut.write("<h2>Factor - Score - Grade<br>\n    - Issue Type - Count</h2>\n")
   strMethod = "get"
   strAPIFunction = "companies/{CompanyURL}/factors".format(CompanyURL=strCompanyURL)
   strParams = urlparse.urlencode(dictParams)
@@ -369,15 +393,15 @@ def main():
       for dictEntry in APIResponse["entries"]:
         LogEntry("Name: {} Score: {} Grade: {} {} priority Issue Count: {}".format(
             dictEntry["name"], dictEntry["score"], dictEntry["grade"], dictParams["severity"], len(dictEntry["issue_summary"])))
-        objFileOut.write("{} - {} - {}\n".format(
+        objFileOut.write("{} - {} - {}<br>\n".format(
             dictEntry["name"], dictEntry["score"], dictEntry["grade"]))
         for dictIssues in dictEntry["issue_summary"]:
           LogEntry ("{},{}".format(dictIssues["type"],dictIssues["detail_url"]))
-          objFileOut.write("    - {} - {}\n".format(dictIssues["type"],dictIssues["count"]))
+          objFileOut.write("    - {} - {}<br>\n".format(dictIssues["type"],dictIssues["count"]))
           dictIssueDet[dictIssues["type"]] = dictIssues["detail_url"]
         if len(dictEntry["issue_summary"]) == 0:
           objFileOut.write(
-              "    - No {} severity issues\n".format(dictParams["severity"]))
+              "    - No {} severity issues<br>\n".format(dictParams["severity"]))
     else:
       LogEntry("Entries is not a list, it is: {}".format(
           type(APIResponse["entries"])))
@@ -392,17 +416,19 @@ def main():
     LogEntry("No total in API response")
 
 
-  objFileOut.write("--------------------------------------------------------------------------------\n")
+  objFileOut.write("<hr>\n")
 
   for strKey in dictIssueDet.keys():
     LogEntry("Getting detail for {}".format(strKey))
-    objFileOut.write("\nDetails for {}\n".format(strKey))
+    objFileOut.write("\n<h2>Details for {}</h2>\n".format(strKey))
     APIResponse = MakeAPICall(dictIssueDet[strKey],strHeader,strMethod,dictPayload)
     if "entries" in APIResponse:
       if isinstance(APIResponse["entries"], list):
         lstKeys = APIResponse["entries"][0].keys()
         strKeys = ",".join(lstKeys)
-        objFileOut.write(strKeys+"\n")
+        objFileOut.write("<p><table class=OuterTable>\n<tr>\n")
+        objFileOut.write("<th>"+strKeys+"</th>\n|")
+        objFileOut.write("</tr>\n")
         LogEntry(strKeys)
         iListCount = len(APIResponse["entries"])
         LogEntry("Entries is a list with {} entries ".format(iListCount))
@@ -416,8 +442,9 @@ def main():
               lstLine.append(str(dictIssue[strItem]))
             else:
               lstLine.append(str(type(dictIssue[strItem])))
-          strLine = ",".join(lstLine)
-          objFileOut.write(strLine +"\n")
+          strLine = "</td><td>".join(lstLine)
+          objFileOut.write("<tr>\n<td>" + strLine + "</td>\n</tr>\n")
+        objFileOut.write("</table></p>")
       else:
         LogEntry("Entries is not a list, it is: {}".format(
             type(APIResponse["entries"])))
