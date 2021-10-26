@@ -66,6 +66,7 @@ strDBType = ""
 iStopNum = 499999
 
 def SendNotification (strMsg):
+  return
   dictNotify = {}
   dictNotify["token"] = strNotifyToken
   dictNotify["channel"] = strNotifyChannel
@@ -98,7 +99,7 @@ def CleanExit(strCause):
 
   SendNotification("{} is exiting abnormally on {} {}".format(strScriptName,strScriptHost, strCause))
   objLogOut.close()
-  sys.exit(9)
+  sys.exit()
 
 def LogEntry(strMsg,bAbort=False):
   strTemp = ""
