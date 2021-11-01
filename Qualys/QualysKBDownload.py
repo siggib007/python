@@ -318,7 +318,6 @@ def SQLQuery (strSQL,db):
   except dboErr.InterfaceError as err:
     return "Interface Error: unable to execute: {}\n{}\nLength of SQL statement {}\n".format(err,strSQL[:255],len(strSQL))
 
-
 def ValidReturn(lsttest):
   if isinstance(lsttest,list):
     if len(lsttest) == 2:
@@ -358,6 +357,8 @@ def QDate2DB(strDate):
   return strTemp.replace("Z","")
 
 def DBClean(strText):
+  if strText is None:
+    return ""
   strTemp = strText.encode("ascii","ignore")
   strTemp = strTemp.decode("ascii","ignore")
   strTemp = strTemp.replace("\\","\\\\")
