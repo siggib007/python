@@ -67,9 +67,7 @@ iStopNum = 499999
 iRowNum = 1
 iUpdateCount = 0
 iMinQID = 0
-iMaxQID = iMinQID + iBatchSize
-
-
+iMaxQID = 0
 
 def SendNotification (strMsg):
   return
@@ -195,12 +193,21 @@ def processConf():
       if strVarName == "BatchSize":
         iBatchSize = int(strValue)
       if strVarName == "StartQID":
-        iMinQID = int(strValue)
+        if strValue == "":
+          iMinQID = 0
+        else:
+          iMinQID = int(strValue)
       if strVarName == "MaxQID":
-        iMaxQID = int(strValue)
-        iStopNum = iMaxQID + 1
+        if strValue == "":
+          iMaxQID = 0
+        else:
+          iMaxQID = int(strValue)
+          iStopNum = iMaxQID + 1
       if strVarName == "SingleQID":
-        iSingleQID = int(strValue)
+        if strValue == "":
+          iSingleQID = 0
+        else:
+          iSingleQID = int(strValue)
       if strVarName == "NotificationURL":
         strNotifyURL = strValue
       if strVarName == "NotifyChannel":
@@ -212,6 +219,8 @@ def processConf():
 
   if strBaseURL[-1:] != "/":
     strBaseURL += "/"
+  if iMaxQID == 0:
+    iMaxQID = iMinQID + iBatchSize
 
   LogEntry ("Done processing configuration, moving on")
 
