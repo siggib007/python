@@ -64,6 +64,12 @@ iEntryID = 0
 iCountTagChange = 0
 strDBType = ""
 iStopNum = 499999
+iRowNum = 1
+iUpdateCount = 0
+iMinQID = 0
+iMaxQID = iMinQID + iBatchSize
+
+
 
 def SendNotification (strMsg):
   return
@@ -140,6 +146,10 @@ def processConf():
   global strNotifyChannel
   global strDBType
   global iBatchSize
+  global iMinQID
+  global iStopNum
+  global iMaxQID
+  global iSingleQID
 
   if os.path.isfile(strConf_File):
     LogEntry ("Configuration File exists")
@@ -184,6 +194,13 @@ def processConf():
         iMinQuietTime = int(strValue)
       if strVarName == "BatchSize":
         iBatchSize = int(strValue)
+      if strVarName == "StartQID":
+        iMinQID = int(strValue)
+      if strVarName == "MaxQID":
+        iMaxQID = int(strValue)
+        iStopNum = iMaxQID + 1
+      if strVarName == "SingleQID":
+        iSingleQID = int(strValue)
       if strVarName == "NotificationURL":
         strNotifyURL = strValue
       if strVarName == "NotifyChannel":
@@ -592,7 +609,6 @@ def UpdateDB (dictResults):
   else:
     LogEntry("No CVE in this one")
 
-
 def ProcessResponse(APIResponse):
   global iUpdateCount
   global iMinQID
@@ -700,13 +716,6 @@ else:
   dtStartTime = lstReturn[1][0][1]
 
 LogEntry("Recorded start entry, ID {}".format(iEntryID))
-
-
-iRowNum = 1
-iUpdateCount = 0
-iMinQID = 0
-iMaxQID = iMinQID + iBatchSize
-
 
 strAPIFunction = "/api/2.0/fo/knowledge_base/vuln/"
 
