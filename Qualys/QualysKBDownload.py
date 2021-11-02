@@ -147,7 +147,6 @@ def processConf():
   global iMinQID
   global iStopNum
   global iMaxQID
-  global iSingleQID
 
   if os.path.isfile(strConf_File):
     LogEntry ("Configuration File exists")
@@ -203,11 +202,6 @@ def processConf():
         else:
           iMaxQID = int(strValue)
           iStopNum = iMaxQID + 1
-      if strVarName == "SingleQID":
-        if strValue == "":
-          iSingleQID = 0
-        else:
-          iSingleQID = int(strValue)
       if strVarName == "NotificationURL":
         strNotifyURL = strValue
       if strVarName == "NotifyChannel":
@@ -626,18 +620,21 @@ def ProcessResponse(APIResponse):
     LogEntry(APIResponse)
   if isinstance(APIResponse,dict):
     if "VULN_LIST" in APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]:
-      if "VULN" in APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]:
-        if isinstance(APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]["VULN"],list):
-          iRowCount = len(APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]["VULN"])
-          LogEntry ("{} QIDs in results".format(iRowCount))
-          for dictVuln in APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]["VULN"]:
-            UpdateDB (dictVuln)
+      if isinstance(APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"],dict):
+        if "VULN" in APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]:
+          if isinstance(APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]["VULN"],list):
+            iRowCount = len(APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]["VULN"])
+            LogEntry ("{} QIDs in results".format(iRowCount))
+            for dictVuln in APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]["VULN"]:
+              UpdateDB (dictVuln)
+          else:
+            LogEntry ("Only one QID in results")
+            iRowCount = 1
+            UpdateDB (APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]["VULN"])
         else:
-          LogEntry ("Only one QID in results")
-          iRowCount = 1
-          UpdateDB (APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"]["VULN"])
+          LogEntry("there is vulnerabitlity list but no vulnerabitlities, weird!!!!")
       else:
-        LogEntry("there is vulnerabitlity list but no vulnerabitlities, weird!!!!")
+        LogEntry("Vuln_list is not a dict as expecrted, it's a {}".format(type(APIResponse["KNOWLEDGE_BASE_VULN_LIST_OUTPUT"]["RESPONSE"]["VULN_LIST"])))
     else:
       LogEntry ("There are no results")
       iMinQID = iStopNum + 100
