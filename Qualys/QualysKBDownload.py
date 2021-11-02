@@ -735,6 +735,8 @@ strMethod = "get"
 dictParams = {}
 dictParams["action"] = "list"
 dictParams["show_supported_modules_info"] = "1"
+dictParams["details"] = "All"
+dictParams["echo_request"] = 1
 
 while iMaxQID < iStopNum:
   dictParams["id_min"] = iMinQID
