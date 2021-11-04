@@ -26,7 +26,6 @@ tLastCall = 0
 iTotalSleep = 0
 dboErr = None
 dbo = None
-dbConn = ""
 iTotalCount = 0
 iEntryID = 0
 strDBType = "undef"
@@ -129,11 +128,9 @@ def getInput(strPrompt):
     if sys.version_info[0] > 2 :
         return input(strPrompt)
     else:
-      print("Please upgrade to Python 3")
-      sys.exit()
+      LogEntry("Please upgrade to Python 3",True)
 
 def SendNotification(strMsg):
-  LogEntry(strMsg)
   if not bNotifyEnabled:
     return "notifications not enabled"
   dictNotify = {}
@@ -160,8 +157,20 @@ def SendNotification(strMsg):
       LogEntry(WebRequest.text)
 
 def CleanExit(strCause):
+  global dbConn
   SendNotification("{} is exiting abnormally on {} {}".format(strScriptName,
     strScriptHost, strCause))
+  if dbConn !="":
+    if iEntryID > 0:
+      strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
+      strSQL = ("update tblScriptExecuteList set dtStopTime='{}', bComplete=0, "
+        " iRowsUpdated={} where iExecuteID = {} ;".format(strdbNow, iTotalCount,iEntryID))
+      lstReturn = SQLQuery (strSQL,dbConn)
+      LogEntry("tblScriptExecuteList for entry #{} updated".format(iEntryID))
+    dbConn.close()
+    dbConn = ""
+    LogEntry("dbconn closed")
+
   objLogOut.close()
   print("objLogOut closed")
   if objFileOut is not None:
@@ -178,11 +187,11 @@ def LogEntry(strMsg,bAbort=False):
     strSQL = "INSERT INTO tblLogs (vcScriptName, vcLogEntry) VALUES ('{}','{}');".format(strScriptName,strDBMsg)
     lstReturn = SQLQuery (strSQL,dbConn)
     if not ValidReturn(lstReturn):
-      strTemp = ("   Unexpected issue inserting log entry to the database: {}\n{}".format(lstReturn,strSQL))
+      strTemp = ("\n Unexpected issue inserting log entry to the database: {}\n{}".format(lstReturn,strSQL))
     elif lstReturn[0] != 1:
       strTemp = ("   Records affected {}, expected 1 record affected when inserting log entry to the database".format(len(lstReturn[1])))
   else:
-    strTemp = ". Database connection not established yet"
+    strTemp = ". Database connection not established"
   strMsg += strTemp
   strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
   objLogOut.write("{0} : {1}\n".format(strTimeStamp,strMsg))
@@ -284,9 +293,7 @@ def processConf(strConf_File):
   else:
     LogEntry("Can't find configuration file {}, make sure it is the same directory "
       "as this script and named the same with ini extension".format(strConf_File))
-    LogEntry("{} on {}: Exiting.".format (strScriptName,strScriptHost))
-    objLogOut.close()
-    sys.exit(9)
+    LogEntry("{} on {}: Exiting.".format (strScriptName,strScriptHost),True)
 
   strLine = "  "
   dictConfig = {}
@@ -328,6 +335,7 @@ def processConf(strConf_File):
   return dictConfig
 
 def ExecuteStats(dbConn):
+  global iEntryID
   
   strSQL = ("select dtStartTime from tblScriptExecuteList where iExecuteID = "
       " (select max(iExecuteID) from tblScriptExecuteList where vcScriptName = '{}')").format(strScriptName)
@@ -339,6 +347,7 @@ def ExecuteStats(dbConn):
     dtLastExecute = None
   elif len(lstReturn[1]) == 1:
     dtLastExecute = lstReturn[1][0][0].date()
+    LogEntry("Script was last executed on {}".format(dtLastExecute))
   else:
     LogEntry ("Looking for last execution date, fetched {} rows, expected 1 record affected".format(len(lstReturn[1])))
     LogEntry (strSQL,True)
@@ -369,12 +378,8 @@ def ExecuteStats(dbConn):
       iQuietMin = iMinScriptQuiet
 
   if iQuietMin < iMinScriptQuiet :
-    dbConn.close()
-    dbConn = ""
-    LogEntry ("Either the script is already running or it's been less that {0} min since it last run, "
-      " please wait until after {0} since last run. Exiting".format(iMinScriptQuiet))
-    objLogOut.close()
-    sys.exit()
+    LogEntry ("It has been {1} minutes since last log entry. Either the script is already running or it's been less that {0} min since it last run. "
+      " Please wait until after {0} minutes since last run. Exiting".format(iMinScriptQuiet,iQuietMin),True)
   else:
     LogEntry("{} Database connection established. It's been {} minutes since last log entry.".format(strDBType, iQuietMin))
 
@@ -427,6 +432,7 @@ def main():
   iMinQuiet = 2 # Minimum time in seconds between API calls
   iMinScriptQuiet = 0 # Minimum time in minutes the script needs to be quiet before run again
   iSecSleep = 60 # Time to wait between check if ready
+  dbConn = ""
   
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
   localtime = time.localtime(time.time())
@@ -555,13 +561,31 @@ def main():
   else:
     strDBType = ""
   
+  strFileOut = strOutDir + "cves.txt"
+  LogEntry("Output will be written to {}".format(strFileOut))
+
+  try:
+    objFileOut = open(strFileOut, "w", encoding='utf8')
+  except PermissionError:
+    LogEntry("unable to open output file {} for writing, "
+             "permission denied.".format(strFileOut), True)
+
+
   dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
+  LogEntry("Database connected, entering execute stats")
   ExecuteStats(dbConn)
   dictPayload = {}
 
-# actual work happens here
+  # actual work happens here
 
-# Closing thing out
+  # Closing thing out
+  strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
+  LogEntry("Updating completion entry #{}".format(iEntryID))
+  strSQL = ("update tblScriptExecuteList set dtStopTime='{}' , bComplete=1, "
+          " iRowsUpdated={} where iExecuteID = {} ;".format(strdbNow,iUpdateCount,iEntryID))
+  lstReturn = SQLQuery (strSQL,dbConn)
+  if not ValidReturn(lstReturn):
+    LogEntry ("Unexpected: {}".format(lstReturn))
 
   if objFileOut is not None:
     objFileOut.close()
