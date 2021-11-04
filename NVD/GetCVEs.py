@@ -160,7 +160,7 @@ def SendNotification(strMsg):
 def CleanExit(strCause):
   global dbConn
   if strCause != "":
-    LogEntry("{} on {}: {}".format (strScriptName,strScriptHost,strCause))
+    LogEntry("{} is exiting abnormally on {}: {}".format (strScriptName,strScriptHost,strCause))
   SendNotification("{} is exiting abnormally on {} {}".format(strScriptName,
     strScriptHost, strCause))
   if dbConn !="":
