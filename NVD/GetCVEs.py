@@ -29,7 +29,7 @@ dbo = None
 dbConn = ""
 iTotalCount = 0
 iEntryID = 0
-strDBType = ""
+strDBType = "undef"
 iRowNum = 1
 iUpdateCount = 0
 
@@ -335,12 +335,14 @@ def ExecuteStats(dbConn):
   if not ValidReturn(lstReturn):
     LogEntry ("Unexpected: {}".format(lstReturn))
     CleanExit("due to unexpected SQL return, please check the logs")
-  elif len(lstReturn[1]) != 1:
+  elif len(lstReturn[1]) == 0:
+    dtLastExecute = None
+  elif len(lstReturn[1]) == 1:
+    dtLastExecute = lstReturn[1][0][0].date()
+  else:
     LogEntry ("Looking for last execution date, fetched {} rows, expected 1 record affected".format(len(lstReturn[1])))
     LogEntry (strSQL,True)
     dtLastExecute = -10
-  else:
-    dtLastExecute = lstReturn[1][0][0].date()
 
   if strDBType == "mysql":
     strSQL = ("select TIMESTAMPDIFF(MINUTE,max(dtTimestamp),now()) as timediff "
@@ -417,6 +419,8 @@ def main():
   global iTimeOut
   global iMinScriptQuiet
   global iGMTOffset
+  global strDBType
+  global dbConn
 
   #Define few Defaults
   iTimeOut = 120 # Max time in seconds to wait for network response
@@ -555,9 +559,15 @@ def main():
   ExecuteStats(dbConn)
   dictPayload = {}
 
+# actual work happens here
 
+# Closing thing out
 
-  objFileOut.close()
+  if objFileOut is not None:
+    objFileOut.close()
+    print("objFileOut closed")
+  else:
+    print("objFileOut is not defined yet")
 
   LogEntry("Done! Output saved to {}".format(strFileOut))
   objLogOut.close()
