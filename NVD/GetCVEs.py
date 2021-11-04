@@ -437,6 +437,7 @@ def main():
   iMinScriptQuiet = 0 # Minimum time in minutes the script needs to be quiet before run again
   iSecSleep = 60 # Time to wait between check if ready
   iLastDays = 1  # Default number of days in the past. ex Last 1 day.
+  iBatchSize = 10 # Default API Batch size
   dbConn = ""
   
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
@@ -444,6 +445,7 @@ def main():
   gmt_time = time.gmtime()
   iGMTOffset = (time.mktime(localtime) - time.mktime(gmt_time))/3600
   strFormat = "%Y-%m-%dT%H:%M:%S"
+  strNVDDateFormat = "%Y-%m-%dT%H:%M:%S:000 Z"
   strFileOut = None
   bNotifyEnabled = False
 
@@ -512,6 +514,15 @@ def main():
   if "DateTimeFormat" in dictConfig:
     strFormat = dictConfig["DateTimeFormat"]
 
+  if "NDVTimeFormat" in dictConfig:
+    strNVDDateFormat = dictConfig["NDVTimeFormat"]
+
+  if "BatchSize" in dictConfig:
+    if isInt(dictConfig["BatchSize"]):
+      iBatchSize = int(dictConfig["BatchSize"])
+    else:
+      LogEntry("Invalid BatchSize, setting to defaults of {}".format(iBatchSize))
+
   if "TimeOut" in dictConfig:
     if isInt(dictConfig["TimeOut"]):
       iTimeOut = int(dictConfig["TimeOut"])
@@ -577,7 +588,7 @@ def main():
   else:
     strDBType = ""
   
-  strFileOut = strOutDir + "cves.txt"
+  strFileOut = strOutDir + "apigetcves.json"
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -591,28 +602,50 @@ def main():
   ExecuteStats(dbConn)
 
   # actual work happens here
+
   dtStart = ""
-  dtEnd = time.strftime("%Y-%m-%dT%H:%M:%S:000 Z")
+
+  strSQL = ("select min(dtStartTime) from tblScriptExecuteList")
+  lstReturn = SQLQuery (strSQL,dbConn)
+  if not ValidReturn(lstReturn):
+    LogEntry ("Unexpected: {}".format(lstReturn))
+    CleanExit("due to unexpected SQL return, please check the logs")
+  elif len(lstReturn[1]) == 0:
+    dtStart = None
+  elif len(lstReturn[1]) == 1:
+    oStart = lstReturn[1][0][0]
+    LogEntry("start time set to {}".format(dtStart))
+  else:
+    LogEntry ("Looking for last query date, fetched {} rows, expected 1 record affected".format(len(lstReturn[1])))
+    LogEntry (strSQL,True)
+    dtStart = -10
+
+  dtEnd = time.strftime(strNVDDateFormat)
   if strFetchType == "update":
-    dtStart = dtLastExecute
+    dtStart = oStart.strftime(strNVDDateFormat) 
     LogEntry("Fetch Type is Update, fetching CVE's updated between {} and {}".format(dtStart,dtEnd))
   elif strFetchType == "last":
     oStart = datetime.timedelta(days=-iLastDays)+datetime.datetime.now()
-    dtStart = oStart.strftime("%Y-%m-%dT%H:%M:%S:000 Z") 
+    dtStart = oStart.strftime(strNVDDateFormat) 
     LogEntry("Fetch Type is last {} days, fetching CVE's updated between {} and {}".format(iLastDays, dtStart, dtEnd))
   elif strFetchType == "full":
     LogEntry("Fetch Type is Full, no date filter")
   else:
     CleanExit("Fetchtype {}, not recognized".format(strFetchType))
 
+  strMethod = "get"
   dictParams = {}
   dictParams["apiKey"] = strAPIKey
   dictParams["startIndex"] = 0
+  dictParams["resultsPerPage"] = iBatchSize
   if strFetchType != "full":
     dictParams["modStartDate"] = dtStart
     dictParams["modEndDate"] = dtEnd
+  strQueryParam = urlparse.urlencode(dictParams)
+  strURL = strBaseURL + "?" + strQueryParam
+  APIResponse = MakeAPICall(strURL,"",strMethod)
+  objFileOut.write(json.dumps(APIResponse))
 
-  print("Call parameters: {}".format(dictParams))
   # Closing thing out
   strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
   LogEntry("Updating completion entry #{}".format(iEntryID))
