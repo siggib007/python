@@ -336,6 +336,7 @@ def processConf(strConf_File):
 
 def ExecuteStats(dbConn):
   global iEntryID
+  global dtLastExecute
   
   strSQL = ("select dtStartTime from tblScriptExecuteList where iExecuteID = "
       " (select max(iExecuteID) from tblScriptExecuteList where vcScriptName = '{}')").format(strScriptName)
@@ -432,6 +433,7 @@ def main():
   iMinQuiet = 2 # Minimum time in seconds between API calls
   iMinScriptQuiet = 0 # Minimum time in minutes the script needs to be quiet before run again
   iSecSleep = 60 # Time to wait between check if ready
+  iLastDays = 1  # Default number of days in the past. ex Last 1 day.
   dbConn = ""
   
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
@@ -531,6 +533,17 @@ def main():
     else:
       LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinScriptQuiet))
 
+  if "LastDays" in dictConfig:
+    if isInt(dictConfig["LastDays"]):
+      iLastDays = int(dictConfig["LastDays"])
+    else:
+      LogEntry("Invalid Last Days, setting to defaults of {}".format(iLastDays))
+
+  if "FetchType" in dictConfig:
+    strFetchType = dictConfig["FetchType"].lower()
+  else:
+    strFetchType = "undef"
+
   if "OutDir" in dictConfig:
     strOutDir = dictConfig["OutDir"]
   else:
@@ -570,13 +583,32 @@ def main():
     LogEntry("unable to open output file {} for writing, "
              "permission denied.".format(strFileOut), True)
 
-
   dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
   LogEntry("Database connected, entering execute stats")
   ExecuteStats(dbConn)
-  dictPayload = {}
 
   # actual work happens here
+  dtStart = ""
+  dtEnd = ""
+  if strFetchType == "update":
+    dtStart = dtLastExecute
+    dtEnd = dtNow
+    LogEntry("Fetch Type is Update, fetching CVE's updated between {} and {}".format(dtStart,dtEnd))
+  elif strFetchType == "last":
+    dtStart = "" # datediff(now,iLastDays)
+    dtEnd = dtNow
+    LogEntry("Fetch Type is last {} days, fetching CVE's updated between {} and {}".format(iLastDays, dtStart, dtEnd))
+  elif strFetchType == "full":
+    LogEntry("Fetch Type is Full, no date filter")
+  else:
+    CleanExit("Fetchtype {}, not reconized".format(strFetchType))
+
+  dictParams = {}
+  dictParams["apiKey"] = strAPIKey
+  dictParams["startIndex"] = 0
+  if strFetchType != "full":
+    dictParams["modStartDate"] = dtStart
+    dictParams["modEndDate"] = dtEnd
 
   # Closing thing out
   strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
