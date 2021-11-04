@@ -158,6 +158,8 @@ def SendNotification(strMsg):
 
 def CleanExit(strCause):
   global dbConn
+  if strCause != "":
+    LogEntry("{} on {}: {}".format (strScriptName,strScriptHost,strCause))
   SendNotification("{} is exiting abnormally on {} {}".format(strScriptName,
     strScriptHost, strCause))
   if dbConn !="":
@@ -601,7 +603,7 @@ def main():
   elif strFetchType == "full":
     LogEntry("Fetch Type is Full, no date filter")
   else:
-    CleanExit("Fetchtype {}, not reconized".format(strFetchType))
+    CleanExit("Fetchtype {}, not recognized".format(strFetchType))
 
   dictParams = {}
   dictParams["apiKey"] = strAPIKey
