@@ -1,6 +1,7 @@
 import time
 import sys
 import getpass
+import datetime
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -40,3 +41,8 @@ lastnightgmt = time.localtime(time.mktime(time.strptime(shortDate,"%Y-%m-%d %H:%
 print ("last night gmt: {}".format(lastnightgmt))
 strQualysTime = time.strftime("%Y-%m-%dT%H:%M:%SZ",lastnightgmt)
 print ("Qualys Time: {}".format(strQualysTime))
+strNVDnow = time.strftime("%Y-%m-%dT%H:%M:%S:000 Z")
+print ("NVD Time: {}".format(strNVDnow))
+LastWeek = datetime.timedelta(days=-7)+datetime.datetime.now()
+strLastweek = LastWeek.strftime("%Y-%m-%dT%H:%M:%S:000 Z")
+print ("7 days ago it was {}".format(strLastweek))

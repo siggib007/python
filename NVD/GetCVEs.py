@@ -12,6 +12,7 @@ import sys
 import requests
 import os
 import time
+import datetime
 import urllib.parse as urlparse
 import json
 import platform
@@ -591,14 +592,13 @@ def main():
 
   # actual work happens here
   dtStart = ""
-  dtEnd = ""
+  dtEnd = time.strftime("%Y-%m-%dT%H:%M:%S:000 Z")
   if strFetchType == "update":
     dtStart = dtLastExecute
-    dtEnd = dtNow
     LogEntry("Fetch Type is Update, fetching CVE's updated between {} and {}".format(dtStart,dtEnd))
   elif strFetchType == "last":
-    dtStart = "" # datediff(now,iLastDays)
-    dtEnd = dtNow
+    oStart = datetime.timedelta(days=-iLastDays)+datetime.datetime.now()
+    dtStart = oStart.strftime("%Y-%m-%dT%H:%M:%S:000 Z") 
     LogEntry("Fetch Type is last {} days, fetching CVE's updated between {} and {}".format(iLastDays, dtStart, dtEnd))
   elif strFetchType == "full":
     LogEntry("Fetch Type is Full, no date filter")
@@ -612,6 +612,7 @@ def main():
     dictParams["modStartDate"] = dtStart
     dictParams["modEndDate"] = dtEnd
 
+  print("Call parameters: {}".format(dictParams))
   # Closing thing out
   strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
   LogEntry("Updating completion entry #{}".format(iEntryID))
