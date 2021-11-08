@@ -652,7 +652,7 @@ def main():
   strMethod = "get"
   dictParams = {}
   dictParams["apiKey"] = strAPIKey
-  dictParams["startIndex"] = 0
+  dictParams["startIndex"] = 100
   dictParams["resultsPerPage"] = iBatchSize
   if strFetchType != "full":
     dictParams["modStartDate"] = dtStart
@@ -685,14 +685,28 @@ def main():
             else:
               LogEntry("Entry {} is without CVE_data_meta tree.".format(dictCVEItem))
             if "description" in dictCVEItem["cve"]:
-              if "description_data" in dictCVEItem["cve"]:
-                if "value" in dictCVEItem["cve"]["description"]:
-                  strDescr = dictCVEItem["cve"]["description"]["value"]
+              if "description_data" in dictCVEItem["cve"]["description"]:
+                if isinstance(dictCVEItem["cve"]["description"]["description_data"],list):
+                  LogEntry("CVE {} description_data is a list with {} elements. Fetching just first one".format(strCVEID, 
+                      len(dictCVEItem["cve"]["description"]["description_data"])))
+                  if "value" in dictCVEItem["cve"]["description"]["description_data"][0]:
+                    strDescr = dictCVEItem["cve"]["description"]["description_data"][0]["value"]
+                  else:
+                    LogEntry("CVE {} has no description data value in first row.".format(strCVEID))
+                elif isinstance(dictCVEItem["cve"]["description"]["description_data"], dict):
+                  LogEntry(
+                      "CVE {} description_data is a dict. Fetching just first one".format(strCVEID))
+                  if "value" in dictCVEItem["cve"]["description"]["description_data"]:
+                    strDescr = dictCVEItem["cve"]["description"]["description_data"]["value"]
+                  else:
+                    LogEntry(
+                        "CVE {} has no description data value.".format(strCVEID))
                 else:
-                  LogEntry("CVE {} has no description item property".format(strCVEID))
+                  LogEntry("CVE {} description data is an unknown datatype {}".format(
+                      strCVEID, type(dictCVEItem["cve"]["description"]["description_data"])))
               else:
                 LogEntry(
-                    "CVE {} has no description_data tree".format(strCVEID))
+                    "CVE {} has no description_data tree.".format(strCVEID))
             else:
               LogEntry("CVE {} has no description tree".format(strCVEID))
           else:
