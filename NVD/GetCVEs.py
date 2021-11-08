@@ -661,6 +661,50 @@ def main():
   strURL = strBaseURL + "?" + strQueryParam
   APIResponse = MakeAPICall(strURL,"",strMethod)
   objFileOut.write(json.dumps(APIResponse))
+  if "totalResults" in APIResponse:
+    iResultCount = int(APIResponse["totalResults"])
+  else:
+    LogEntry("No result count in response")
+    iResultCount = -15
+
+  LogEntry("There are {} results in the query".format(iResultCount))
+
+  if "result" in APIResponse:
+    if "CVE_Items" in APIResponse["result"]:
+      if isinstance(APIResponse["result"]["CVE_Items"],list):
+        for dictCVEItem in APIResponse["result"]["CVE_Items"]:
+          if "cve" in dictCVEItem:
+            if "CVE_data_meta" in dictCVEItem["cve"]:
+              if "ID" in dictCVEItem["cve"]["CVE_data_meta"]:
+                strCVEID = dictCVEItem["cve"]["CVE_data_meta"]["ID"]
+              else:
+                strCVEID = "unknown"
+                LogEntry("Entry {} is without ID field.".format(dictCVEItem))
+            else:
+              LogEntry("Entry {} is without CVE_data_meta tree.".format(dictCVEItem))
+            if "description" in dictCVEItem["cve"]:
+              if "description_data" in dictCVEItem["cve"]:
+                if "value" in dictCVEItem["cve"]["description"]:
+                  strDescr = dictCVEItem["cve"]["description"]["value"]
+                else:
+                  LogEntry("CVE {} has no description item property".format(strCVEID))
+                  strDescr = "n/a"
+              else:
+                LogEntry(
+                    "CVE {} has no description_data tree".format(strCVEID))
+            else:
+              LogEntry("CVE {} has no description tree".format(strCVEID))
+          else:
+            LogEntry("Entry {} is without cve tree.".format(dictCVEItem))
+          print ("{} {}".format(strCVEID, strDescr))
+      else:
+        LogEntry("CVE_Items is a {} not a list".format(
+            type(APIResponse["result"]["CVE_Items"])))
+    else:
+      LogEntry("No CVE_items tree in response")
+  else:
+    LogEntry("no results tree in response")
+  
 
   # Closing thing out
   strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
