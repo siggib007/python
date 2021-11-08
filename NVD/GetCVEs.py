@@ -669,6 +669,9 @@ def main():
 
   LogEntry("There are {} results in the query".format(iResultCount))
 
+  strDescr = "n/a"
+  strCVEID = "unknown"
+
   if "result" in APIResponse:
     if "CVE_Items" in APIResponse["result"]:
       if isinstance(APIResponse["result"]["CVE_Items"],list):
@@ -678,7 +681,6 @@ def main():
               if "ID" in dictCVEItem["cve"]["CVE_data_meta"]:
                 strCVEID = dictCVEItem["cve"]["CVE_data_meta"]["ID"]
               else:
-                strCVEID = "unknown"
                 LogEntry("Entry {} is without ID field.".format(dictCVEItem))
             else:
               LogEntry("Entry {} is without CVE_data_meta tree.".format(dictCVEItem))
@@ -688,7 +690,6 @@ def main():
                   strDescr = dictCVEItem["cve"]["description"]["value"]
                 else:
                   LogEntry("CVE {} has no description item property".format(strCVEID))
-                  strDescr = "n/a"
               else:
                 LogEntry(
                     "CVE {} has no description_data tree".format(strCVEID))
