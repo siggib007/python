@@ -671,6 +671,15 @@ def main():
 
   strDescr = "n/a"
   strCVEID = "unknown"
+  strProbType = "n/a"
+  fExploitableScore = -1.5
+  fImpactScore = -1.5
+  fCVSSv3 = -1.5
+  strVector = "none"
+  strPubDate = "n/a"
+  strModDate = "n/a"
+
+  
 
   if "result" in APIResponse:
     if "CVE_Items" in APIResponse["result"]:
@@ -687,15 +696,15 @@ def main():
             if "description" in dictCVEItem["cve"]:
               if "description_data" in dictCVEItem["cve"]["description"]:
                 if isinstance(dictCVEItem["cve"]["description"]["description_data"],list):
-                  LogEntry("CVE {} description_data is a list with {} elements. Fetching just first one".format(strCVEID, 
-                      len(dictCVEItem["cve"]["description"]["description_data"])))
+                  # LogEntry("CVE {} description_data is a list with {} elements. Fetching just first one".format(strCVEID, 
+                      # len(dictCVEItem["cve"]["description"]["description_data"])))
                   if "value" in dictCVEItem["cve"]["description"]["description_data"][0]:
                     strDescr = dictCVEItem["cve"]["description"]["description_data"][0]["value"]
                   else:
                     LogEntry("CVE {} has no description data value in first row.".format(strCVEID))
                 elif isinstance(dictCVEItem["cve"]["description"]["description_data"], dict):
-                  LogEntry(
-                      "CVE {} description_data is a dict. Fetching just first one".format(strCVEID))
+                  # LogEntry(
+                  #     "CVE {} description_data is a dict. Fetching just first one".format(strCVEID))
                   if "value" in dictCVEItem["cve"]["description"]["description_data"]:
                     strDescr = dictCVEItem["cve"]["description"]["description_data"]["value"]
                   else:
@@ -709,9 +718,55 @@ def main():
                     "CVE {} has no description_data tree.".format(strCVEID))
             else:
               LogEntry("CVE {} has no description tree".format(strCVEID))
+            if "problemtype" in dictCVEItem["cve"]:
+              if "problemtype_data" in dictCVEItem["cve"]["problemtype"]:
+                if "description" in dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]:
+                  strProbType = dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"][0]["value"]
+                else:
+                  LogEntry("Problem type description for CVE {} not present".format(strCVEID))
+              else:
+                LogEntry(
+                    "Problem type data for CVE {} not present".format(strCVEID))
+            else:
+              LogEntry(
+                  "Problem type tree for CVE {} not present".format(strCVEID))
           else:
             LogEntry("Entry {} is without cve tree.".format(dictCVEItem))
-          print ("{} {}".format(strCVEID, strDescr))
+          if "impact" in dictCVEItem:
+            if "baseMetricV3" in dictCVEItem["impact"]:
+              if "exploitabilityScore" in dictCVEItem["impact"]["baseMetricV3"]:
+                fExploitableScore = dictCVEItem["impact"]["baseMetricV3"]["exploitabilityScore"]
+              else:
+                LogEntry("CVE {} has no Exploitablility Score".format(strCVEID))
+              if "impactScore" in dictCVEItem["impact"]["baseMetricV3"]:
+                fImpactScore = dictCVEItem["impact"]["baseMetricV3"]["impactScore"]
+              else:
+                LogEntry("CVE {} has no impact Score".format(strCVEID))
+              if "cvssV3" in dictCVEItem["impact"]["baseMetricV3"]:
+                if "baseScore" in dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]:
+                  fCVSSv3 = dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["baseScore"]
+                else:
+                  LogEntry("CVE {} has no base Score".format(strCVEID))
+                if "vectorString" in dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]:
+                  strVector = dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["vectorString"]
+                else:
+                  LogEntry("CVE {} has no vector string".format(strCVEID))
+              else:
+                LogEntry("CVE {} has no cvss3 tree".format(strCVEID))
+            else:
+              LogEntry("CVE {} has no Base v3 metric".format(strCVEID))
+          else:
+            LogEntry("CVE {} has no impact tree".format(strCVEID))
+          if "publishedDate" in dictCVEItem:
+            strPubDate = dictCVEItem["publishedDate"]
+          else:
+            LogEntry("CVE {} has no published date".format(strCVEID))
+          if "lastModifiedDate" in dictCVEItem:
+            strModDate = dictCVEItem["lastModifiedDate"]
+          else:
+            LogEntry("CVE {} has no mod date".format(strCVEID))
+          print("{} {}. Impact: {} Exploitable {} CVSSv3: {} Vector: {} Pub: {} Mod: {} Descr Len: {}".format(
+              strCVEID, strProbType, fImpactScore, fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, len(strDescr)))
       else:
         LogEntry("CVE_Items is a {} not a list".format(
             type(APIResponse["result"]["CVE_Items"])))
