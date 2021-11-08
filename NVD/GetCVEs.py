@@ -619,7 +619,7 @@ def main():
 
   # actual work happens here
 
-  dtStart = ""
+  oStart = ""
 
   strSQL = ("select min(dtStartTime) from tblScriptExecuteList")
   lstReturn = SQLQuery (strSQL,dbConn)
@@ -627,14 +627,14 @@ def main():
     LogEntry ("Unexpected: {}".format(lstReturn))
     CleanExit("due to unexpected SQL return, please check the logs")
   elif len(lstReturn[1]) == 0:
-    dtStart = None
+    oStart = None
   elif len(lstReturn[1]) == 1:
     oStart = lstReturn[1][0][0]
-    LogEntry("start time set to {}".format(dtStart))
+    LogEntry("start time set to {}".format(oStart))
   else:
     LogEntry ("Looking for last query date, fetched {} rows, expected 1 record affected".format(len(lstReturn[1])))
     LogEntry (strSQL,True)
-    dtStart = -10
+    oStart = -10
 
   dtEnd = time.strftime(strNVDDateFormat)
   if strFetchType == "update":
