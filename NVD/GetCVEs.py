@@ -5,6 +5,9 @@ Author Siggi Bjarnason Copyright 2021
 Following packages need to be installed as administrator
 pip install requests
 pip install jason
+pip install pyodbc
+pip install pymysql
+
 
 '''
 # Import libraries
@@ -169,7 +172,8 @@ def CleanExit(strCause):
       strSQL = ("update tblScriptExecuteList set dtStopTime='{}', bComplete=0, "
         " iRowsUpdated={} where iExecuteID = {} ;".format(strdbNow, iTotalCount,iEntryID))
       lstReturn = SQLQuery (strSQL,dbConn)
-      LogEntry("tblScriptExecuteList for entry #{} updated".format(iEntryID))
+      LogEntry("tblScriptExecuteList for entry #{} updated. {} records updated".format(
+          iEntryID, lstReturn[1]))
     dbConn.close()
     dbConn = ""
     LogEntry("dbconn closed")
@@ -406,10 +410,10 @@ def ExecuteStats(dbConn):
   elif len(lstReturn[1]) != 1:
     LogEntry ("Records affected {}, expected 1 record affected when finding iEntryID".format(len(lstReturn[1])))
     iEntryID = -10
-    dtStartTime = strdbNow
+    # dtStartTime = strdbNow
   else:
     iEntryID = lstReturn[1][0][0]
-    dtStartTime = lstReturn[1][0][1]
+    # dtStartTime = lstReturn[1][0][1]
 
   LogEntry("Recorded start entry, ID {}".format(iEntryID))
 
@@ -588,6 +592,15 @@ def main():
   else:
     strDBType = ""
   
+  strOutDir = strOutDir.replace("\\", "/")
+  if strOutDir[-1:] != "/":
+    strOutDir += "/"
+
+  if not os.path.exists(strOutDir):
+    os.makedirs(strOutDir)
+    print(
+        "\nPath '{0}' for ouput files didn't exists, so I create it!\n".format(strOutDir))
+
   strFileOut = strOutDir + "apigetcves.json"
   LogEntry("Output will be written to {}".format(strFileOut))
 
@@ -596,6 +609,9 @@ def main():
   except PermissionError:
     LogEntry("unable to open output file {} for writing, "
              "permission denied.".format(strFileOut), True)
+  except FileNotFoundError:
+    LogEntry("unable to open output file {} for writing, "
+             "Issue with the path".format(strFileOut), True)
 
   dbConn = SQLConn (strServer,strDBUser,strDBPWD,strInitialDB)
   LogEntry("Database connected, entering execute stats")
