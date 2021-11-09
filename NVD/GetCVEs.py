@@ -670,16 +670,6 @@ def main():
 
   LogEntry("There are {} results in the query".format(iResultCount))
 
-  strDescr = "n/a"
-  strCVEID = "unknown"
-  strProbType = "n/a"
-  fExploitableScore = -1.5
-  fImpactScore = -1.5
-  fCVSSv3 = -1.5
-  strVector = "none"
-  strPubDate = "n/a"
-  strModDate = "n/a"
-
   if "result" in APIResponse:
     if "CVE_Items" in APIResponse["result"]:
       if isinstance(APIResponse["result"]["CVE_Items"],list):
@@ -696,7 +686,7 @@ def main():
           if "cve" in dictCVEItem:
             if "CVE_data_meta" in dictCVEItem["cve"]:
               if "ID" in dictCVEItem["cve"]["CVE_data_meta"]:
-                strCVEID = dictCVEItem["cve"]["CVE_data_meta"]["ID"]
+                strCVEID = DBClean(dictCVEItem["cve"]["CVE_data_meta"]["ID"])
               else:
                 LogEntry("Entry {} is without ID field.".format(dictCVEItem))
             else:
@@ -707,14 +697,14 @@ def main():
                   # LogEntry("CVE {} description_data is a list with {} elements. Fetching just first one".format(strCVEID, 
                       # len(dictCVEItem["cve"]["description"]["description_data"])))
                   if "value" in dictCVEItem["cve"]["description"]["description_data"][0]:
-                    strDescr = dictCVEItem["cve"]["description"]["description_data"][0]["value"]
+                    strDescr = DBClean(dictCVEItem["cve"]["description"]["description_data"][0]["value"])
                   else:
                     LogEntry("CVE {} has no description data value in first row.".format(strCVEID))
                 elif isinstance(dictCVEItem["cve"]["description"]["description_data"], dict):
                   # LogEntry(
                   #     "CVE {} description_data is a dict. Fetching just first one".format(strCVEID))
                   if "value" in dictCVEItem["cve"]["description"]["description_data"]:
-                    strDescr = dictCVEItem["cve"]["description"]["description_data"]["value"]
+                    strDescr = DBClean(dictCVEItem["cve"]["description"]["description_data"]["value"])
                   else:
                     LogEntry(
                         "CVE {} has no description data value.".format(strCVEID))
@@ -730,7 +720,7 @@ def main():
               if "problemtype_data" in dictCVEItem["cve"]["problemtype"]:
                 if "description" in dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]:
                   if len(dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"]) > 0:
-                    strProbType = dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"][0]["value"]
+                    strProbType = DBClean(dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"][0]["value"])
                   else:
                     strProbType = "not present"
                     LogEntry(
@@ -748,20 +738,20 @@ def main():
           if "impact" in dictCVEItem:
             if "baseMetricV3" in dictCVEItem["impact"]:
               if "exploitabilityScore" in dictCVEItem["impact"]["baseMetricV3"]:
-                fExploitableScore = dictCVEItem["impact"]["baseMetricV3"]["exploitabilityScore"]
+                fExploitableScore = DBClean(dictCVEItem["impact"]["baseMetricV3"]["exploitabilityScore"])
               else:
                 LogEntry("CVE {} has no Exploitablility Score".format(strCVEID))
               if "impactScore" in dictCVEItem["impact"]["baseMetricV3"]:
-                fImpactScore = dictCVEItem["impact"]["baseMetricV3"]["impactScore"]
+                fImpactScore = DBClean(dictCVEItem["impact"]["baseMetricV3"]["impactScore"])
               else:
                 LogEntry("CVE {} has no impact Score".format(strCVEID))
               if "cvssV3" in dictCVEItem["impact"]["baseMetricV3"]:
                 if "baseScore" in dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]:
-                  fCVSSv3 = dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["baseScore"]
+                  fCVSSv3 = DBClean(dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["baseScore"])
                 else:
                   LogEntry("CVE {} has no base Score".format(strCVEID))
                 if "vectorString" in dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]:
-                  strVector = dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["vectorString"]
+                  strVector = DBClean(dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["vectorString"])
                 else:
                   LogEntry("CVE {} has no vector string".format(strCVEID))
               else:
@@ -771,15 +761,16 @@ def main():
           else:
             LogEntry("CVE {} has no impact tree".format(strCVEID))
           if "publishedDate" in dictCVEItem:
-            strPubDate = dictCVEItem["publishedDate"]
+            strPubDate = DBClean (dictCVEItem["publishedDate"])
           else:
             LogEntry("CVE {} has no published date".format(strCVEID))
           if "lastModifiedDate" in dictCVEItem:
-            strModDate = dictCVEItem["lastModifiedDate"]
+            strModDate = DBClean(dictCVEItem["lastModifiedDate"])
           else:
             LogEntry("CVE {} has no mod date".format(strCVEID))
           print("{} {}. Impact: {} Exploitable {} CVSSv3: {} Vector: {} Pub: {} Mod: {} Descr Len: {}".format(
               strCVEID, strProbType, fImpactScore, fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, len(strDescr)))
+
           if "configurations" in dictCVEItem:
             if "nodes" in dictCVEItem["configurations"]:
               if isinstance(dictCVEItem["configurations"]["nodes"], list):

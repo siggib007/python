@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS `tblBugTraq` (
 -- Dumping structure for table vmdb.tblCVEs
 DROP TABLE IF EXISTS `tblCVEs`;
 CREATE TABLE IF NOT EXISTS `tblCVEs` (
-  `vcCVEID` varchar(15) DEFAULT NULL,
+  `vcCVEID` varchar(35) DEFAULT NULL,
   `vcURL` varchar(250) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS `tblQID2Bugtraq` (
 DROP TABLE IF EXISTS `tblQID2CVE`;
 CREATE TABLE IF NOT EXISTS `tblQID2CVE` (
   `iQID` int(11) DEFAULT NULL,
-  `vcCVEID` varchar(15) DEFAULT NULL
+  `vcCVEID` varchar(35) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Dumping structure for table vmdb.tblQID2Module
