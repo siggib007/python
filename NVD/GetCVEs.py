@@ -621,7 +621,8 @@ def main():
 
   oStart = ""
 
-  strSQL = ("select min(dtStartTime) from tblScriptExecuteList")
+  strSQL = (
+      "select max(dtStartTime) from tblScriptExecuteList where vcScriptName = '{}' and iExecuteID < {}".format(strScriptName, iEntryID))
   lstReturn = SQLQuery (strSQL,dbConn)
   if not ValidReturn(lstReturn):
     LogEntry ("Unexpected: {}".format(lstReturn))
@@ -678,8 +679,6 @@ def main():
   strVector = "none"
   strPubDate = "n/a"
   strModDate = "n/a"
-
-  
 
   if "result" in APIResponse:
     if "CVE_Items" in APIResponse["result"]:
