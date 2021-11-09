@@ -119,7 +119,6 @@ def QDate2DB(strDate):
   strTemp = strDate.replace("T"," ")
   return strTemp.replace("Z","")
 
-
 def DBClean(oTemp):
   if oTemp is None:
     return ""
@@ -133,11 +132,6 @@ def DBClean(oTemp):
     strTemp = strTemp.decode("ascii", "ignore")
     strTemp = strTemp.replace("\\", "\\\\")
     strTemp = strTemp.replace("'", "\\'")
-    # try:
-    #   strTemp = time.strftime(
-    #       "%Y-%m-%d", time.localtime(time.mktime(time.strptime(strTemp, strDTFormat))))
-    # except ValueError:
-    #   pass
     return strTemp
   else:
     LogEntry("Can't convert and clean {}. {}".format(type(oTemp),oTemp))
@@ -220,7 +214,6 @@ def LogEntry(strMsg,bAbort=False):
   if bAbort:
     SendNotification("{} on {}: {}".format (strScriptName,strScriptHost,strMsg[:99]))
     CleanExit("")
-
 
 def isFloat(fValue):
   if isinstance(fValue, (float, int, str)):
@@ -459,6 +452,8 @@ def main():
   global iGMTOffset
   global strDBType
   global dbConn
+  global iUpdateCount
+  global strNVDDateFormat
 
   #Define few Defaults
   iTimeOut = 120 # Max time in seconds to wait for network response
@@ -473,7 +468,7 @@ def main():
   localtime = time.localtime(time.time())
   gmt_time = time.gmtime()
   iGMTOffset = (time.mktime(localtime) - time.mktime(gmt_time))/3600
-  strFormat = "%Y-%m-%dT%H:%M:%S"
+  strFormat = "%Y-%m-%d %H:%M:%S"
   strNVDDateFormat = "%Y-%m-%dT%H:%M:%S:000 Z"
   strFileOut = None
   bNotifyEnabled = False
@@ -678,7 +673,7 @@ def main():
   strMethod = "get"
   dictParams = {}
   dictParams["apiKey"] = strAPIKey
-  dictParams["startIndex"] = 100
+  dictParams["startIndex"] = 0
   dictParams["resultsPerPage"] = iBatchSize
   if strFetchType != "full":
     dictParams["modStartDate"] = dtStart
@@ -786,15 +781,43 @@ def main():
           else:
             LogEntry("CVE {} has no impact tree".format(strCVEID))
           if "publishedDate" in dictCVEItem:
-            strPubDate = DBClean (dictCVEItem["publishedDate"])
+            strPubDate = QDate2DB(DBClean (dictCVEItem["publishedDate"]))
           else:
             LogEntry("CVE {} has no published date".format(strCVEID))
           if "lastModifiedDate" in dictCVEItem:
-            strModDate = DBClean(dictCVEItem["lastModifiedDate"])
+            strModDate = QDate2DB(DBClean(dictCVEItem["lastModifiedDate"]))
           else:
             LogEntry("CVE {} has no mod date".format(strCVEID))
           print("{} {}. Impact: {} Exploitable {} CVSSv3: {} Vector: {} Pub: {} Mod: {} Descr Len: {}".format(
               strCVEID, strProbType, fImpactScore, fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, len(strDescr)))
+          strSQL = "select * from tblNVD where vcCVEid = '{}'".format(strCVEID)
+          lstReturn = SQLQuery(strSQL, dbConn)
+          if not ValidReturn(lstReturn):
+            LogEntry("Unexpected: {}".format(lstReturn))
+            sys.exit(9)
+          elif len(lstReturn[1]) == 0:
+            LogEntry("Adding CVE {}".format(strCVEID))
+            strSQL = ("INSERT INTO tblNVD (vcCVEid, vcCWEid, fImpactScore, fExploitScore, fCVSSv3, vcVector, dtPubDate, dtModDate, strDescr) "
+                      " VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}');").format(strCVEID, strProbType, fImpactScore, 
+                        fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, strDescr)
+          elif len(lstReturn[1]) == 1:
+            LogEntry("Updating CVE {}".format(strCVEID))
+            strSQL = ("UPDATE tblNVD SET vcCWEid = '{}', fImpactScore = '{}', fExploitScore = '{}', fCVSSv3 = '{}', vcVector = '{}', dtPubDate = '{}', "
+                      " dtModDate = '{}', strDescr = '{}' WHERE vcCVEid = '{}' ;").format(strProbType, fImpactScore, fExploitableScore, fCVSSv3, 
+                      strVector, strPubDate, strModDate, strDescr,strCVEID)
+          else:
+            LogEntry("Something is horrible wrong, there are {} entries for CVE {}".format(
+                len(lstReturn[1]), strCVEID), True)
+          lstReturn = SQLQuery(strSQL, dbConn)
+          if not ValidReturn(lstReturn):
+            LogEntry("Unexpected: {}".format(lstReturn))
+            LogEntry(strSQL)
+            CleanExit("due to unexpected SQL return, please check the logs")
+          elif lstReturn[0] != 1:
+            LogEntry("Records affected {}, expected 1 record affected when updating tblVulnDetails".format(
+                len(lstReturn[1])))
+
+          iUpdateCount += 1
 
           if "configurations" in dictCVEItem:
             if "nodes" in dictCVEItem["configurations"]:
