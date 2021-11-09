@@ -685,6 +685,15 @@ def main():
     if "CVE_Items" in APIResponse["result"]:
       if isinstance(APIResponse["result"]["CVE_Items"],list):
         for dictCVEItem in APIResponse["result"]["CVE_Items"]:
+          strDescr = "n/a"
+          strCVEID = "unknown"
+          strProbType = "n/a"
+          fExploitableScore = -1.5
+          fImpactScore = -1.5
+          fCVSSv3 = -1.5
+          strVector = "none"
+          strPubDate = "n/a"
+          strModDate = "n/a"
           if "cve" in dictCVEItem:
             if "CVE_data_meta" in dictCVEItem["cve"]:
               if "ID" in dictCVEItem["cve"]["CVE_data_meta"]:
@@ -721,7 +730,12 @@ def main():
             if "problemtype" in dictCVEItem["cve"]:
               if "problemtype_data" in dictCVEItem["cve"]["problemtype"]:
                 if "description" in dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]:
-                  strProbType = dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"][0]["value"]
+                  if len(dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"]) > 0:
+                    strProbType = dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"][0]["value"]
+                  else:
+                    strProbType = "not present"
+                    LogEntry(
+                        "Problem type description for CVE {} not present".format(strCVEID))
                 else:
                   LogEntry("Problem type description for CVE {} not present".format(strCVEID))
               else:
@@ -767,6 +781,42 @@ def main():
             LogEntry("CVE {} has no mod date".format(strCVEID))
           print("{} {}. Impact: {} Exploitable {} CVSSv3: {} Vector: {} Pub: {} Mod: {} Descr Len: {}".format(
               strCVEID, strProbType, fImpactScore, fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, len(strDescr)))
+          if "configurations" in dictCVEItem:
+            if "nodes" in dictCVEItem["configurations"]:
+              if isinstance(dictCVEItem["configurations"]["nodes"], list):
+                for dictNodes in dictCVEItem["configurations"]["nodes"]:
+                  if "cpe_match" in dictNodes:
+                    if isinstance(dictNodes["cpe_match"],list):
+                      for dictCPE in dictNodes["cpe_match"]:
+                        if "vulnerable" in dictCPE:
+                          bVuln = dictCPE["vulnerable"]
+                        else:
+                          bVuln = "n/a"
+                        if "cpe23Uri" in dictCPE:
+                          strCPEuri = dictCPE["cpe23Uri"]
+                        else:
+                          strCPEuri = "n/a"
+                        if "versionEndExcluding" in dictCPE:
+                          strVerEnd = dictCPE["versionEndExcluding"]
+                        else:
+                          strVerEnd = "n/a"
+                        if "versionStartIncluding" in dictCPE:
+                          strVerStart = dictCPE["versionStartIncluding"]
+                        else:
+                          strVerStart = "n/a"
+                        print(
+                            "  -- {} {} Version incl {} - {} ".format(bVuln, strCPEuri, strVerStart, strVerEnd))
+                    else:
+                      LogEntry("CPE Match for {} is a {} not a list as expected.".format(
+                          strCVEID, type(dictCVEItem["configuration"]["nodes"]["cpe_match"])))
+                  else:
+                    LogEntry("There is no CPE match branch for {}".format(strCVEID))
+              else:
+                LogEntry("Configuration nodes for {} is a {} not a list as expected.".format(strCVEID, type(dictCVEItem["configuration"]["nodes"])))
+            else:
+              LogEntry("There is configuration node branch in {}".format(strCVEID))
+          else:
+            LogEntry("There is no configuration branch for {}".format(strCVEID))
       else:
         LogEntry("CVE_Items is a {} not a list".format(
             type(APIResponse["result"]["CVE_Items"])))
