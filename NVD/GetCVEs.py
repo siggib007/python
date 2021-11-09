@@ -119,14 +119,28 @@ def QDate2DB(strDate):
   strTemp = strDate.replace("T"," ")
   return strTemp.replace("Z","")
 
-def DBClean(strText):
-  if strText is None:
+
+def DBClean(oTemp):
+  if oTemp is None:
     return ""
-  strTemp = strText.encode("ascii","ignore")
-  strTemp = strTemp.decode("ascii","ignore")
-  strTemp = strTemp.replace("\\","\\\\")
-  strTemp = strTemp.replace("'","\"")
-  return strTemp
+  if isInt(oTemp):
+    return int(oTemp)
+  elif isFloat(oTemp):
+    return float(oTemp)
+  elif isinstance(oTemp,str):
+    strTemp = str(oTemp)
+    strTemp = strTemp.encode("ascii", "ignore")
+    strTemp = strTemp.decode("ascii", "ignore")
+    strTemp = strTemp.replace("\\", "\\\\")
+    strTemp = strTemp.replace("'", "\\'")
+    # try:
+    #   strTemp = time.strftime(
+    #       "%Y-%m-%d", time.localtime(time.mktime(time.strptime(strTemp, strDTFormat))))
+    # except ValueError:
+    #   pass
+    return strTemp
+  else:
+    LogEntry("Can't convert and clean {}. {}".format(type(oTemp),oTemp))
 
 def getInput(strPrompt):
     if sys.version_info[0] > 2 :
@@ -206,6 +220,17 @@ def LogEntry(strMsg,bAbort=False):
   if bAbort:
     SendNotification("{} on {}: {}".format (strScriptName,strScriptHost,strMsg[:99]))
     CleanExit("")
+
+
+def isFloat(fValue):
+  if isinstance(fValue, (float, int, str)):
+    try:
+      fTemp = float(fValue)
+    except ValueError:
+      fTemp = "NULL"
+  else:
+    fTemp = "NULL"
+  return fTemp != "NULL"
 
 def isInt(CheckValue):
   # function to safely check if a value can be interpreded as an int
@@ -779,19 +804,19 @@ def main():
                     if isinstance(dictNodes["cpe_match"],list):
                       for dictCPE in dictNodes["cpe_match"]:
                         if "vulnerable" in dictCPE:
-                          bVuln = dictCPE["vulnerable"]
+                          bVuln = DBClean(dictCPE["vulnerable"])
                         else:
                           bVuln = "n/a"
                         if "cpe23Uri" in dictCPE:
-                          strCPEuri = dictCPE["cpe23Uri"]
+                          strCPEuri = DBClean(dictCPE["cpe23Uri"])
                         else:
                           strCPEuri = "n/a"
                         if "versionEndExcluding" in dictCPE:
-                          strVerEnd = dictCPE["versionEndExcluding"]
+                          strVerEnd = DBClean(dictCPE["versionEndExcluding"])
                         else:
                           strVerEnd = "n/a"
                         if "versionStartIncluding" in dictCPE:
-                          strVerStart = dictCPE["versionStartIncluding"]
+                          strVerStart = DBClean(dictCPE["versionStartIncluding"])
                         else:
                           strVerStart = "n/a"
                         print(

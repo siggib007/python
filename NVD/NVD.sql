@@ -22,7 +22,7 @@ CREATE TABLE `tblNVD` (
 	`vcVector` VARCHAR(150) NULL DEFAULT NULL COLLATE 'latin1_swedish_ci',
 	`dtPubDate` DATETIME NULL DEFAULT NULL,
 	`dtModDate` DATETIME NULL DEFAULT NULL,
-	`strDescr` VARCHAR(950) NULL DEFAULT NULL COLLATE 'latin1_swedish_ci',
+	`strDescr` VARCHAR(9950) NULL DEFAULT NULL COLLATE 'latin1_swedish_ci',
 	INDEX `vcCVEid` (`vcCVEid`) USING BTREE
 )
 COMMENT='Main table for the import of the National vuln database (NVD) from NIST'
