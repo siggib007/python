@@ -822,7 +822,7 @@ def main():
           if "configurations" in dictCVEItem:
             if "nodes" in dictCVEItem["configurations"]:
               if isinstance(dictCVEItem["configurations"]["nodes"], list):
-                strSQL = "delete from tblCPE where vcCVEid = {};".format(
+                strSQL = "delete from tblCPE where vcCVEid = '{}';".format(
                     strCVEID)
                 lstReturn = SQLQuery(strSQL, dbConn)
                 if not ValidReturn(lstReturn):
@@ -852,9 +852,13 @@ def main():
                           strVerStart = "n/a"
                         print(
                             "  -- {} {} Version incl {} - {} ".format(bVuln, strCPEuri, strVerStart, strVerEnd))
-                        strSQL = "INSERT INTO tblCPE (vcCVEid, vcVulnerable, vcCPEurl, vcVerStart, vcVerStop) VALUES ('{}', '{}', '{}', '{}', '{}');".format(
+                        strSQL = "INSERT INTO tblCPE (vcCVEid, bVulnerable, vcCPEurl, vcVerStart, vcVerStop) VALUES ('{}', '{}', '{}', '{}', '{}');".format(
                           strCVEID, bVuln, strCPEuri, strVerStart, strVerEnd
                         )
+                        lstReturn = SQLQuery(strSQL, dbConn)
+                        if not ValidReturn(lstReturn):
+                          LogEntry("Unexpected: {}".format(lstReturn))
+                          CleanExit("due to unexpected SQL return, please check the logs")
                     else:
                       LogEntry("CPE Match for {} is a {} not a list as expected.".format(
                           strCVEID, type(dictCVEItem["configuration"]["nodes"]["cpe_match"])))

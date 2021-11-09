@@ -1,7 +1,7 @@
 CREATE TABLE `tblCPE` (
 	`iCPEid` INT(11) NOT NULL AUTO_INCREMENT,
 	`vcCVEid` VARCHAR(50) NOT NULL COLLATE 'latin1_swedish_ci',
-	`vcVulnerable` VARCHAR(50) NULL DEFAULT NULL COLLATE 'latin1_swedish_ci',
+	`bVulnerable` TINYINT(4) NULL DEFAULT NULL COLLATE 'latin1_swedish_ci',
 	`vcCPEurl` VARCHAR(250) NULL DEFAULT NULL COLLATE 'latin1_swedish_ci',
 	`vcVerStart` VARCHAR(20) NULL DEFAULT NULL COLLATE 'latin1_swedish_ci',
 	`vcVerStop` VARCHAR(20) NULL DEFAULT NULL COLLATE 'latin1_swedish_ci',
