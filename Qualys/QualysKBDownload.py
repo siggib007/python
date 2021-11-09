@@ -652,14 +652,17 @@ strSQL = ("select dtStartTime from tblScriptExecuteList where iExecuteID = "
     " (select max(iExecuteID) from tblScriptExecuteList where vcScriptName = '{}')").format(strScriptName)
 lstReturn = SQLQuery (strSQL,dbConn)
 if not ValidReturn(lstReturn):
-  LogEntry ("Unexpected: {}".format(lstReturn))
+  LogEntry("Unexpected: {}".format(lstReturn))
   CleanExit("due to unexpected SQL return, please check the logs")
-elif len(lstReturn[1]) != 1:
-  LogEntry ("Looking for last execution date, fetched {} rows, expected 1 record affected".format(len(lstReturn[1])))
-  LogEntry (strSQL,True)
-  dtLastExecute = -10
-else:
+elif len(lstReturn[1]) == 0:
+  dtLastExecute = None
+elif len(lstReturn[1]) == 1:
   dtLastExecute = lstReturn[1][0][0].date()
+  LogEntry("Script was last executed on {}".format(dtLastExecute))
+else:
+  LogEntry("Looking for last execution date, fetched {} rows, expected 1 record affected".format(len(lstReturn[1])))
+  LogEntry (strSQL, True)
+  dtLastExecute = -10
 
 if strDBType == "mysql":
   strSQL = ("select TIMESTAMPDIFF(MINUTE,max(dtTimestamp),now()) as timediff "
