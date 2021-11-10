@@ -359,6 +359,237 @@ def processConf(strConf_File):
   LogEntry("Done processing configuration, moving on")
   return dictConfig
 
+def CPEParsing(lstCPEMatch, strCVEID):
+  for dictCPE in lstCPEMatch:
+        if "vulnerable" in dictCPE:
+          bVuln = DBClean(dictCPE["vulnerable"])
+        else:
+          bVuln = "n/a"
+        if "cpe23Uri" in dictCPE:
+          strCPEuri = DBClean(dictCPE["cpe23Uri"])
+        else:
+          strCPEuri = "n/a"
+        if "versionEndExcluding" in dictCPE:
+          strVerEnd = DBClean(dictCPE["versionEndExcluding"])
+        else:
+          strVerEnd = "n/a"
+        if "versionStartIncluding" in dictCPE:
+          strVerStart = DBClean(
+              dictCPE["versionStartIncluding"])
+        else:
+          strVerStart = "n/a"
+        # print("  -- {} {} Version incl {} - {} ".format(bVuln, strCPEuri, strVerStart, strVerEnd))
+        lstCPEuri = strCPEuri.split(":")
+        del lstCPEuri[0]
+        del lstCPEuri[0]
+        lstCPEClean = []
+        for strCPEitem in lstCPEuri:
+          if strCPEitem == "*":
+            lstCPEClean.append("any")
+          elif strCPEitem == "-":
+            lstCPEClean.append("n/a")
+          elif strCPEitem == "a":
+            lstCPEClean.append("Application")
+          elif strCPEitem == "o":
+            lstCPEClean.append("OS")
+          elif strCPEitem == "h":
+            lstCPEClean.append("Hardware")
+          else:
+            lstCPEClean.append(strCPEitem)
+
+        strCPEClean = "', '".join(lstCPEClean)
+        strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
+        strSQL = ("INSERT INTO tblCPE (vcCVEid, bVulnerable, vcCPEurl, vcVerStart, vcVerStop, dtLastTouched, "
+                  "vcType, vcVendor, vcProduct, vcVersion, vcUpdate, vcEdition, vcLanguage, vcSWEdition, "
+                  "vcTargetSW, vcTargetHW, vcOther) VALUES ('{}', '{}', '{}', '{}', '{}', '{}','{}');").format(
+            strCVEID, bVuln, strCPEuri, strVerStart, strVerEnd, strdbNow, strCPEClean)
+        lstReturn = SQLQuery(strSQL, dbConn)
+        if not ValidReturn(lstReturn):
+          LogEntry("Unexpected: {}".format(lstReturn))
+          CleanExit(
+              "due to unexpected SQL return, please check the logs")
+
+def ResponseParsing(APIResponse):
+  global iUpdateCount
+
+  if "result" in APIResponse:
+    if "CVE_Items" in APIResponse["result"]:
+      if isinstance(APIResponse["result"]["CVE_Items"], list):
+        for dictCVEItem in APIResponse["result"]["CVE_Items"]:
+          strDescr = "n/a"
+          strCVEID = "unknown"
+          strProbType = "n/a"
+          fExploitableScore = -1.5
+          fImpactScore = -1.5
+          fCVSSv3 = -1.5
+          strVector = "none"
+          strPubDate = "n/a"
+          strModDate = "n/a"
+          if "cve" in dictCVEItem:
+            if "CVE_data_meta" in dictCVEItem["cve"]:
+              if "ID" in dictCVEItem["cve"]["CVE_data_meta"]:
+                strCVEID = DBClean(dictCVEItem["cve"]["CVE_data_meta"]["ID"])
+              else:
+                LogEntry("Entry {} is without ID field.".format(dictCVEItem))
+            else:
+              LogEntry(
+                "Entry {} is without CVE_data_meta tree.".format(dictCVEItem))
+            if "description" in dictCVEItem["cve"]:
+              if "description_data" in dictCVEItem["cve"]["description"]:
+                if isinstance(dictCVEItem["cve"]["description"]["description_data"], list):
+                  # LogEntry("CVE {} description_data is a list with {} elements. Fetching just first one".format(strCVEID,
+                     # len(dictCVEItem["cve"]["description"]["description_data"])))
+                  if "value" in dictCVEItem["cve"]["description"]["description_data"][0]:
+                    strDescr = DBClean(
+                      dictCVEItem["cve"]["description"]["description_data"][0]["value"])
+                  else:
+                    LogEntry(
+                      "CVE {} has no description data value in first row.".format(strCVEID))
+                elif isinstance(dictCVEItem["cve"]["description"]["description_data"], dict):
+                  # LogEntry(
+                  #     "CVE {} description_data is a dict. Fetching just first one".format(strCVEID))
+                  if "value" in dictCVEItem["cve"]["description"]["description_data"]:
+                    strDescr = DBClean(
+                      dictCVEItem["cve"]["description"]["description_data"]["value"])
+                  else:
+                    LogEntry(
+                        "CVE {} has no description data value.".format(strCVEID))
+                else:
+                  LogEntry("CVE {} description data is an unknown datatype {}".format(
+                      strCVEID, type(dictCVEItem["cve"]["description"]["description_data"])))
+              else:
+                LogEntry(
+                    "CVE {} has no description_data tree.".format(strCVEID))
+            else:
+              LogEntry("CVE {} has no description tree".format(strCVEID))
+            if "problemtype" in dictCVEItem["cve"]:
+              if "problemtype_data" in dictCVEItem["cve"]["problemtype"]:
+                if "description" in dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]:
+                  if len(dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"]) > 0:
+                    strProbType = DBClean(
+                      dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"][0]["value"])
+                  else:
+                    strProbType = "not present"
+                    LogEntry(
+                        "Problem type description for CVE {} not present".format(strCVEID))
+                else:
+                  LogEntry(
+                    "Problem type description for CVE {} not present".format(strCVEID))
+              else:
+                LogEntry(
+                    "Problem type data for CVE {} not present".format(strCVEID))
+            else:
+              LogEntry(
+                  "Problem type tree for CVE {} not present".format(strCVEID))
+          else:
+            LogEntry("Entry {} is without cve tree.".format(dictCVEItem))
+          if "impact" in dictCVEItem:
+            if "baseMetricV3" in dictCVEItem["impact"]:
+              if "exploitabilityScore" in dictCVEItem["impact"]["baseMetricV3"]:
+                fExploitableScore = DBClean(
+                  dictCVEItem["impact"]["baseMetricV3"]["exploitabilityScore"])
+              else:
+                LogEntry("CVE {} has no Exploitablility Score".format(strCVEID))
+              if "impactScore" in dictCVEItem["impact"]["baseMetricV3"]:
+                fImpactScore = DBClean(
+                  dictCVEItem["impact"]["baseMetricV3"]["impactScore"])
+              else:
+                LogEntry("CVE {} has no impact Score".format(strCVEID))
+              if "cvssV3" in dictCVEItem["impact"]["baseMetricV3"]:
+                if "baseScore" in dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]:
+                  fCVSSv3 = DBClean(
+                    dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["baseScore"])
+                else:
+                  LogEntry("CVE {} has no base Score".format(strCVEID))
+                if "vectorString" in dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]:
+                  strVector = DBClean(
+                    dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["vectorString"])
+                else:
+                  LogEntry("CVE {} has no vector string".format(strCVEID))
+              else:
+                LogEntry("CVE {} has no cvss3 tree".format(strCVEID))
+            else:
+              LogEntry("CVE {} has no Base v3 metric".format(strCVEID))
+          else:
+            LogEntry("CVE {} has no impact tree".format(strCVEID))
+          if "publishedDate" in dictCVEItem:
+            strPubDate = QDate2DB(DBClean(dictCVEItem["publishedDate"]))
+          else:
+            LogEntry("CVE {} has no published date".format(strCVEID))
+          if "lastModifiedDate" in dictCVEItem:
+            strModDate = QDate2DB(DBClean(dictCVEItem["lastModifiedDate"]))
+          else:
+            LogEntry("CVE {} has no mod date".format(strCVEID))
+          print("{} {}. Impact: {} Exploitable {} CVSSv3: {} Vector: {} Pub: {} Mod: {} Descr Len: {}".format(
+              strCVEID, strProbType, fImpactScore, fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, len(strDescr)))
+          strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
+          strSQL = "select * from tblNVD where vcCVEid = '{}'".format(strCVEID)
+          lstReturn = SQLQuery(strSQL, dbConn)
+          if not ValidReturn(lstReturn):
+            LogEntry("Unexpected: {}".format(lstReturn))
+            sys.exit(9)
+          elif len(lstReturn[1]) == 0:
+            LogEntry("Adding CVE {}".format(strCVEID))
+            strSQL = ("INSERT INTO tblNVD (vcCVEid, vcCWEid, fImpactScore, fExploitScore, fCVSSv3, vcVector, dtPubDate, dtModDate, strDescr, dtLastTouched) "
+                      " VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}');").format(strCVEID, strProbType, fImpactScore,
+                                                fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, strDescr, strdbNow)
+          elif len(lstReturn[1]) == 1:
+            LogEntry("Updating CVE {}".format(strCVEID))
+            strSQL = ("UPDATE tblNVD SET vcCWEid = '{}', fImpactScore = '{}', fExploitScore = '{}', fCVSSv3 = '{}', vcVector = '{}', dtPubDate = '{}', "
+                      " dtModDate = '{}', strDescr = '{}', dtLastTouched = '{}' WHERE vcCVEid = '{}' ;").format(strProbType, fImpactScore, fExploitableScore, fCVSSv3,
+                      strVector, strPubDate, strModDate, strDescr, strdbNow, strCVEID)
+          else:
+            LogEntry("Something is horrible wrong, there are {} entries for CVE {}".format(
+                len(lstReturn[1]), strCVEID), True)
+          lstReturn = SQLQuery(strSQL, dbConn)
+          if not ValidReturn(lstReturn):
+            LogEntry("Unexpected: {}".format(lstReturn))
+            LogEntry(strSQL)
+            CleanExit("due to unexpected SQL return, please check the logs")
+          elif lstReturn[0] != 1:
+            LogEntry("Records affected {}, expected 1 record affected when updating tblVulnDetails".format(
+                len(lstReturn[1])))
+
+          iUpdateCount += 1
+
+          if "configurations" in dictCVEItem:
+            if "nodes" in dictCVEItem["configurations"]:
+              if isinstance(dictCVEItem["configurations"]["nodes"], list):
+                strSQL = "delete from tblCPE where vcCVEid = '{}';".format(
+                    strCVEID)
+                lstReturn = SQLQuery(strSQL, dbConn)
+                if not ValidReturn(lstReturn):
+                  LogEntry("Unexpected: {}".format(lstReturn))
+                  CleanExit(
+                    "due to unexpected SQL return, please check the logs")
+                else:
+                  LogEntry(
+                    "Deleted {} CVE to CPE mappings".format(lstReturn[0]))
+                for dictNodes in dictCVEItem["configurations"]["nodes"]:
+                  if "cpe_match" in dictNodes:
+                    if isinstance(dictNodes["cpe_match"], list):
+                      CPEParsing(dictNodes["cpe_match"],strCVEID)
+                    else:
+                      LogEntry("CPE Match for {} is a {} not a list as expected.".format(
+                          strCVEID, type(dictCVEItem["configuration"]["nodes"]["cpe_match"])))
+                  else:
+                    LogEntry(
+                      "There is no CPE match branch for {}".format(strCVEID))
+              else:
+                LogEntry("Configuration nodes for {} is a {} not a list as expected.".format(
+                  strCVEID, type(dictCVEItem["configuration"]["nodes"])))
+            else:
+              LogEntry("There is configuration node branch in {}".format(strCVEID))
+          else:
+            LogEntry("There is no configuration branch for {}".format(strCVEID))
+      else:
+        LogEntry("CVE_Items is a {} not a list".format(
+            type(APIResponse["result"]["CVE_Items"])))
+    else:
+      LogEntry("No CVE_items tree in response")
+  else:
+    LogEntry("no results tree in response")
+
 def ExecuteStats(dbConn):
   global iEntryID
   global dtLastExecute
@@ -690,194 +921,7 @@ def main():
 
   LogEntry("There are {} results in the query".format(iResultCount))
 
-  if "result" in APIResponse:
-    if "CVE_Items" in APIResponse["result"]:
-      if isinstance(APIResponse["result"]["CVE_Items"],list):
-        for dictCVEItem in APIResponse["result"]["CVE_Items"]:
-          strDescr = "n/a"
-          strCVEID = "unknown"
-          strProbType = "n/a"
-          fExploitableScore = -1.5
-          fImpactScore = -1.5
-          fCVSSv3 = -1.5
-          strVector = "none"
-          strPubDate = "n/a"
-          strModDate = "n/a"
-          if "cve" in dictCVEItem:
-            if "CVE_data_meta" in dictCVEItem["cve"]:
-              if "ID" in dictCVEItem["cve"]["CVE_data_meta"]:
-                strCVEID = DBClean(dictCVEItem["cve"]["CVE_data_meta"]["ID"])
-              else:
-                LogEntry("Entry {} is without ID field.".format(dictCVEItem))
-            else:
-              LogEntry("Entry {} is without CVE_data_meta tree.".format(dictCVEItem))
-            if "description" in dictCVEItem["cve"]:
-              if "description_data" in dictCVEItem["cve"]["description"]:
-                if isinstance(dictCVEItem["cve"]["description"]["description_data"],list):
-                  # LogEntry("CVE {} description_data is a list with {} elements. Fetching just first one".format(strCVEID, 
-                      # len(dictCVEItem["cve"]["description"]["description_data"])))
-                  if "value" in dictCVEItem["cve"]["description"]["description_data"][0]:
-                    strDescr = DBClean(dictCVEItem["cve"]["description"]["description_data"][0]["value"])
-                  else:
-                    LogEntry("CVE {} has no description data value in first row.".format(strCVEID))
-                elif isinstance(dictCVEItem["cve"]["description"]["description_data"], dict):
-                  # LogEntry(
-                  #     "CVE {} description_data is a dict. Fetching just first one".format(strCVEID))
-                  if "value" in dictCVEItem["cve"]["description"]["description_data"]:
-                    strDescr = DBClean(dictCVEItem["cve"]["description"]["description_data"]["value"])
-                  else:
-                    LogEntry(
-                        "CVE {} has no description data value.".format(strCVEID))
-                else:
-                  LogEntry("CVE {} description data is an unknown datatype {}".format(
-                      strCVEID, type(dictCVEItem["cve"]["description"]["description_data"])))
-              else:
-                LogEntry(
-                    "CVE {} has no description_data tree.".format(strCVEID))
-            else:
-              LogEntry("CVE {} has no description tree".format(strCVEID))
-            if "problemtype" in dictCVEItem["cve"]:
-              if "problemtype_data" in dictCVEItem["cve"]["problemtype"]:
-                if "description" in dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]:
-                  if len(dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"]) > 0:
-                    strProbType = DBClean(dictCVEItem["cve"]["problemtype"]["problemtype_data"][0]["description"][0]["value"])
-                  else:
-                    strProbType = "not present"
-                    LogEntry(
-                        "Problem type description for CVE {} not present".format(strCVEID))
-                else:
-                  LogEntry("Problem type description for CVE {} not present".format(strCVEID))
-              else:
-                LogEntry(
-                    "Problem type data for CVE {} not present".format(strCVEID))
-            else:
-              LogEntry(
-                  "Problem type tree for CVE {} not present".format(strCVEID))
-          else:
-            LogEntry("Entry {} is without cve tree.".format(dictCVEItem))
-          if "impact" in dictCVEItem:
-            if "baseMetricV3" in dictCVEItem["impact"]:
-              if "exploitabilityScore" in dictCVEItem["impact"]["baseMetricV3"]:
-                fExploitableScore = DBClean(dictCVEItem["impact"]["baseMetricV3"]["exploitabilityScore"])
-              else:
-                LogEntry("CVE {} has no Exploitablility Score".format(strCVEID))
-              if "impactScore" in dictCVEItem["impact"]["baseMetricV3"]:
-                fImpactScore = DBClean(dictCVEItem["impact"]["baseMetricV3"]["impactScore"])
-              else:
-                LogEntry("CVE {} has no impact Score".format(strCVEID))
-              if "cvssV3" in dictCVEItem["impact"]["baseMetricV3"]:
-                if "baseScore" in dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]:
-                  fCVSSv3 = DBClean(dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["baseScore"])
-                else:
-                  LogEntry("CVE {} has no base Score".format(strCVEID))
-                if "vectorString" in dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]:
-                  strVector = DBClean(dictCVEItem["impact"]["baseMetricV3"]["cvssV3"]["vectorString"])
-                else:
-                  LogEntry("CVE {} has no vector string".format(strCVEID))
-              else:
-                LogEntry("CVE {} has no cvss3 tree".format(strCVEID))
-            else:
-              LogEntry("CVE {} has no Base v3 metric".format(strCVEID))
-          else:
-            LogEntry("CVE {} has no impact tree".format(strCVEID))
-          if "publishedDate" in dictCVEItem:
-            strPubDate = QDate2DB(DBClean (dictCVEItem["publishedDate"]))
-          else:
-            LogEntry("CVE {} has no published date".format(strCVEID))
-          if "lastModifiedDate" in dictCVEItem:
-            strModDate = QDate2DB(DBClean(dictCVEItem["lastModifiedDate"]))
-          else:
-            LogEntry("CVE {} has no mod date".format(strCVEID))
-          print("{} {}. Impact: {} Exploitable {} CVSSv3: {} Vector: {} Pub: {} Mod: {} Descr Len: {}".format(
-              strCVEID, strProbType, fImpactScore, fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, len(strDescr)))
-          strSQL = "select * from tblNVD where vcCVEid = '{}'".format(strCVEID)
-          lstReturn = SQLQuery(strSQL, dbConn)
-          if not ValidReturn(lstReturn):
-            LogEntry("Unexpected: {}".format(lstReturn))
-            sys.exit(9)
-          elif len(lstReturn[1]) == 0:
-            LogEntry("Adding CVE {}".format(strCVEID))
-            strSQL = ("INSERT INTO tblNVD (vcCVEid, vcCWEid, fImpactScore, fExploitScore, fCVSSv3, vcVector, dtPubDate, dtModDate, strDescr) "
-                      " VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}');").format(strCVEID, strProbType, fImpactScore, 
-                        fExploitableScore, fCVSSv3, strVector, strPubDate, strModDate, strDescr)
-          elif len(lstReturn[1]) == 1:
-            LogEntry("Updating CVE {}".format(strCVEID))
-            strSQL = ("UPDATE tblNVD SET vcCWEid = '{}', fImpactScore = '{}', fExploitScore = '{}', fCVSSv3 = '{}', vcVector = '{}', dtPubDate = '{}', "
-                      " dtModDate = '{}', strDescr = '{}' WHERE vcCVEid = '{}' ;").format(strProbType, fImpactScore, fExploitableScore, fCVSSv3, 
-                      strVector, strPubDate, strModDate, strDescr,strCVEID)
-          else:
-            LogEntry("Something is horrible wrong, there are {} entries for CVE {}".format(
-                len(lstReturn[1]), strCVEID), True)
-          lstReturn = SQLQuery(strSQL, dbConn)
-          if not ValidReturn(lstReturn):
-            LogEntry("Unexpected: {}".format(lstReturn))
-            LogEntry(strSQL)
-            CleanExit("due to unexpected SQL return, please check the logs")
-          elif lstReturn[0] != 1:
-            LogEntry("Records affected {}, expected 1 record affected when updating tblVulnDetails".format(
-                len(lstReturn[1])))
-
-          iUpdateCount += 1
-
-          if "configurations" in dictCVEItem:
-            if "nodes" in dictCVEItem["configurations"]:
-              if isinstance(dictCVEItem["configurations"]["nodes"], list):
-                strSQL = "delete from tblCPE where vcCVEid = '{}';".format(
-                    strCVEID)
-                lstReturn = SQLQuery(strSQL, dbConn)
-                if not ValidReturn(lstReturn):
-                  LogEntry("Unexpected: {}".format(lstReturn))
-                  CleanExit("due to unexpected SQL return, please check the logs")
-                else:
-                  LogEntry("Deleted {} CVE to CPE mappings".format(lstReturn[0]))
-                for dictNodes in dictCVEItem["configurations"]["nodes"]:
-                  if "cpe_match" in dictNodes:
-                    if isinstance(dictNodes["cpe_match"],list):
-                      for dictCPE in dictNodes["cpe_match"]:
-                        if "vulnerable" in dictCPE:
-                          bVuln = DBClean(dictCPE["vulnerable"])
-                        else:
-                          bVuln = "n/a"
-                        if "cpe23Uri" in dictCPE:
-                          strCPEuri = DBClean(dictCPE["cpe23Uri"])
-                        else:
-                          strCPEuri = "n/a"
-                        if "versionEndExcluding" in dictCPE:
-                          strVerEnd = DBClean(dictCPE["versionEndExcluding"])
-                        else:
-                          strVerEnd = "n/a"
-                        if "versionStartIncluding" in dictCPE:
-                          strVerStart = DBClean(dictCPE["versionStartIncluding"])
-                        else:
-                          strVerStart = "n/a"
-                        print(
-                            "  -- {} {} Version incl {} - {} ".format(bVuln, strCPEuri, strVerStart, strVerEnd))
-                        strSQL = "INSERT INTO tblCPE (vcCVEid, bVulnerable, vcCPEurl, vcVerStart, vcVerStop) VALUES ('{}', '{}', '{}', '{}', '{}');".format(
-                          strCVEID, bVuln, strCPEuri, strVerStart, strVerEnd
-                        )
-                        lstReturn = SQLQuery(strSQL, dbConn)
-                        if not ValidReturn(lstReturn):
-                          LogEntry("Unexpected: {}".format(lstReturn))
-                          CleanExit("due to unexpected SQL return, please check the logs")
-                    else:
-                      LogEntry("CPE Match for {} is a {} not a list as expected.".format(
-                          strCVEID, type(dictCVEItem["configuration"]["nodes"]["cpe_match"])))
-                  else:
-                    LogEntry("There is no CPE match branch for {}".format(strCVEID))
-              else:
-                LogEntry("Configuration nodes for {} is a {} not a list as expected.".format(strCVEID, type(dictCVEItem["configuration"]["nodes"])))
-            else:
-              LogEntry("There is configuration node branch in {}".format(strCVEID))
-          else:
-            LogEntry("There is no configuration branch for {}".format(strCVEID))
-      else:
-        LogEntry("CVE_Items is a {} not a list".format(
-            type(APIResponse["result"]["CVE_Items"])))
-    else:
-      LogEntry("No CVE_items tree in response")
-  else:
-    LogEntry("no results tree in response")
-  
+  ResponseParsing(APIResponse)
 
   # Closing thing out
   strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
