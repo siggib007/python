@@ -943,7 +943,7 @@ def main():
   LogEntry("Doing validation checks")
 
 
-  strSQL = "select count(*) from tblVulnDetails where dtLastTouched > '{}';".format(dtStartTime)
+  strSQL = "select count(*) from tblNVD where dtLastTouched > '{}';".format(dtStartTime)
   lstReturn = SQLQuery(strSQL, dbConn)
   if not ValidReturn(lstReturn):
     LogEntry("Unexpected: {}".format(lstReturn))
