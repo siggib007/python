@@ -929,7 +929,7 @@ def main():
 
     ResponseParsing(APIResponse)
     iStartIndex += iBatchSize
-    LogEntry("Batch complete. Next batch start={} Total: {}".format(iStartIndex,iTotalCount))
+    LogEntry("Batch complete. Next batch start={} Total: {}".format(iStartIndex,iResultCount))
     strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
     LogEntry("Updating progress in tblScriptExecuteList #{}".format(iEntryID))
     strSQL = ("update tblScriptExecuteList set dtStopTime='{}' , bComplete=0, "
