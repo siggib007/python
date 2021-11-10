@@ -379,9 +379,12 @@ def CPEParsing(lstCPEMatch, strCVEID):
         else:
           strVerStart = "n/a"
         # print("  -- {} {} Version incl {} - {} ".format(bVuln, strCPEuri, strVerStart, strVerEnd))
+        strCPEuri = strCPEuri.replace("\:","\;")
         lstCPEuri = strCPEuri.split(":")
         del lstCPEuri[0]
         del lstCPEuri[0]
+        while len(lstCPEuri) > 11:
+          del lstCPEuri[len(lstCPEuri)-1]
         lstCPEClean = []
         for strCPEitem in lstCPEuri:
           if strCPEitem == "*":
@@ -693,6 +696,7 @@ def main():
   iSecSleep = 60 # Time to wait between check if ready
   iLastDays = 1  # Default number of days in the past. ex Last 1 day.
   iBatchSize = 10 # Default API Batch size
+  iStartIndex = 0 # Initial start value
   dbConn = ""
   
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
@@ -901,27 +905,38 @@ def main():
   else:
     CleanExit("Fetchtype {}, not recognized".format(strFetchType))
 
-  strMethod = "get"
-  dictParams = {}
-  dictParams["apiKey"] = strAPIKey
-  dictParams["startIndex"] = 0
-  dictParams["resultsPerPage"] = iBatchSize
-  if strFetchType != "full":
-    dictParams["modStartDate"] = dtStart
-    dictParams["modEndDate"] = dtEnd
-  strQueryParam = urlparse.urlencode(dictParams)
-  strURL = strBaseURL + "?" + strQueryParam
-  APIResponse = MakeAPICall(strURL,"",strMethod)
-  objFileOut.write(json.dumps(APIResponse))
-  if "totalResults" in APIResponse:
-    iResultCount = int(APIResponse["totalResults"])
-  else:
-    LogEntry("No result count in response")
-    iResultCount = -15
+  iResultCount = 1
+  while iStartIndex < iResultCount:
+    strMethod = "get"
+    dictParams = {}
+    dictParams["apiKey"] = strAPIKey
+    dictParams["startIndex"] = iStartIndex
+    dictParams["resultsPerPage"] = iBatchSize
+    if strFetchType != "full":
+      dictParams["modStartDate"] = dtStart
+      dictParams["modEndDate"] = dtEnd
+    strQueryParam = urlparse.urlencode(dictParams)
+    strURL = strBaseURL + "?" + strQueryParam
+    APIResponse = MakeAPICall(strURL,"",strMethod)
+    objFileOut.write(json.dumps(APIResponse))
+    if "totalResults" in APIResponse:
+      iResultCount = int(APIResponse["totalResults"])
+    else:
+      LogEntry("No result count in response")
+      iResultCount = -15
 
-  LogEntry("There are {} results in the query".format(iResultCount))
+    LogEntry("There are {} results in the query".format(iResultCount))
 
-  ResponseParsing(APIResponse)
+    ResponseParsing(APIResponse)
+    iStartIndex += iBatchSize
+    LogEntry("Batch complete. Next batch start={} Total: {}".format(iStartIndex,iTotalCount))
+    strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
+    LogEntry("Updating progress in tblScriptExecuteList #{}".format(iEntryID))
+    strSQL = ("update tblScriptExecuteList set dtStopTime='{}' , bComplete=0, "
+              " iRowsUpdated={} where iExecuteID = {} ;".format(strdbNow, iUpdateCount, iEntryID))
+    lstReturn = SQLQuery(strSQL, dbConn)
+    if not ValidReturn(lstReturn):
+      LogEntry("Unexpected: {}".format(lstReturn))
 
   # Closing thing out
   strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
