@@ -262,7 +262,7 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
   fTemp = time.time()
   fDelta = fTemp - tLastCall
-  # LogEntry("It's been {} seconds since last API call".format(fDelta))
+  LogEntry("It's been {} seconds since last API call".format(fDelta))
   if fDelta > iMinQuiet:
     tLastCall = time.time()
   else:
@@ -275,17 +275,17 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
   iErrCode = ""
   iErrText = ""
 
-  # LogEntry("Doing a {} to URL: \n {}\n".format(strMethod,strURL))
+  LogEntry("Doing a {} to URL: \n {}\n".format(strMethod,strURL))
   try:
     if strMethod.lower() == "get":
       WebRequest = requests.get(strURL, headers=strHeader, verify=False)
-      # LogEntry("get executed")
+      LogEntry("get executed")
     if strMethod.lower() == "post":
       if dictPayload != "":
         WebRequest = requests.post(strURL, json= dictPayload, headers=strHeader, verify=False)
       else:
         WebRequest = requests.post(strURL, headers=strHeader, verify=False)
-      # LogEntry("post executed")
+      LogEntry("post executed")
   except Exception as err:
     LogEntry("Issue with API call. {}".format(err))
     CleanExit("due to issue with API, please check the logs")
@@ -295,7 +295,7 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
     iErrCode = "ResponseErr"
     iErrText = "response is unknown type"
 
-  # LogEntry("call resulted in status code {}".format(WebRequest.status_code))
+  LogEntry("call resulted in status code {}".format(WebRequest.status_code))
   if WebRequest.status_code != 200:
     # LogEntry(WebRequest.text)
     iErrCode = WebRequest.status_code
