@@ -596,6 +596,7 @@ def ResponseParsing(APIResponse):
 def ExecuteStats(dbConn):
   global iEntryID
   global dtLastExecute
+  global dtStartTime
   
   strSQL = ("select dtStartTime from tblScriptExecuteList where iExecuteID = "
       " (select max(iExecuteID) from tblScriptExecuteList where vcScriptName = '{}')").format(strScriptName)
@@ -606,7 +607,7 @@ def ExecuteStats(dbConn):
   elif len(lstReturn[1]) == 0:
     dtLastExecute = None
   elif len(lstReturn[1]) == 1:
-    dtLastExecute = lstReturn[1][0][0].date()
+    dtLastExecute = lstReturn[1][0][0]
     LogEntry("Script was last executed on {}".format(dtLastExecute))
   else:
     LogEntry ("Looking for last execution date, fetched {} rows, expected 1 record affected".format(len(lstReturn[1])))
@@ -615,10 +616,10 @@ def ExecuteStats(dbConn):
 
   if strDBType == "mysql":
     strSQL = ("select TIMESTAMPDIFF(MINUTE,max(dtTimestamp),now()) as timediff "
-                " from tblLogs where vcLogEntry not like '%last execution date%' and vcScriptName = '{}';".format(strScriptName))
+              " from tblLogs where vcLogEntry not like '%last executed on%' and vcLogEntry not like 'Database connected%' and vcScriptName = '{}';".format(strScriptName))
   elif strDBType == "mssql":
     strSQL = ("select datediff(MINUTE,max(dtTimestamp),GETDATE()) as timediff "
-                " from tblLogs where vcLogEntry not like '%last execution date%' and vcScriptName = '{}';".format(strScriptName))
+              " from tblLogs where vcLogEntry not like '%last executed on%%' and vcLogEntry not like 'Database connected%' and vcScriptName = '{}';".format(strScriptName))
   else:
     LogEntry ("Unknown database type {}".format(strDBType),True)
 
@@ -662,10 +663,10 @@ def ExecuteStats(dbConn):
   elif len(lstReturn[1]) != 1:
     LogEntry ("Records affected {}, expected 1 record affected when finding iEntryID".format(len(lstReturn[1])))
     iEntryID = -10
-    # dtStartTime = strdbNow
+    dtStartTime = strdbNow
   else:
     iEntryID = lstReturn[1][0][0]
-    # dtStartTime = lstReturn[1][0][1]
+    dtStartTime = lstReturn[1][0][1]
 
   LogEntry("Recorded start entry, ID {}".format(iEntryID))
 
@@ -939,6 +940,27 @@ def main():
       LogEntry("Unexpected: {}".format(lstReturn))
 
   # Closing thing out
+  LogEntry("Doing validation checks")
+
+
+  strSQL = "select count(*) from tblVulnDetails where dtLastTouched > '{}';".format(dtStartTime)
+  lstReturn = SQLQuery(strSQL, dbConn)
+  if not ValidReturn(lstReturn):
+    LogEntry("Unexpected: {}".format(lstReturn))
+    CleanExit("due to unexpected SQL return, please check the logs")
+  else:
+    iCountVulnChange = lstReturn[1][0][0]
+
+  LogEntry("VALIDATE: Total Number of vulnerabitlities downloaded {}; "
+          " Total number of vulnerabitlities updated in the database {}".format(iUpdateCount, iCountVulnChange))
+  if iUpdateCount != iCountVulnChange:
+    LogEntry("VALIDATE: KB validation failed")
+    SendNotification("{} has completed processing on {}, and validation checks failed".format(
+        strScriptName, strScriptHost))
+  else:
+    LogEntry("VALIDATE: KB validation successful")
+    SendNotification("{} has completed processing on {}, validation checks are good. "
+                    " Processed {} vulnerabitlities.".format(strScriptName, strScriptHost, iUpdateCount))
   strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
   LogEntry("Updating completion entry #{}".format(iEntryID))
   strSQL = ("update tblScriptExecuteList set dtStopTime='{}' , bComplete=1, "
