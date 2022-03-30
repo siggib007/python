@@ -14,7 +14,6 @@ import sys
 import requests
 import os
 import time
-import datetime
 import urllib.parse as urlparse
 import json
 import platform
@@ -169,7 +168,6 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
   LogEntry("call resulted in status code {}".format(WebRequest.status_code))
   if WebRequest.status_code != 200:
-    # LogEntry(WebRequest.text)
     iErrCode = WebRequest.status_code
     iErrText = WebRequest.text
 
@@ -230,7 +228,6 @@ def processConf(strConf_File):
 
   LogEntry("Done processing configuration, moving on")
   return dictConfig
-
 
 def ResponseParsing(APIResponse):
   strReturn = ""
