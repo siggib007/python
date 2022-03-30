@@ -238,7 +238,7 @@ def ResponseParsing(APIResponse):
       if isinstance(APIResponse["urls"], list):
         for dictURLs in APIResponse["urls"]:
           strURL = dictURLs["url"]
-          strCategory = dictURLs["categoryNames"]
+          strCategory = "|".join (dictURLs["categoryNames"])
           strReturn += "{},{}\n".format(strURL, strCategory)
   if "url" in APIResponse:
     dictURLs = APIResponse
