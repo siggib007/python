@@ -1,0 +1,419 @@
+'''
+Script that reads in a text file of URLs and uses Cyren's API to lookup the URL classification 
+to determine relative safety of the site
+
+Author Siggi Bjarnason Copyright 2022
+
+Following packages need to be installed as administrator
+pip install requests
+pip install jason
+
+'''
+# Import libraries
+import sys
+import requests
+import os
+import time
+import datetime
+import urllib.parse as urlparse
+import json
+import platform
+
+# End imports
+
+#avoid insecure warning
+
+requests.urllib3.disable_warnings()
+
+tLastCall = 0
+iTotalSleep = 0
+iTotalCount = 0
+iEntryID = 0
+iRowNum = 1
+iUpdateCount = 0
+
+
+def SendNotification(strMsg):
+  if not bNotifyEnabled:
+    return "notifications not enabled"
+  dictNotify = {}
+  dictNotify["token"] = dictConfig["NotifyToken"]
+  dictNotify["channel"] = dictConfig["NotifyChannel"]
+  dictNotify["text"]=strMsg[:199]
+  strNotifyParams = urlparse.urlencode(dictNotify)
+  strURL = dictConfig["NotificationURL"] + "?" + strNotifyParams
+  bStatus = False
+  try:
+    WebRequest = requests.get(strURL,timeout=iTimeOut)
+  except Exception as err:
+    LogEntry("Issue with sending notifications. {}".format(err))
+  if isinstance(WebRequest,requests.models.Response)==False:
+    LogEntry("response is unknown type")
+  else:
+    dictResponse = json.loads(WebRequest.text)
+    if isinstance(dictResponse,dict):
+      if "ok" in dictResponse:
+        bStatus = dictResponse["ok"]
+        LogEntry("Successfully sent slack notification\n{} ".format(strMsg))
+    if not bStatus or WebRequest.status_code != 200:
+      LogEntry("Problme: Status Code:[] API Response OK={}")
+      LogEntry(WebRequest.text)
+
+def CleanExit(strCause):
+  global dbConn
+  if strCause != "":
+    LogEntry("{} is exiting abnormally on {}: {}".format (strScriptName,strScriptHost,strCause))
+  SendNotification("{} is exiting abnormally on {} {}".format(strScriptName,
+    strScriptHost, strCause))
+
+  objLogOut.close()
+  print("objLogOut closed")
+  if objFileOut is not None:
+    objFileOut.close()
+    print("objFileOut closed")
+  else:
+    print("objFileOut is not defined yet")
+  sys.exit(9)
+
+def LogEntry(strMsg,bAbort=False):
+  strTimeStamp = time.strftime("%m-%d-%Y %H:%M:%S")
+  objLogOut.write("{0} : {1}\n".format(strTimeStamp,strMsg))
+  print(strMsg)
+  if bAbort:
+    SendNotification("{} on {}: {}".format (strScriptName,strScriptHost,strMsg[:99]))
+    CleanExit("")
+
+def isFloat(fValue):
+  if isinstance(fValue, (float, int, str)):
+    try:
+      fTemp = float(fValue)
+    except ValueError:
+      fTemp = "NULL"
+  else:
+    fTemp = "NULL"
+  return fTemp != "NULL"
+
+def isInt(CheckValue):
+  # function to safely check if a value can be interpreded as an int
+  if isinstance(CheckValue,int):
+    return True
+  elif isinstance(CheckValue,str):
+    if CheckValue.isnumeric():
+      return True
+    else:
+      return False
+  else:
+    return False
+
+def ConvertFloat(fValue):
+  if isinstance(fValue,(float,int,str)):
+    try:
+      fTemp = float(fValue)
+    except ValueError:
+      fTemp = "NULL"
+  else:
+    fTemp = "NULL"
+  return fTemp
+
+def QDate2DB(strDate):
+  strTemp = strDate.replace("T"," ")
+  return strTemp.replace("Z","")
+
+def formatUnixDate(iDate):
+  structTime = time.localtime(iDate)
+  return time.strftime(strFormat,structTime)
+
+def TitleCase(strConvert):
+  strTemp = strConvert.replace("_", " ")
+  return strTemp.title()
+
+def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
+
+  global tLastCall
+  global iTotalSleep
+
+  fTemp = time.time()
+  fDelta = fTemp - tLastCall
+  LogEntry("It's been {} seconds since last API call".format(fDelta))
+  if fDelta > iMinQuiet:
+    tLastCall = time.time()
+  else:
+    iDelta = int(fDelta)
+    iAddWait = iMinQuiet - iDelta
+    LogEntry ("It has been less than {} seconds since last API call, "
+      "waiting {} seconds".format(iMinQuiet,iAddWait))
+    iTotalSleep += iAddWait
+    time.sleep(iAddWait)
+  iErrCode = ""
+  iErrText = ""
+
+  LogEntry("Doing a {} to URL: \n {}\n".format(strMethod,strURL))
+  try:
+    if strMethod.lower() == "get":
+      WebRequest = requests.get(strURL, headers=strHeader, verify=False)
+      LogEntry("get executed")
+    if strMethod.lower() == "post":
+      if dictPayload != "":
+        WebRequest = requests.post(strURL, json= dictPayload, headers=strHeader, verify=False)
+      else:
+        WebRequest = requests.post(strURL, headers=strHeader, verify=False)
+      LogEntry("post executed")
+  except Exception as err:
+    LogEntry("Issue with API call. {}".format(err))
+    CleanExit("due to issue with API, please check the logs")
+
+  if isinstance(WebRequest,requests.models.Response)==False:
+    LogEntry("response is unknown type")
+    iErrCode = "ResponseErr"
+    iErrText = "response is unknown type"
+
+  LogEntry("call resulted in status code {}".format(WebRequest.status_code))
+  if WebRequest.status_code != 200:
+    # LogEntry(WebRequest.text)
+    iErrCode = WebRequest.status_code
+    iErrText = WebRequest.text
+
+  if iErrCode != "" or WebRequest.status_code !=200:
+    return "There was a problem with your request. Error {}: {}".format(iErrCode,iErrText)
+  else:
+    try:
+      return WebRequest.json()
+    except Exception as err:
+      LogEntry("Issue with converting response to json. "
+        "Here are the first 99 character of the response: {}".format(WebRequest.text[:99]))
+
+def processConf(strConf_File):
+
+  LogEntry("Looking for configuration file: {}".format(strConf_File))
+  if os.path.isfile(strConf_File):
+    LogEntry("Configuration File exists")
+  else:
+    LogEntry("Can't find configuration file {}, make sure it is the same directory "
+      "as this script and named the same with ini extension".format(strConf_File))
+    LogEntry("{} on {}: Exiting.".format (strScriptName,strScriptHost),True)
+
+  strLine = "  "
+  dictConfig = {}
+  LogEntry("Reading in configuration")
+  objINIFile = open(strConf_File, "r", encoding='utf8')
+  strLines = objINIFile.readlines()
+  objINIFile.close()
+
+  for strLine in strLines:
+    strLine = strLine.strip()
+    iCommentLoc = strLine.find("#")
+    if iCommentLoc > -1:
+      strLine = strLine[:iCommentLoc].strip()
+    else:
+      strLine = strLine.strip()
+    if "=" in strLine:
+      strConfParts = strLine.split("=")
+      strVarName = strConfParts[0].strip()
+      strValue = strConfParts[1].strip()
+      dictConfig[strVarName] = strValue
+      if strVarName == "include":
+        LogEntry("Found include directive: {}".format(strValue))
+        strValue = strValue.replace("\\","/")
+        if strValue[:1] == "/" or strValue[1:3] == ":/":
+          LogEntry("include directive is absolute path, using as is")
+        else:
+          strValue = strBaseDir + strValue
+          LogEntry("include directive is relative path,"
+            " appended base directory. {}".format(strValue))
+        if os.path.isfile(strValue):
+          LogEntry("file is valid")
+          objINIFile = open(strValue,"r")
+          strLines += objINIFile.readlines()
+          objINIFile.close()
+        else:
+          LogEntry("invalid file in include directive")
+
+  LogEntry("Done processing configuration, moving on")
+  return dictConfig
+
+def main():
+  global strFileOut
+  global objFileOut
+  global objLogOut
+  global strScriptName
+  global strScriptHost
+  global strBaseDir
+  global strBaseURL
+  global dictConfig
+  global strFormat
+  global bNotifyEnabled
+  global iMinQuiet
+  global iTimeOut
+  global iMinScriptQuiet
+  global iGMTOffset
+  global iUpdateCount
+
+  #Define few Defaults
+  iTimeOut = 120 # Max time in seconds to wait for network response
+  iMinQuiet = 2 # Minimum time in seconds between API calls
+  iMinScriptQuiet = 0 # Minimum time in minutes the script needs to be quiet before run again
+  iSecSleep = 60 # Time to wait between check if ready
+  iLastDays = 1  # Default number of days in the past. ex Last 1 day.
+  iBatchSize = 100 # Default API Batch size
+  
+  ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
+  localtime = time.localtime(time.time())
+  gmt_time = time.gmtime()
+  iGMTOffset = (time.mktime(localtime) - time.mktime(gmt_time))/3600
+  strFormat = "%Y-%m-%d %H:%M:%S"
+  strFileOut = None
+  bNotifyEnabled = False
+
+  strBaseDir = os.path.dirname(sys.argv[0])
+  strRealPath = os.path.realpath(sys.argv[0])
+  strRealPath = strRealPath.replace("\\","/")
+  if strBaseDir == "":
+    iLoc = strRealPath.rfind("/")
+    strBaseDir = strRealPath[:iLoc]
+  if strBaseDir[-1:] != "/":
+    strBaseDir += "/"
+  strLogDir  = strBaseDir + "Logs/"
+  if strLogDir[-1:] != "/":
+    strLogDir += "/"
+
+  iLoc = sys.argv[0].rfind(".")
+  strConf_File = sys.argv[0][:iLoc] + ".ini"
+
+  if not os.path.exists (strLogDir) :
+    os.makedirs(strLogDir)
+    print("\nPath '{0}' for log files didn't exists, so I create it!\n".format(strLogDir))
+
+  strScriptName = os.path.basename(sys.argv[0])
+  iLoc = strScriptName.rfind(".")
+  strLogFile = strLogDir + strScriptName[:iLoc] + ISO + ".log"
+  strVersion = "{0}.{1}.{2}".format(sys.version_info[0],sys.version_info[1],sys.version_info[2])
+  strScriptHost = platform.node().upper()
+
+  print("This is a script to classify URLs using Cyren's API. "
+    "This is running under Python Version {}".format(strVersion))
+  print("Running from: {}".format(strRealPath))
+  dtNow = time.asctime()
+  print("The time now is {}".format(dtNow))
+  print("Logs saved to {}".format(strLogFile))
+  objLogOut = open(strLogFile,"w",1)
+  objFileOut = None
+
+  dictConfig = processConf(strConf_File)
+
+  if "AccessKey" in dictConfig:
+    strAPIKey = dictConfig["AccessKey"]
+  else:
+    LogEntry("API Keys not provided, exiting.",True)
+
+  if "NotifyToken" in dictConfig and "NotifyChannel" in dictConfig and "NotificationURL" in dictConfig:
+    bNotifyEnabled = True
+  else:
+    bNotifyEnabled = False
+    LogEntry("Missing configuration items for Slack notifications, "
+      "turning slack notifications off")
+
+  if "APIBaseURL" in dictConfig:
+    strBaseURL = dictConfig["APIBaseURL"]
+  else:
+    CleanExit("No Base API provided")
+  if strBaseURL[-1:] != "/":
+    strBaseURL += "/"
+
+  if "NotifyEnabled" in dictConfig:
+    if dictConfig["NotifyEnabled"].lower() == "yes" \
+      or dictConfig["NotifyEnabled"].lower() == "true":
+      bNotifyEnabled = True
+    else:
+      bNotifyEnabled = False
+
+  if "DateTimeFormat" in dictConfig:
+    strFormat = dictConfig["DateTimeFormat"]
+
+  if "BatchSize" in dictConfig:
+    if isInt(dictConfig["BatchSize"]):
+      iBatchSize = int(dictConfig["BatchSize"])
+    else:
+      LogEntry("Invalid BatchSize, setting to defaults of {}".format(iBatchSize))
+
+  if "TimeOut" in dictConfig:
+    if isInt(dictConfig["TimeOut"]):
+      iTimeOut = int(dictConfig["TimeOut"])
+    else:
+      LogEntry("Invalid timeout, setting to defaults of {}".format(iTimeOut))
+
+  if "SecondsBeetweenChecks" in dictConfig:
+    if isInt(dictConfig["SecondsBeetweenChecks"]):
+      iSecSleep = int(dictConfig["SecondsBeetweenChecks"])
+    else:
+      LogEntry("Invalid sleep time, setting to defaults of {}".format(iSecSleep))
+
+  if "MinQuiet" in dictConfig:
+    if isInt(dictConfig["MinQuiet"]):
+      iMinQuiet = int(dictConfig["MinQuiet"])
+    else:
+      LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinQuiet))
+
+  if "MinQuietTime" in dictConfig:
+    if isInt(dictConfig["MinQuietTime"]):
+      iMinScriptQuiet = int(dictConfig["MinQuietTime"])
+    else:
+      LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinScriptQuiet))
+
+  if "OutDir" in dictConfig:
+    strOutDir = dictConfig["OutDir"]
+  else:
+    strOutDir = ""
+
+  strOutDir = strOutDir.replace("\\", "/")
+  if strOutDir[-1:] != "/":
+    strOutDir += "/"
+
+  if not os.path.exists(strOutDir):
+    os.makedirs(strOutDir)
+    print(
+        "\nPath '{0}' for ouput files didn't exists, so I create it!\n".format(strOutDir))
+
+  strFileOut = strOutDir + "apigetcves.json"
+  LogEntry("Output will be written to {}".format(strFileOut))
+
+  try:
+    objFileOut = open(strFileOut, "w", encoding='utf8')
+  except PermissionError:
+    LogEntry("unable to open output file {} for writing, "
+             "permission denied.".format(strFileOut), True)
+  except FileNotFoundError:
+    LogEntry("unable to open output file {} for writing, "
+             "Issue with the path".format(strFileOut), True)
+
+  # actual work happens here
+
+  oStart = ""
+
+  iResultCount = 1
+  strMethod = "get"
+  dictParams = {}
+  dictParams["apiKey"] = strAPIKey
+  dictParams["resultsPerPage"] = iBatchSize
+  strQueryParam = urlparse.urlencode(dictParams)
+  strURL = strBaseURL + "?" + strQueryParam
+  APIResponse = MakeAPICall(strURL,"",strMethod)
+  objFileOut.write(json.dumps(APIResponse))
+
+  # ResponseParsing(APIResponse)
+  # Closing thing out
+  LogEntry("Doing validation checks")
+
+
+  strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
+
+  if objFileOut is not None:
+    objFileOut.close()
+    print("objFileOut closed")
+  else:
+    print("objFileOut is not defined yet")
+
+  LogEntry("Done! Output saved to {}".format(strFileOut))
+  objLogOut.close()
+
+if __name__ == '__main__':
+    main()
