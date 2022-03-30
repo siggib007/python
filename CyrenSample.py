@@ -231,6 +231,23 @@ def processConf(strConf_File):
   LogEntry("Done processing configuration, moving on")
   return dictConfig
 
+
+def ResponseParsing(APIResponse):
+  strReturn = ""
+  if "urls" in APIResponse:
+      if isinstance(APIResponse["urls"], list):
+        for dictURLs in APIResponse["urls"]:
+          strURL = dictURLs["url"]
+          strCategory = dictURLs["categoryNames"]
+          strReturn += "{},{}\n".format(strURL, strCategory)
+  if "url" in APIResponse:
+    dictURLs = APIResponse
+    strURL = dictURLs["url"]
+    strCategory = dictURLs["categoryNames"]
+    strReturn += "{},{}\n".format(strURL, strCategory)
+  
+  return strReturn
+
 def main():
   global strFileOut
   global objFileOut
@@ -357,6 +374,12 @@ def main():
   else:
     strInfile = ""
 
+  if "Outfile" in dictConfig:
+    strOutfile = dictConfig["Outfile"]
+  else:
+    strOutfile = "URLRated.csv"
+
+
   if "URLList" in dictConfig:
     strURLList = dictConfig["URLList"]
   else:
@@ -371,7 +394,7 @@ def main():
     print(
         "\nPath '{0}' for ouput files didn't exists, so I create it!\n".format(strOutDir))
 
-  strFileOut = strOutDir + "URLRated.csv"
+  strFileOut = strOutDir + strOutfile
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -383,9 +406,20 @@ def main():
     LogEntry("unable to open output file {} for writing, "
              "Issue with the path".format(strFileOut), True)
 
+  strRawOut = strOutDir + "RawOut.json"
+  LogEntry("Output will be written to {}".format(strFileOut))
+
+  try:
+    objRawOut = open(strRawOut, "w", encoding='utf8')
+  except PermissionError:
+    LogEntry("unable to open raw output file {} for writing, "
+             "permission denied.".format(strFileOut), True)
+  except FileNotFoundError:
+    LogEntry("unable to open raw output file {} for writing, "
+             "Issue with the path".format(strFileOut), True)
+
   # actual work happens here
 
-  dictBody = {}
   if strInfile == "" and strURLList == "":
     LogEntry("Both infile and URL list are empty, nothing to process, exiting!",True)
   
@@ -401,27 +435,29 @@ def main():
       except FileNotFoundError:
         LogEntry("unable to open input file {} for reading, "
                 "File not found".format(strInfile), True)
-      lstURL = objFileIn.readlines()
+      lstURL = objFileIn.read().splitlines()
     else:
       LogEntry("file {} does not exists, need a valid file to continue".format(strInfile),True)
 
-  if len(lstURL) >= iBatchSize:
-    LogEntry("to large of batch",True)
+  dictBody = {}
+  iIndex = 0
+  strFileHead = "URL,Category\n"
+  objFileOut.write(strFileHead)
+  while iIndex < len(lstURL):
+    if len(lstURL) == 1:
+      strAPIFunc = "api/v1/free/url"
+      dictBody["url"] = lstURL[0]
+    else:
+      strAPIFunc = "api/v1/free/urls-list"
+      dictBody["urls"] = lstURL[iIndex:iIndex + iBatchSize]
+    strMethod = "post"
+    strURL = strBaseURL + "/" + strAPIFunc
+    APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictBody)
+    LogEntry("\n{}".format(APIResponse), False)
+    objRawOut.write(json.dumps(APIResponse))
+    objFileOut.write (ResponseParsing(APIResponse))
+    iIndex += iBatchSize
 
-  if len(lstURL) == 1:
-    strAPIFunc = "api/v1/free/url"
-    dictBody["url"] = lstURL[0]
-  else:
-    strAPIFunc = "api/v1/free/urls-list"
-    dictBody["urls"] = lstURL
-
-  strMethod = "post"
-  strURL = strBaseURL + "/" + strAPIFunc
-  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictBody)
-  LogEntry("\n{}".format(APIResponse), False)
-  # objFileOut.write(json.dumps(APIResponse))
-
-  # ResponseParsing(APIResponse)
   # Closing thing out
 
   if objFileOut is not None:
