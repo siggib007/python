@@ -252,8 +252,6 @@ def main():
   iTimeOut = 120 # Max time in seconds to wait for network response
   iMinQuiet = 2 # Minimum time in seconds between API calls
   iMinScriptQuiet = 0 # Minimum time in minutes the script needs to be quiet before run again
-  iSecSleep = 60 # Time to wait between check if ready
-  iLastDays = 1  # Default number of days in the past. ex Last 1 day.
   iBatchSize = 100 # Default API Batch size
   
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
@@ -301,7 +299,9 @@ def main():
   dictConfig = processConf(strConf_File)
 
   if "AccessKey" in dictConfig:
-    strAPIKey = dictConfig["AccessKey"]
+    strHeader = {
+        'Content-type': 'application/json',
+        'authorization': 'Bearer ' + dictConfig["AccessKey"]}
   else:
     LogEntry("API Keys not provided, exiting.",True)
 
@@ -341,28 +341,26 @@ def main():
     else:
       LogEntry("Invalid timeout, setting to defaults of {}".format(iTimeOut))
 
-  if "SecondsBeetweenChecks" in dictConfig:
-    if isInt(dictConfig["SecondsBeetweenChecks"]):
-      iSecSleep = int(dictConfig["SecondsBeetweenChecks"])
-    else:
-      LogEntry("Invalid sleep time, setting to defaults of {}".format(iSecSleep))
-
   if "MinQuiet" in dictConfig:
     if isInt(dictConfig["MinQuiet"]):
       iMinQuiet = int(dictConfig["MinQuiet"])
     else:
       LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinQuiet))
 
-  if "MinQuietTime" in dictConfig:
-    if isInt(dictConfig["MinQuietTime"]):
-      iMinScriptQuiet = int(dictConfig["MinQuietTime"])
-    else:
-      LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinScriptQuiet))
-
   if "OutDir" in dictConfig:
     strOutDir = dictConfig["OutDir"]
   else:
     strOutDir = ""
+
+  if "Infile" in dictConfig:
+    strInfile = dictConfig["Infile"]
+  else:
+    strInfile = ""
+
+  if "URLList" in dictConfig:
+    strURLList = dictConfig["URLList"]
+  else:
+    strURLList = ""
 
   strOutDir = strOutDir.replace("\\", "/")
   if strOutDir[-1:] != "/":
@@ -373,7 +371,7 @@ def main():
     print(
         "\nPath '{0}' for ouput files didn't exists, so I create it!\n".format(strOutDir))
 
-  strFileOut = strOutDir + "apigetcves.json"
+  strFileOut = strOutDir + "URLRated.csv"
   LogEntry("Output will be written to {}".format(strFileOut))
 
   try:
@@ -387,24 +385,44 @@ def main():
 
   # actual work happens here
 
-  oStart = ""
+  dictBody = {}
+  if strInfile == "" and strURLList == "":
+    LogEntry("Both infile and URL list are empty, nothing to process, exiting!",True)
+  
+  if strURLList != "":
+    lstURL = strURLList.split(",")
+  else:
+    if os.path.exists(strInfile):
+      try:
+        objFileIn = open(strInfile,"r")
+      except PermissionError:
+        LogEntry("unable to open input file {} for reading, "
+                "permission denied.".format(strInfile), True)
+      except FileNotFoundError:
+        LogEntry("unable to open input file {} for reading, "
+                "File not found".format(strInfile), True)
+      lstURL = objFileIn.readlines()
+    else:
+      LogEntry("file {} does not exists, need a valid file to continue".format(strInfile),True)
 
-  iResultCount = 1
-  strMethod = "get"
-  dictParams = {}
-  dictParams["apiKey"] = strAPIKey
-  dictParams["resultsPerPage"] = iBatchSize
-  strQueryParam = urlparse.urlencode(dictParams)
-  strURL = strBaseURL + "?" + strQueryParam
-  APIResponse = MakeAPICall(strURL,"",strMethod)
-  objFileOut.write(json.dumps(APIResponse))
+  if len(lstURL) >= iBatchSize:
+    LogEntry("to large of batch",True)
+
+  if len(lstURL) == 1:
+    strAPIFunc = "api/v1/free/url"
+    dictBody["url"] = lstURL[0]
+  else:
+    strAPIFunc = "api/v1/free/urls-list"
+    dictBody["urls"] = lstURL
+
+  strMethod = "post"
+  strURL = strBaseURL + "/" + strAPIFunc
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictBody)
+  LogEntry("\n{}".format(APIResponse), False)
+  # objFileOut.write(json.dumps(APIResponse))
 
   # ResponseParsing(APIResponse)
   # Closing thing out
-  LogEntry("Doing validation checks")
-
-
-  strdbNow = time.strftime("%Y-%m-%d %H:%M:%S")
 
   if objFileOut is not None:
     objFileOut.close()
