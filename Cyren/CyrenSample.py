@@ -199,16 +199,20 @@ def processConf(strConf_File):
 
 def ResponseParsing(APIResponse, dictCategories):
   strReturn = ""
-  iScore = 9999
   if "urls" in APIResponse:
       if isinstance(APIResponse["urls"], list):
         for dictURLs in APIResponse["urls"]:
+          iScore = 9999
+          strType = "undetermined"
           strURL = dictURLs["url"]
           strCategory = "|".join (dictURLs["categoryNames"])
-          for strCatgory in dictURLs["categoryNames"]:
-            if dictCategories[strCategory]["score"] < iScore:
-              iScore = dictCategories[strCategory]["score"]
-              strType = dictCategories[strCategory]["Type"]
+          for strCatItem in dictURLs["categoryNames"]:
+            if strCatItem in dictCategories:
+              if isInt(dictCategories[strCatItem]["Score"]):
+                iTemp = int(dictCategories[strCatItem]["Score"])
+                if iTemp < iScore:
+                  iScore = dictCategories[strCatItem]["Score"]
+                  strType = dictCategories[strCatItem]["Type"]
           strReturn += "{},{},{},{}\n".format(strURL, strCategory,strType,iScore)
   if "url" in APIResponse:
     dictURLs = APIResponse
@@ -403,7 +407,7 @@ def main():
              "Issue with the path".format(strFileOut), True)
 
   strRawOut = strOutDir + "RawOut.json"
-  LogEntry("Output will be written to {}".format(strFileOut))
+  LogEntry("Raw Output will be written to {}".format(strRawOut))
 
   try:
     objRawOut = open(strRawOut, "w", encoding='utf8')
@@ -437,7 +441,7 @@ def main():
 
   dictBody = {}
   iIndex = 0
-  strFileHead = "URL,Category\n"
+  strFileHead = "URL,Category,Type,Score\n"
   objFileOut.write(strFileHead)
   while iIndex < len(lstURL):
     if len(lstURL) == 1:
