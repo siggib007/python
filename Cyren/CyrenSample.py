@@ -82,16 +82,6 @@ def LogEntry(strMsg,bAbort=False):
     SendNotification("{} on {}: {}".format (strScriptName,strScriptHost,strMsg[:99]))
     CleanExit("")
 
-def isFloat(fValue):
-  if isinstance(fValue, (float, int, str)):
-    try:
-      fTemp = float(fValue)
-    except ValueError:
-      fTemp = "NULL"
-  else:
-    fTemp = "NULL"
-  return fTemp != "NULL"
-
 def isInt(CheckValue):
   # function to safely check if a value can be interpreded as an int
   if isinstance(CheckValue,int):
@@ -103,28 +93,6 @@ def isInt(CheckValue):
       return False
   else:
     return False
-
-def ConvertFloat(fValue):
-  if isinstance(fValue,(float,int,str)):
-    try:
-      fTemp = float(fValue)
-    except ValueError:
-      fTemp = "NULL"
-  else:
-    fTemp = "NULL"
-  return fTemp
-
-def QDate2DB(strDate):
-  strTemp = strDate.replace("T"," ")
-  return strTemp.replace("Z","")
-
-def formatUnixDate(iDate):
-  structTime = time.localtime(iDate)
-  return time.strftime(strFormat,structTime)
-
-def TitleCase(strConvert):
-  strTemp = strConvert.replace("_", " ")
-  return strTemp.title()
 
 def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
@@ -229,14 +197,19 @@ def processConf(strConf_File):
   LogEntry("Done processing configuration, moving on")
   return dictConfig
 
-def ResponseParsing(APIResponse):
+def ResponseParsing(APIResponse, dictCategories):
   strReturn = ""
+  iScore = 9999
   if "urls" in APIResponse:
       if isinstance(APIResponse["urls"], list):
         for dictURLs in APIResponse["urls"]:
           strURL = dictURLs["url"]
           strCategory = "|".join (dictURLs["categoryNames"])
-          strReturn += "{},{}\n".format(strURL, strCategory)
+          for strCatgory in dictURLs["categoryNames"]:
+            if dictCategories[strCategory]["score"] < iScore:
+              iScore = dictCategories[strCategory]["score"]
+              strType = dictCategories[strCategory]["Type"]
+          strReturn += "{},{},{},{}\n".format(strURL, strCategory,strType,iScore)
   if "url" in APIResponse:
     dictURLs = APIResponse
     strURL = dictURLs["url"]
@@ -244,6 +217,32 @@ def ResponseParsing(APIResponse):
     strReturn += "{},{}\n".format(strURL, strCategory)
   
   return strReturn
+
+def LoadCategories(strCategories):
+  dictReturn = {}
+  if os.path.exists(strCategories):
+    try:
+      objCategories = open(strCategories, "r")
+    except PermissionError:
+      LogEntry("unable to open input file {} for reading, "
+                "permission denied.".format(strCategories), True)
+    except FileNotFoundError:
+      LogEntry("unable to open input file {} for reading, "
+                "File not found".format(strCategories), True)
+    lstCategories = objCategories.read().splitlines()
+    objCategories.close()
+  else:
+    LogEntry("Provided path for categories file is not valid: {}".format(strCategories))
+    return dictReturn
+  
+  for strLine in lstCategories:
+    if strLine != "Category,Type,score":
+      lstLineParts = strLine.split(",")
+      dictReturn[lstLineParts[0]] = {}
+      dictReturn[lstLineParts[0]]["Type"] = lstLineParts[1]
+      dictReturn[lstLineParts[0]]["Score"] = lstLineParts[2]
+
+  return dictReturn
 
 def main():
   global strFileOut
@@ -254,7 +253,6 @@ def main():
   global strBaseDir
   global strBaseURL
   global dictConfig
-  global strFormat
   global bNotifyEnabled
   global iMinQuiet
   global iTimeOut
@@ -272,7 +270,6 @@ def main():
   localtime = time.localtime(time.time())
   gmt_time = time.gmtime()
   iGMTOffset = (time.mktime(localtime) - time.mktime(gmt_time))/3600
-  strFormat = "%Y-%m-%d %H:%M:%S"
   strFileOut = None
   bNotifyEnabled = False
 
@@ -330,6 +327,7 @@ def main():
     strBaseURL = dictConfig["APIBaseURL"]
   else:
     CleanExit("No Base API provided")
+
   if strBaseURL[-1:] != "/":
     strBaseURL += "/"
 
@@ -339,9 +337,6 @@ def main():
       bNotifyEnabled = True
     else:
       bNotifyEnabled = False
-
-  if "DateTimeFormat" in dictConfig:
-    strFormat = dictConfig["DateTimeFormat"]
 
   if "BatchSize" in dictConfig:
     if isInt(dictConfig["BatchSize"]):
@@ -376,6 +371,10 @@ def main():
   else:
     strOutfile = "URLRated.csv"
 
+  if "Categories" in dictConfig:
+    dictCategories = LoadCategories (dictConfig["Categories"])
+  else:
+    LogEntry("No category file specified, won't be able rate each URL")
 
   if "URLList" in dictConfig:
     strURLList = dictConfig["URLList"]
@@ -452,7 +451,7 @@ def main():
     APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictBody)
     LogEntry("\n{}".format(APIResponse), False)
     objRawOut.write(json.dumps(APIResponse))
-    objFileOut.write (ResponseParsing(APIResponse))
+    objFileOut.write (ResponseParsing(APIResponse,dictCategories))
     iIndex += iBatchSize
 
   # Closing thing out
