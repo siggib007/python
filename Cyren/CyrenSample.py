@@ -217,10 +217,21 @@ def ResponseParsing(APIResponse, dictCategories):
               strURL, strCategory, strType, iScore, strDelim)
   if "url" in APIResponse:
     dictURLs = APIResponse
+    iScore = 9999
+    strType = "undetermined"
+
     strURL = dictURLs["url"]
-    strCategory = dictURLs["categoryNames"]
-    strReturn += "{},{}\n".format(strURL, strCategory)
-  
+    strCategory = strDelim2.join(dictURLs["categoryNames"])
+    for strCatItem in dictURLs["categoryNames"]:
+      if strCatItem in dictCategories:
+        if isInt(dictCategories[strCatItem]["Score"]):
+          iTemp = int(dictCategories[strCatItem]["Score"])
+          if iTemp < iScore:
+            iScore = dictCategories[strCatItem]["Score"]
+            strType = dictCategories[strCatItem]["Type"]
+    strReturn += "{0}{4}{1}{4}{2}{4}{3}\n".format(
+        strURL, strCategory, strType, iScore, strDelim)
+
   return strReturn
 
 def LoadCategories(strCategories):
