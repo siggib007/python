@@ -211,7 +211,7 @@ def ResponseParsing(APIResponse, dictCategories):
               if isInt(dictCategories[strCatItem]["Score"]):
                 iTemp = int(dictCategories[strCatItem]["Score"])
                 if iTemp < iScore:
-                  iScore = dictCategories[strCatItem]["Score"]
+                  iScore = int(dictCategories[strCatItem]["Score"])
                   strType = dictCategories[strCatItem]["Type"]
           strReturn += "{0}{4}{1}{4}{2}{4}{3}\n".format(
               strURL, strCategory, strType, iScore, strDelim)
@@ -480,9 +480,12 @@ def main():
     strMethod = "post"
     strURL = strBaseURL + "/" + strAPIFunc
     APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictBody)
-    # LogEntry("\n{}".format(APIResponse), False)
     objRawOut.write(json.dumps(APIResponse))
-    objFileOut.write (ResponseParsing(APIResponse,dictCategories))
+    if isinstance(APIResponse,str):
+      objFileOut.write(APIResponse)
+      LogEntry("\n{}\n".format(APIResponse), True)
+    else:
+      objFileOut.write (ResponseParsing(APIResponse,dictCategories))
     iIndex += iBatchSize
 
   # Closing thing out
