@@ -205,7 +205,7 @@ def ResponseParsing(APIResponse, dictCategories):
           iScore = 9999
           strType = "undetermined"
           strURL = dictURLs["url"]
-          strCategory = "|".join (dictURLs["categoryNames"])
+          strCategory = strDelim2.join (dictURLs["categoryNames"])
           for strCatItem in dictURLs["categoryNames"]:
             if strCatItem in dictCategories:
               if isInt(dictCategories[strCatItem]["Score"]):
@@ -213,7 +213,8 @@ def ResponseParsing(APIResponse, dictCategories):
                 if iTemp < iScore:
                   iScore = dictCategories[strCatItem]["Score"]
                   strType = dictCategories[strCatItem]["Type"]
-          strReturn += "{},{},{},{}\n".format(strURL, strCategory,strType,iScore)
+          strReturn += "{0}{4}{1}{4}{2}{4}{3}\n".format(
+              strURL, strCategory, strType, iScore, strDelim)
   if "url" in APIResponse:
     dictURLs = APIResponse
     strURL = dictURLs["url"]
@@ -240,11 +241,12 @@ def LoadCategories(strCategories):
     return dictReturn
   
   for strLine in lstCategories:
-    if strLine != "Category,Type,score":
-      lstLineParts = strLine.split(",")
-      dictReturn[lstLineParts[0]] = {}
-      dictReturn[lstLineParts[0]]["Type"] = lstLineParts[1]
-      dictReturn[lstLineParts[0]]["Score"] = lstLineParts[2]
+    if strLine[:8] != "Category":
+      lstLineParts = strLine.split(strDelim)
+      if len(lstLineParts)>2:
+        dictReturn[lstLineParts[0]] = {}
+        dictReturn[lstLineParts[0]]["Type"] = lstLineParts[1]
+        dictReturn[lstLineParts[0]]["Score"] = lstLineParts[2]
 
   return dictReturn
 
@@ -263,12 +265,16 @@ def main():
   global iMinScriptQuiet
   global iGMTOffset
   global iUpdateCount
+  global strDelim
+  global strDelim2
 
   #Define few Defaults
   iTimeOut = 120 # Max time in seconds to wait for network response
   iMinQuiet = 2 # Minimum time in seconds between API calls
   iMinScriptQuiet = 0 # Minimum time in minutes the script needs to be quiet before run again
   iBatchSize = 100 # Default API Batch size
+  strDelim = "!"  # Default delim character for CSV file
+  strDelim2 = ";"  # Default secondary delim character for CSV file for list within the list
   
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
   localtime = time.localtime(time.time())
@@ -375,6 +381,16 @@ def main():
   else:
     strOutfile = "URLRated.csv"
 
+  if "Delim" in dictConfig:
+    strDelim = dictConfig["Delim"]
+  else:
+    LogEntry("Missing Delim, setting to defaults of {}".format(strDelim))
+
+  if "Delim2" in dictConfig:
+    strDelim2 = dictConfig["Delim2"]
+  else:
+    LogEntry("Missing Delim2, setting to defaults of {}".format(strDelim))
+
   if "Categories" in dictConfig:
     dictCategories = LoadCategories (dictConfig["Categories"])
   else:
@@ -441,7 +457,7 @@ def main():
 
   dictBody = {}
   iIndex = 0
-  strFileHead = "URL,Category,Type,Score\n"
+  strFileHead = "URL{0}Category{0}Type{0}Score\n".format(strDelim)
   objFileOut.write(strFileHead)
   while iIndex < len(lstURL):
     if len(lstURL) == 1:
@@ -453,7 +469,7 @@ def main():
     strMethod = "post"
     strURL = strBaseURL + "/" + strAPIFunc
     APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictBody)
-    LogEntry("\n{}".format(APIResponse), False)
+    # LogEntry("\n{}".format(APIResponse), False)
     objRawOut.write(json.dumps(APIResponse))
     objFileOut.write (ResponseParsing(APIResponse,dictCategories))
     iIndex += iBatchSize
