@@ -10,6 +10,8 @@ pip install jason
 
 '''
 # Import libraries
+from operator import truediv
+from pickle import TRUE
 import sys
 import requests
 import os
@@ -98,6 +100,7 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
 
   global tLastCall
   global iTotalSleep
+  global iStatusCode
 
   fTemp = time.time()
   fDelta = fTemp - tLastCall
@@ -135,11 +138,12 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
     iErrText = "response is unknown type"
 
   LogEntry("call resulted in status code {}".format(WebRequest.status_code))
-  if WebRequest.status_code != 200:
-    iErrCode = WebRequest.status_code
-    iErrText = WebRequest.text
+  iStatusCode = int(WebRequest.status_code)
+  # if WebRequest.status_code != 200:
+  #   iErrCode = WebRequest.status_code
+  #   iErrText = WebRequest.text
 
-  if iErrCode != "" or WebRequest.status_code !=200:
+  if iErrCode != "" :
     return "There was a problem with your request. Error {}: {}".format(iErrCode,iErrText)
   else:
     try:
@@ -199,6 +203,8 @@ def processConf(strConf_File):
 
 def ResponseParsing(APIResponse, dictCategories):
   strReturn = ""
+  if "error" in APIResponse:
+    return "Error {}. {}".format(iStatusCode,APIResponse["error"])
   if "urls" in APIResponse:
       if isinstance(APIResponse["urls"], list):
         for dictURLs in APIResponse["urls"]:
@@ -481,11 +487,10 @@ def main():
     strURL = strBaseURL + "/" + strAPIFunc
     APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictBody)
     objRawOut.write(json.dumps(APIResponse))
-    if isinstance(APIResponse,str):
-      objFileOut.write(APIResponse)
-      LogEntry("\n{}\n".format(APIResponse), True)
-    else:
-      objFileOut.write (ResponseParsing(APIResponse,dictCategories))
+    objFileOut.write (ResponseParsing(APIResponse,dictCategories))
+    if "error" in APIResponse:
+      LogEntry ("Error {}. {}".format(iStatusCode, APIResponse["error"]),TRUE)
+
     iIndex += iBatchSize
 
   # Closing thing out
