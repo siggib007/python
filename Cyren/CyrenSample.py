@@ -117,13 +117,14 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
   iErrCode = ""
   iErrText = ""
 
-  LogEntry("Doing a {} to URL: \n {}\n".format(strMethod,strURL))
+  LogEntry("Doing a {} to URL: {}".format(strMethod,strURL))
   try:
     if strMethod.lower() == "get":
       WebRequest = requests.get(strURL, headers=strHeader, verify=False)
       LogEntry("get executed")
     if strMethod.lower() == "post":
       if dictPayload != "":
+        LogEntry("with payload of: {}".format(dictPayload))
         WebRequest = requests.post(strURL, json= dictPayload, headers=strHeader, verify=False)
       else:
         WebRequest = requests.post(strURL, headers=strHeader, verify=False)
@@ -484,7 +485,7 @@ def main():
       strAPIFunc = "api/v1/free/urls-list"
       dictBody["urls"] = lstURL[iIndex:iIndex + iBatchSize]
     strMethod = "post"
-    strURL = strBaseURL + "/" + strAPIFunc
+    strURL = strBaseURL + strAPIFunc
     APIResponse = MakeAPICall(strURL, strHeader, strMethod, dictBody)
     objRawOut.write(json.dumps(APIResponse))
     objFileOut.write (ResponseParsing(APIResponse,dictCategories))
