@@ -541,7 +541,7 @@ def main():
       LogEntry("Error {}. {}".format(iStatusCode, APIResponse["exp"]), True)
     if "message" in APIResponse:
       LogEntry("Error {}. {}".format(
-          iStatusCode, APIResponse["message"]), TRUE)
+          iStatusCode, APIResponse["message"]), True)
 
     if "url" not in APIResponse and "urls" not in APIResponse:
       LogEntry("Unexpected response format and couldn't parse it. Check raw file at {} for details.".format(
