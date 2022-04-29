@@ -94,7 +94,8 @@ def isInt(CheckValue):
   else:
     return False
 
-def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
+
+def MakeAPICall(strURL, strHeader, strMethod, dictPayload="", strUser="", strPWD=""):
 
   global tLastCall
   global iTotalSleep
@@ -118,7 +119,14 @@ def MakeAPICall(strURL, strHeader, strMethod,  dictPayload=""):
   LogEntry("Doing a {} to URL: {}".format(strMethod,strURL))
   try:
     if strMethod.lower() == "get":
-      WebRequest = requests.get(strURL, headers=strHeader, verify=False)
+      if strUser != "":
+        LogEntry("I have none blank credentials so I'm doing basic auth")
+        # WebRequest = requests.get(strURL, headers=dictHeader, auth=(strUser, strPWD))
+        WebRequest = requests.get(
+            strURL, timeout=iTimeOut, headers=strHeader, auth=(strUser, strPWD))
+      else:
+        LogEntry("credentials are blank, proceeding without auth")
+        WebRequest = requests.get(strURL, headers=strHeader, verify=False)
       LogEntry("get executed")
     if strMethod.lower() == "post":
       if dictPayload != "":
@@ -415,8 +423,8 @@ def main():
   else:
     CleanExit("No Doppler key provided")
 
-  if "DopplerKey" in dictConfig:
-    strDopplerKey = dictConfig["DopplerKey"]
+  if "DopplerProject" in dictConfig:
+    strDopplerProject = dictConfig["DopplerProject"]
   else:
     CleanExit("No Doppler key provided")
 
@@ -424,22 +432,16 @@ def main():
     strDopplerConfig = dictConfig["DopplerConfig"]
   else:
     CleanExit("No Doppler key provided")
-
-  if "DopplerConfig" in dictConfig:
-    strDopplerConfig = dictConfig["DopplerConfig"]
-  else:
-    CleanExit("No Doppler config provided")
 
   if "DopplerURL" in dictConfig:
     strDopplerURL = dictConfig["DopplerURL"]
   else:
     CleanExit("No Doppler URL provided")
 
-  strAPIKey =""
   strHeader = {
       'Content-type': 'application/json',
-      'authorization': 'Bearer ' + strAPIKey}
-
+      'Accept': 'application/json'
+      }
 
   strOutDir = strOutDir.replace("\\", "/")
   if strOutDir[-1:] != "/":
@@ -473,6 +475,28 @@ def main():
   except FileNotFoundError:
     LogEntry("unable to open raw output file {} for writing, "
              "Issue with the path".format(strFileOut), True)
+
+
+  #fetching secrets in doppler
+  strMethod = "get"
+  dictParams = {}
+  dictParams["project"] = strDopplerProject
+  dictParams["config"] = strDopplerConfig
+  dictParams["name"] = "APIKEY"
+
+  strQueryParam = urlparse.urlencode(dictParams)
+  strURL = strDopplerURL + "?" + strQueryParam
+  APIResponse = MakeAPICall(strURL, strHeader, strMethod,"",strDopplerKey)
+  if "value" in APIResponse:
+    if "raw" in APIResponse["value"]:
+      strAPIKey = APIResponse["value"]["raw"]
+    else:
+      LogEntry("No raw entry in response from Doppler, freaking out and bailing",True)
+  else:
+    LogEntry("No value entry in response from Doppler, freaking out and bailing", True)
+  strHeader = {
+      'Content-type': 'application/json',
+      'authorization': 'Bearer ' + strAPIKey}
 
   # actual work happens here
 
