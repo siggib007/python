@@ -491,6 +491,8 @@ def main():
     objFileOut.write (ResponseParsing(APIResponse,dictCategories))
     if "error" in APIResponse:
       LogEntry ("Error {}. {}".format(iStatusCode, APIResponse["error"]),TRUE)
+    if "exp" in APIResponse:
+      LogEntry("Error {}. {}".format(iStatusCode, APIResponse["exp"]), TRUE)
 
     iIndex += iBatchSize
 
