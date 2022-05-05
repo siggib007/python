@@ -31,39 +31,10 @@ iEntryID = 0
 iRowNum = 1
 iUpdateCount = 0
 
-
-def SendNotification(strMsg):
-  if not bNotifyEnabled:
-    return "notifications not enabled"
-  dictNotify = {}
-  dictNotify["token"] = dictConfig["NotifyToken"]
-  dictNotify["channel"] = dictConfig["NotifyChannel"]
-  dictNotify["text"]=strMsg[:199]
-  strNotifyParams = urlparse.urlencode(dictNotify)
-  strURL = dictConfig["NotificationURL"] + "?" + strNotifyParams
-  bStatus = False
-  try:
-    WebRequest = requests.get(strURL,timeout=iTimeOut)
-  except Exception as err:
-    LogEntry("Issue with sending notifications. {}".format(err))
-  if isinstance(WebRequest,requests.models.Response)==False:
-    LogEntry("response is unknown type")
-  else:
-    dictResponse = json.loads(WebRequest.text)
-    if isinstance(dictResponse,dict):
-      if "ok" in dictResponse:
-        bStatus = dictResponse["ok"]
-        LogEntry("Successfully sent slack notification\n{} ".format(strMsg))
-    if not bStatus or WebRequest.status_code != 200:
-      LogEntry("Problme: Status Code:[] API Response OK={}")
-      LogEntry(WebRequest.text)
-
 def CleanExit(strCause):
   global dbConn
   if strCause != "":
     LogEntry("{} is exiting abnormally on {}: {}".format (strScriptName,strScriptHost,strCause))
-  SendNotification("{} is exiting abnormally on {} {}".format(strScriptName,
-    strScriptHost, strCause))
 
   objLogOut.close()
   print("objLogOut closed")
@@ -79,7 +50,6 @@ def LogEntry(strMsg,bAbort=False):
   objLogOut.write("{0} : {1}\n".format(strTimeStamp,strMsg))
   print(strMsg)
   if bAbort:
-    SendNotification("{} on {}: {}".format (strScriptName,strScriptHost,strMsg[:99]))
     CleanExit("")
 
 def isInt(CheckValue):
@@ -93,7 +63,6 @@ def isInt(CheckValue):
       return False
   else:
     return False
-
 
 def MakeAPICall(strURL, strHeader, strMethod, dictPayload="", strUser="", strPWD=""):
 
@@ -158,55 +127,6 @@ def MakeAPICall(strURL, strHeader, strMethod, dictPayload="", strUser="", strPWD
     except Exception as err:
       LogEntry("Issue with converting response to json. "
         "Here are the first 99 character of the response: {}".format(WebRequest.text[:99]))
-
-def processConf(strConf_File):
-
-  LogEntry("Looking for configuration file: {}".format(strConf_File))
-  if os.path.isfile(strConf_File):
-    LogEntry("Configuration File exists")
-  else:
-    LogEntry("Can't find configuration file {}, make sure it is the same directory "
-      "as this script and named the same with ini extension".format(strConf_File))
-    LogEntry("{} on {}: Exiting.".format (strScriptName,strScriptHost),True)
-
-  strLine = "  "
-  dictConfig = {}
-  LogEntry("Reading in configuration")
-  objINIFile = open(strConf_File, "r", encoding='utf8')
-  strLines = objINIFile.readlines()
-  objINIFile.close()
-
-  for strLine in strLines:
-    strLine = strLine.strip()
-    iCommentLoc = strLine.find("#")
-    if iCommentLoc > -1:
-      strLine = strLine[:iCommentLoc].strip()
-    else:
-      strLine = strLine.strip()
-    if "=" in strLine:
-      strConfParts = strLine.split("=")
-      strVarName = strConfParts[0].strip()
-      strValue = strConfParts[1].strip()
-      dictConfig[strVarName] = strValue
-      if strVarName == "include":
-        LogEntry("Found include directive: {}".format(strValue))
-        strValue = strValue.replace("\\","/")
-        if strValue[:1] == "/" or strValue[1:3] == ":/":
-          LogEntry("include directive is absolute path, using as is")
-        else:
-          strValue = strBaseDir + strValue
-          LogEntry("include directive is relative path,"
-            " appended base directory. {}".format(strValue))
-        if os.path.isfile(strValue):
-          LogEntry("file is valid")
-          objINIFile = open(strValue,"r")
-          strLines += objINIFile.readlines()
-          objINIFile.close()
-        else:
-          LogEntry("invalid file in include directive")
-
-  LogEntry("Done processing configuration, moving on")
-  return dictConfig
 
 def ResponseParsing(APIResponse, dictCategories):
   strReturn = ""
@@ -282,8 +202,6 @@ def main():
   global strScriptHost
   global strBaseDir
   global strBaseURL
-  global dictConfig
-  global bNotifyEnabled
   global iMinQuiet
   global iTimeOut
   global iMinScriptQuiet
@@ -305,7 +223,6 @@ def main():
   gmt_time = time.gmtime()
   iGMTOffset = (time.mktime(localtime) - time.mktime(gmt_time))/3600
   strFileOut = None
-  bNotifyEnabled = False
 
   strBaseDir = os.path.dirname(sys.argv[0])
   strRealPath = os.path.realpath(sys.argv[0])
@@ -318,9 +235,6 @@ def main():
   strLogDir  = strBaseDir + "Logs/"
   if strLogDir[-1:] != "/":
     strLogDir += "/"
-
-  iLoc = sys.argv[0].rfind(".")
-  strConf_File = sys.argv[0][:iLoc] + ".ini"
 
   if not os.path.exists (strLogDir) :
     os.makedirs(strLogDir)
@@ -341,102 +255,39 @@ def main():
   objLogOut = open(strLogFile,"w",1)
   objFileOut = None
 
-  dictConfig = processConf(strConf_File)
-
-  if "NotifyToken" in dictConfig and "NotifyChannel" in dictConfig and "NotificationURL" in dictConfig:
-    bNotifyEnabled = True
-  else:
-    bNotifyEnabled = False
-    LogEntry("Missing configuration items for Slack notifications, "
-      "turning slack notifications off")
-
-  if "APIBaseURL" in dictConfig:
-    strBaseURL = dictConfig["APIBaseURL"]
+  #fetching secrets in doppler
+  if os.getenv("APIBASEURL") != "":
+    strBaseURL = os.getenv("APIBASEURL")
   else:
     CleanExit("No Base API provided")
 
   if strBaseURL[-1:] != "/":
     strBaseURL += "/"
 
-  if "NotifyEnabled" in dictConfig:
-    if dictConfig["NotifyEnabled"].lower() == "yes" \
-      or dictConfig["NotifyEnabled"].lower() == "true":
-      bNotifyEnabled = True
-    else:
-      bNotifyEnabled = False
-
-  if "BatchSize" in dictConfig:
-    if isInt(dictConfig["BatchSize"]):
-      iBatchSize = int(dictConfig["BatchSize"])
+  if os.getenv("BATCHSIZE") != "":
+    if isInt(os.getenv("BATCHSIZE")):
+      iBatchSize = int(os.getenv("BATCHSIZE"))
     else:
       LogEntry("Invalid BatchSize, setting to defaults of {}".format(iBatchSize))
 
-  if "TimeOut" in dictConfig:
-    if isInt(dictConfig["TimeOut"]):
-      iTimeOut = int(dictConfig["TimeOut"])
+  if os.getenv("TIMEOUT") != "":
+    if isInt(os.getenv("TIMEOUT")):
+      iTimeOut = int(os.getenv("TIMEOUT"))
     else:
       LogEntry("Invalid timeout, setting to defaults of {}".format(iTimeOut))
 
-  if "MinQuiet" in dictConfig:
-    if isInt(dictConfig["MinQuiet"]):
-      iMinQuiet = int(dictConfig["MinQuiet"])
+  if os.getenv("MINQUIET") != "":
+    if isInt(os.getenv("MINQUIET")):
+      iMinQuiet = int(os.getenv("MINQUIET"))
     else:
       LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinQuiet))
 
-  if "OutDir" in dictConfig:
-    strOutDir = dictConfig["OutDir"]
-  else:
-    strOutDir = ""
-
-  if "Infile" in dictConfig:
-    strInfile = dictConfig["Infile"]
-  else:
-    strInfile = ""
-
-  if "Outfile" in dictConfig:
-    strOutfile = dictConfig["Outfile"]
-  else:
-    strOutfile = "URLRated.csv"
-
-  if "Delim" in dictConfig:
-    strDelim = dictConfig["Delim"]
-  else:
-    LogEntry("Missing Delim, setting to defaults of {}".format(strDelim))
-
-  if "Delim2" in dictConfig:
-    strDelim2 = dictConfig["Delim2"]
-  else:
-    LogEntry("Missing Delim2, setting to defaults of {}".format(strDelim))
-
-  if "Categories" in dictConfig:
-    dictCategories = LoadCategories (dictConfig["Categories"])
-  else:
-    LogEntry("No category file specified, won't be able rate each URL")
-
-  if "URLList" in dictConfig:
-    strURLList = dictConfig["URLList"]
-  else:
-    strURLList = ""
-
-  if "DopplerKey" in dictConfig:
-    strDopplerKey = dictConfig["DopplerKey"]
-  else:
-    CleanExit("No Doppler key provided")
-
-  if "DopplerProject" in dictConfig:
-    strDopplerProject = dictConfig["DopplerProject"]
-  else:
-    CleanExit("No Doppler key provided")
-
-  if "DopplerConfig" in dictConfig:
-    strDopplerConfig = dictConfig["DopplerConfig"]
-  else:
-    CleanExit("No Doppler key provided")
-
-  if "DopplerURL" in dictConfig:
-    strDopplerURL = dictConfig["DopplerURL"]
-  else:
-    CleanExit("No Doppler URL provided")
+  strOutDir = os.getenv("OUTDIR")
+  strInfile = os.getenv("INFILE")
+  strOutfile = os.getenv("OUTFILE")
+  strDelim = os.getenv("DELIM")
+  strDelim2 = os.getenv("DELIM2")
+  dictCategories = os.getenv("CATEGORIES")
 
   strHeader = {
       'Content-type': 'application/json',
@@ -477,47 +328,23 @@ def main():
              "Issue with the path".format(strFileOut), True)
 
 
-  #fetching secrets in doppler
-  strMethod = "get"
-  dictParams = {}
-  dictParams["project"] = strDopplerProject
-  dictParams["config"] = strDopplerConfig
-  dictParams["name"] = "APIKEY"
-
-  strQueryParam = urlparse.urlencode(dictParams)
-  strURL = strDopplerURL + "?" + strQueryParam
-  APIResponse = MakeAPICall(strURL, strHeader, strMethod,"",strDopplerKey)
-  if "value" in APIResponse:
-    if "raw" in APIResponse["value"]:
-      strAPIKey = APIResponse["value"]["raw"]
-    else:
-      LogEntry("No raw entry in response from Doppler, freaking out and bailing",True)
-  else:
-    LogEntry("No value entry in response from Doppler, freaking out and bailing", True)
-  strHeader = {
-      'Content-type': 'application/json',
-      'authorization': 'Bearer ' + strAPIKey}
-
   # actual work happens here
 
-  if strInfile == "" and strURLList == "":
-    LogEntry("Both infile and URL list are empty, nothing to process, exiting!",True)
+  if strInfile == "" :
+    LogEntry("No infile specified, nothing to process, exiting!",True)
   
-  if strURLList != "":
-    lstURL = strURLList.split(",")
+  if os.path.exists(strInfile):
+    try:
+      objFileIn = open(strInfile,"r")
+    except PermissionError:
+      LogEntry("unable to open input file {} for reading, "
+              "permission denied.".format(strInfile), True)
+    except FileNotFoundError:
+      LogEntry("unable to open input file {} for reading, "
+              "File not found".format(strInfile), True)
+    lstURL = objFileIn.read().splitlines()
   else:
-    if os.path.exists(strInfile):
-      try:
-        objFileIn = open(strInfile,"r")
-      except PermissionError:
-        LogEntry("unable to open input file {} for reading, "
-                "permission denied.".format(strInfile), True)
-      except FileNotFoundError:
-        LogEntry("unable to open input file {} for reading, "
-                "File not found".format(strInfile), True)
-      lstURL = objFileIn.read().splitlines()
-    else:
-      LogEntry("file {} does not exists, need a valid file to continue".format(strInfile),True)
+    LogEntry("file {} does not exists, need a valid file to continue".format(strInfile),True)
 
   dictBody = {}
   iIndex = 0
