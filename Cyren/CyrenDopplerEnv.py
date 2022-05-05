@@ -277,13 +277,12 @@ def main():
   if os.getenv("OUTDIR") != "" and os.getenv("OUTDIR") is not None:
     strOutDir = os.getenv("OUTDIR")
   else:
-    strOutDir = "C:\\temp\cyren\\"
     LogEntry("No Outdir, set to default")
+
   if os.getenv("OUTFILE") != "" and os.getenv("OUTFILE") is not None:
     strOutfile = os.getenv("OUTFILE")
   else:
     LogEntry("No Outfile, set to default")
-    strOutfile = "URLResp.csv"
 
   if os.getenv("BATCHSIZE") != "":
     if isInt(os.getenv("BATCHSIZE")):
