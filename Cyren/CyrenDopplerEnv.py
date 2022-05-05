@@ -1,6 +1,7 @@
 '''
 Script that reads in a text file of URLs and uses Cyren's API to lookup the URL classification 
-to determine relative safety of the site
+to determine relative safety of the site.
+Uses Doppler Secrets manager for configuration items
 
 Author Siggi Bjarnason Copyright 2022
 
@@ -23,12 +24,23 @@ import platform
 
 requests.urllib3.disable_warnings()
 
+# Few globals
 tLastCall = 0
 iTotalSleep = 0
 iTotalCount = 0
 iEntryID = 0
 iRowNum = 1
 iUpdateCount = 0
+
+#Define few Defaults
+iTimeOut = 180  # Max time in seconds to wait for network response
+iMinQuiet = 2  # Minimum time in seconds between API calls
+iBatchSize = 10  # Default API Batch size
+strDelim = "!"  # Default delim character for CSV file
+strDelim2 = ";"  # Default secondary delim character for CSV file for list within the list
+
+
+#sub defs
 
 def CleanExit(strCause):
   global dbConn
@@ -208,13 +220,6 @@ def main():
   global strDelim
   global strDelim2
 
-  #Define few Defaults
-  iTimeOut = 180 # Max time in seconds to wait for network response
-  iMinQuiet = 2 # Minimum time in seconds between API calls
-  iBatchSize = 10 # Default API Batch size
-  strDelim = "!"  # Default delim character for CSV file
-  strDelim2 = ";"  # Default secondary delim character for CSV file for list within the list
-  
   ISO = time.strftime("-%Y-%m-%d-%H-%M-%S")
   localtime = time.localtime(time.time())
   gmt_time = time.gmtime()
@@ -253,6 +258,9 @@ def main():
   objFileOut = None
 
   #fetching secrets in doppler
+  strDelim = os.getenv("DELIM")
+  strDelim2 = os.getenv("DELIM2")
+
   if os.getenv("APIBASEURL") != "":
     strBaseURL = os.getenv("APIBASEURL")
   else:
@@ -307,10 +315,11 @@ def main():
   else:
     LogEntry("No infile specified, nothing to process, exiting!", True)
 
+  if os.getenv("CATEGORIES") != "" and os.getenv("CATEGORIES") is not None:
+    dictCategories = LoadCategories(os.getenv("CATEGORIES"))
+  else:
+    LogEntry("No category file specified, won't be able rate each URL")
   
-  strDelim = os.getenv("DELIM")
-  strDelim2 = os.getenv("DELIM2")
-  dictCategories = os.getenv("CATEGORIES")
 
   strHeader = {
       'Content-type': 'application/json',
