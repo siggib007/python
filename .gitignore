@@ -6,3 +6,5 @@
 Logs/
 *.zip
 *.bak
+!cyren/categories.csv
+!cyren/infile.txt

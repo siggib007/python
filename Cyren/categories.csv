@@ -1,0 +1,82 @@
+Category;Type;score
+Anonymizers;alert;1
+Botnets;alert;1
+Compromised;alert;1
+Cryptocurrency Mining;alert;1
+Malware;alert;1
+Network Errors;alert;1
+Parked Domains;alert;1
+Phishing & Fraud;alert;1
+Spam Sites;alert;1
+Suspected Malware;alert;1
+Suspected Phishing;alert;1
+Zero Day Malware;alert;1
+Zero Day Phishing;alert;1
+Advertisements & Pop-Ups;warn;2
+Alcohol & Tobacco;warn;2
+Arts;good;3
+Business;good;3
+Chat;warn;2
+Child Abuse Images;warn;2
+Child Inappropriate;warn;2
+Computers & Technology;good;3
+Criminal Activity;warn;2
+Cults;warn;2
+Dating & Personals;warn;2
+Download Sites;warn;2
+Education;good;3
+Entertainment;good;3
+Fashion & Beauty;good;3
+File Repository;warn;2
+Finance;good;3
+Forums & Newsgroups;good;3
+Gambling;warn;2
+Games;warn;2
+Gay or Lesbian or Bisexual;warn;2
+General;good;3
+Government;good;3
+Greeting Card;good;3
+Hacking;warn;2
+Hate & Intolerance;warn;2
+Health & Medicine;good;3
+Illegal Drugs;warn;2
+Illegal Software;warn;2
+Image Sharing;warn;2
+Information Security;good;3
+Instant Messaging;warn;2
+Job Search;warn;2
+Leisure & Recreation;good;3
+Lingerie & Swimsuits;warn;2
+Marijuana;warn;2
+Nature & Conservation;good;3
+News;good;3
+Non-Profit & NGOs;good;3
+Nudity;warn;2
+Peer-to-Peer;warn;2
+Personal Sites;good;3
+Politics & Law;good;3
+Pornography/Sexually Explicit;warn;2
+Private IP Addresses;good;3
+Professional Networking;good;3
+Real Estate;good;3
+Religion;good;3
+Restaurants & Dining;good;3
+School Cheating;warn;2
+Search Engines & Portals;good;3
+Self-Harm;warn;2
+Sex Education;warn;2
+Shopping;warn;2
+Social Networking;warn;2
+Sports;warn;2
+Streaming Media & Downloads;warn;2
+Tasteless;warn;2
+Translators;good;3
+Transportation;good;3
+Travel;good;3
+Violence;warn;2
+Weapons;warn;2
+Web-based Email;good;3
+Personal Storage;good;3
+Remote Access;warn;2
+Web Phone;good;3
+Web Meetings;good;3
