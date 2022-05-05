@@ -204,17 +204,15 @@ def main():
   global strBaseURL
   global iMinQuiet
   global iTimeOut
-  global iMinScriptQuiet
   global iGMTOffset
   global iUpdateCount
   global strDelim
   global strDelim2
 
   #Define few Defaults
-  iTimeOut = 120 # Max time in seconds to wait for network response
+  iTimeOut = 180 # Max time in seconds to wait for network response
   iMinQuiet = 2 # Minimum time in seconds between API calls
-  iMinScriptQuiet = 0 # Minimum time in minutes the script needs to be quiet before run again
-  iBatchSize = 100 # Default API Batch size
+  iBatchSize = 10 # Default API Batch size
   strDelim = "!"  # Default delim character for CSV file
   strDelim2 = ";"  # Default secondary delim character for CSV file for list within the list
   
@@ -269,18 +267,24 @@ def main():
       iBatchSize = int(os.getenv("BATCHSIZE"))
     else:
       LogEntry("Invalid BatchSize, setting to defaults of {}".format(iBatchSize))
+  else:
+    LogEntry("No BatchSize, setting to defaults of {}".format(iBatchSize))
 
   if os.getenv("TIMEOUT") != "":
     if isInt(os.getenv("TIMEOUT")):
       iTimeOut = int(os.getenv("TIMEOUT"))
     else:
       LogEntry("Invalid timeout, setting to defaults of {}".format(iTimeOut))
+  else:
+    LogEntry("no timeout, setting to defaults of {}".format(iBatchSize))
 
   if os.getenv("MINQUIET") != "":
     if isInt(os.getenv("MINQUIET")):
       iMinQuiet = int(os.getenv("MINQUIET"))
     else:
       LogEntry("Invalid MinQuiet, setting to defaults of {}".format(iMinQuiet))
+  else:
+    LogEntry("no MinQuiet, setting to defaults of {}".format(iBatchSize))
 
   strOutDir = os.getenv("OUTDIR")
   strInfile = os.getenv("INFILE")
