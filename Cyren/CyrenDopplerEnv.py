@@ -261,12 +261,12 @@ def main():
   strDelim = os.getenv("DELIM")
   strDelim2 = os.getenv("DELIM2")
 
-  if os.getenv("APIBASEURL") != "":
+  if os.getenv("APIBASEURL") != "" and os.getenv("APIBASEURL") is not None:
     strBaseURL = os.getenv("APIBASEURL")
   else:
     CleanExit("No Base API provided")
 
-  if os.getenv("APIKEY") != "":
+  if os.getenv("APIKEY") != "" and os.getenv("APIKEY") is not None:
     strAPIKey = os.getenv("APIKEY")
   else:
     CleanExit("No API key provided")
@@ -284,7 +284,7 @@ def main():
   else:
     LogEntry("No Outfile, set to default")
 
-  if os.getenv("BATCHSIZE") != "":
+  if os.getenv("BATCHSIZE") != "" and os.getenv("BATCHSIZE") is not None:
     if isInt(os.getenv("BATCHSIZE")):
       iBatchSize = int(os.getenv("BATCHSIZE"))
     else:
@@ -292,7 +292,7 @@ def main():
   else:
     LogEntry("No BatchSize, setting to defaults of {}".format(iBatchSize))
 
-  if os.getenv("TIMEOUT") != "":
+  if os.getenv("TIMEOUT") != "" and os.getenv("TIMEOUT") is not None:
     if isInt(os.getenv("TIMEOUT")):
       iTimeOut = int(os.getenv("TIMEOUT"))
     else:
@@ -300,7 +300,7 @@ def main():
   else:
     LogEntry("no timeout, setting to defaults of {}".format(iBatchSize))
 
-  if os.getenv("MINQUIET") != "":
+  if os.getenv("MINQUIET") != "" and os.getenv("MINQUIET") is not None:
     if isInt(os.getenv("MINQUIET")):
       iMinQuiet = int(os.getenv("MINQUIET"))
     else:
