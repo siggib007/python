@@ -259,6 +259,11 @@ def main():
   else:
     CleanExit("No Base API provided")
 
+  if os.getenv("APIKEY") != "":
+    strAPIKey = os.getenv("APIKEY")
+  else:
+    CleanExit("No API key provided")
+
   if strBaseURL[-1:] != "/":
     strBaseURL += "/"
 
@@ -286,6 +291,8 @@ def main():
   else:
     LogEntry("no MinQuiet, setting to defaults of {}".format(iBatchSize))
 
+  strOutDir = "C:\\temp\cyren\\"
+  strOutfile = "URLResp.csv"
   strOutDir = os.getenv("OUTDIR")
   strInfile = os.getenv("INFILE")
   strOutfile = os.getenv("OUTFILE")
@@ -295,7 +302,8 @@ def main():
 
   strHeader = {
       'Content-type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'authorization': 'Bearer ' + strAPIKey
       }
 
   strOutDir = strOutDir.replace("\\", "/")
