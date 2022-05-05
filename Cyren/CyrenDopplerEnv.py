@@ -14,7 +14,6 @@ import sys
 import requests
 import os
 import time
-import urllib.parse as urlparse
 import json
 import platform
 
@@ -267,6 +266,17 @@ def main():
   if strBaseURL[-1:] != "/":
     strBaseURL += "/"
 
+  if os.getenv("OUTDIR") != "" and os.getenv("OUTDIR") is not None:
+    strOutDir = os.getenv("OUTDIR")
+  else:
+    strOutDir = "C:\\temp\cyren\\"
+    LogEntry("No Outdir, set to default")
+  if os.getenv("OUTFILE") != "" and os.getenv("OUTFILE") is not None:
+    strOutfile = os.getenv("OUTFILE")
+  else:
+    LogEntry("No Outfile, set to default")
+    strOutfile = "URLResp.csv"
+
   if os.getenv("BATCHSIZE") != "":
     if isInt(os.getenv("BATCHSIZE")):
       iBatchSize = int(os.getenv("BATCHSIZE"))
@@ -291,11 +301,13 @@ def main():
   else:
     LogEntry("no MinQuiet, setting to defaults of {}".format(iBatchSize))
 
-  strOutDir = "C:\\temp\cyren\\"
-  strOutfile = "URLResp.csv"
-  strOutDir = os.getenv("OUTDIR")
-  strInfile = os.getenv("INFILE")
-  strOutfile = os.getenv("OUTFILE")
+
+  if os.getenv("INFILE") != "" and os.getenv("INFILE") is not None:
+    strInfile = os.getenv("INFILE")
+  else:
+    LogEntry("No infile specified, nothing to process, exiting!", True)
+
+  
   strDelim = os.getenv("DELIM")
   strDelim2 = os.getenv("DELIM2")
   dictCategories = os.getenv("CATEGORIES")
