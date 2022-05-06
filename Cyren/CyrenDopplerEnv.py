@@ -146,17 +146,20 @@ def ResponseParsing(APIResponse, dictCategories):
   if "urls" in APIResponse:
       if isinstance(APIResponse["urls"], list):
         for dictURLs in APIResponse["urls"]:
+          strURL = dictURLs["url"]
           iScore = 9999
           strType = "undetermined"
-          strURL = dictURLs["url"]
-          strCategory = strDelim2.join (dictURLs["categoryNames"])
-          for strCatItem in dictURLs["categoryNames"]:
-            if strCatItem in dictCategories:
-              if isInt(dictCategories[strCatItem]["Score"]):
-                iTemp = int(dictCategories[strCatItem]["Score"])
-                if iTemp < iScore:
-                  iScore = int(dictCategories[strCatItem]["Score"])
-                  strType = dictCategories[strCatItem]["Type"]
+          if "error" in dictURLs:
+            strCategory=dictURLs["error"]
+          else:
+            strCategory = strDelim2.join (dictURLs["categoryNames"])
+            for strCatItem in dictURLs["categoryNames"]:
+              if strCatItem in dictCategories:
+                if isInt(dictCategories[strCatItem]["Score"]):
+                  iTemp = int(dictCategories[strCatItem]["Score"])
+                  if iTemp < iScore:
+                    iScore = int(dictCategories[strCatItem]["Score"])
+                    strType = dictCategories[strCatItem]["Type"]
           strReturn += "{0}{4}{1}{4}{2}{4}{3}\n".format(
               strURL, strCategory, strType, iScore, strDelim)
   if "url" in APIResponse:
@@ -308,7 +311,6 @@ def main():
   else:
     LogEntry("no MinQuiet, setting to defaults of {}".format(iBatchSize))
 
-
   if os.getenv("INFILE") != "" and os.getenv("INFILE") is not None:
     strInfile = os.getenv("INFILE")
   else:
@@ -319,7 +321,6 @@ def main():
   else:
     LogEntry("No category file specified, won't be able rate each URL")
   
-
   strHeader = {
       'Content-type': 'application/json',
       'Accept': 'application/json',
