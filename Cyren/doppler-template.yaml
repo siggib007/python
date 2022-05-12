@@ -1,0 +1,21 @@
+projects:
+  - name: "cyren-demo"
+    environments:
+      - name: "Development"
+        slug: "dev"
+        configs:
+          - slug: "dev"
+          - slug: "dev_cyren"
+    secrets:
+      dev:
+        APIBASEURL: "https://api-url.cyren.com"
+        APIKEY: "your api key"
+        BATCHSIZE: "100"
+        CATEGORIES: "/home/ubuntu/cyren/categories.csv"
+        DELIM: ";"
+        DELIM2: "|"
+        INFILE: "/home/ubuntu/cyren/Infile.txt"
+        MINQUIET: "15"
+        OUTDIR: "/home/ubuntu/cyren"
+        OUTFILE: "URLResp.CSV"
+        TIMEOUT: "120"
