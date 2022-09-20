@@ -8,3 +8,4 @@ Logs/
 *.bak
 !cyren/categories.csv
 !cyren/infile.txt
+LICENSE
